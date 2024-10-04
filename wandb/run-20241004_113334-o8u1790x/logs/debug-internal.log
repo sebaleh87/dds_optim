@@ -1,0 +1,91 @@
+2024-10-04 11:33:34,334 INFO    StreamThr :2031635 [internal.py:wandb_internal():85] W&B internal server running at pid: 2031635, started at: 2024-10-04 11:33:34.332538
+2024-10-04 11:33:34,337 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: status
+2024-10-04 11:33:34,339 INFO    WriterThread:2031635 [datastore.py:open_for_write():87] open: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20241004_113334-o8u1790x/run-o8u1790x.wandb
+2024-10-04 11:33:34,347 DEBUG   SenderThread:2031635 [sender.py:send():391] send: header
+2024-10-04 11:33:34,420 DEBUG   SenderThread:2031635 [sender.py:send():391] send: run
+2024-10-04 11:33:34,981 INFO    SenderThread:2031635 [dir_watcher.py:__init__():211] watching files in: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20241004_113334-o8u1790x/files
+2024-10-04 11:33:34,981 INFO    SenderThread:2031635 [sender.py:_start_run_threads():1200] run started: o8u1790x with start time 1728034414.333454
+2024-10-04 11:33:35,019 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: run_start
+2024-10-04 11:33:35,069 DEBUG   HandlerThread:2031635 [system_info.py:__init__():26] System info init
+2024-10-04 11:33:35,070 DEBUG   HandlerThread:2031635 [system_info.py:__init__():41] System info init done
+2024-10-04 11:33:35,070 INFO    HandlerThread:2031635 [system_monitor.py:start():194] Starting system monitor
+2024-10-04 11:33:35,072 INFO    HandlerThread:2031635 [system_monitor.py:probe():214] Collecting system info
+2024-10-04 11:33:35,072 INFO    SystemMonitor:2031635 [system_monitor.py:_start():158] Starting system asset monitoring threads
+2024-10-04 11:33:35,075 INFO    SystemMonitor:2031635 [interfaces.py:start():188] Started cpu monitoring
+2024-10-04 11:33:35,077 INFO    SystemMonitor:2031635 [interfaces.py:start():188] Started disk monitoring
+2024-10-04 11:33:35,078 INFO    SystemMonitor:2031635 [interfaces.py:start():188] Started gpu monitoring
+2024-10-04 11:33:35,081 INFO    SystemMonitor:2031635 [interfaces.py:start():188] Started memory monitoring
+2024-10-04 11:33:35,085 INFO    SystemMonitor:2031635 [interfaces.py:start():188] Started network monitoring
+2024-10-04 11:33:35,175 DEBUG   HandlerThread:2031635 [system_info.py:probe():152] Probing system
+2024-10-04 11:33:35,259 DEBUG   HandlerThread:2031635 [gitlib.py:_init_repo():56] git repository is invalid
+2024-10-04 11:33:35,260 DEBUG   HandlerThread:2031635 [system_info.py:probe():200] Probing system done
+2024-10-04 11:33:35,261 DEBUG   HandlerThread:2031635 [system_monitor.py:probe():223] {'os': 'Linux-4.18.0-553.22.1.el8_10.x86_64-x86_64-with-glibc2.28', 'python': '3.10.11', 'heartbeatAt': '2024-10-04T09:33:35.175825', 'startedAt': '2024-10-04T09:33:34.299836', 'docker': None, 'cuda': None, 'args': (), 'state': 'running', 'program': '/system/user/publicwork/sanokows/Denoising_diff_sampler/main.py', 'codePathLocal': 'main.py', 'codePath': 'main.py', 'host': 'gorilla', 'username': 'sanokows', 'executable': '/system/apps/userenv/sanokows/rayjay_clone/bin/python', 'cpu_count': 48, 'cpu_count_logical': 96, 'cpu_freq': {'current': 2737.190822916667, 'min': 1200.0, 'max': 3700.0}, 'cpu_freq_per_core': [{'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 3399.999, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 3399.999, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 3400.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 3400.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 3448.235, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 3372.522, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}], 'disk': {'/': {'total': 185.34247970581055, 'used': 20.49459457397461}}, 'gpu': 'NVIDIA A40', 'gpu_count': 8, 'gpu_devices': [{'name': 'NVIDIA A40', 'memory_total': 48305799168}, {'name': 'NVIDIA A40', 'memory_total': 48305799168}, {'name': 'NVIDIA A40', 'memory_total': 48305799168}, {'name': 'NVIDIA A40', 'memory_total': 48305799168}, {'name': 'NVIDIA A40', 'memory_total': 48305799168}, {'name': 'NVIDIA A40', 'memory_total': 48305799168}, {'name': 'NVIDIA A40', 'memory_total': 48305799168}, {'name': 'NVIDIA A40', 'memory_total': 48305799168}], 'memory': {'total': 754.0076141357422}}
+2024-10-04 11:33:35,261 INFO    HandlerThread:2031635 [system_monitor.py:probe():224] Finished collecting system info
+2024-10-04 11:33:35,261 INFO    HandlerThread:2031635 [system_monitor.py:probe():227] Publishing system info
+2024-10-04 11:33:35,262 DEBUG   HandlerThread:2031635 [system_info.py:_save_conda():209] Saving list of conda packages installed into the current environment
+2024-10-04 11:33:35,987 INFO    Thread-17 :2031635 [dir_watcher.py:_on_file_created():271] file/dir created: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20241004_113334-o8u1790x/files/conda-environment.yaml
+2024-10-04 11:33:40,593 DEBUG   HandlerThread:2031635 [system_info.py:_save_conda():224] Saving conda packages done
+2024-10-04 11:33:40,603 INFO    HandlerThread:2031635 [system_monitor.py:probe():229] Finished publishing system info
+2024-10-04 11:33:40,610 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: status_report
+2024-10-04 11:33:40,611 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: keepalive
+2024-10-04 11:33:40,612 DEBUG   SenderThread:2031635 [sender.py:send():391] send: files
+2024-10-04 11:33:40,612 INFO    SenderThread:2031635 [sender.py:_save_file():1466] saving file wandb-metadata.json with policy now
+2024-10-04 11:33:40,978 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: python_packages
+2024-10-04 11:33:40,978 DEBUG   SenderThread:2031635 [sender.py:send_request():418] send_request: python_packages
+2024-10-04 11:33:40,981 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: stop_status
+2024-10-04 11:33:40,982 DEBUG   SenderThread:2031635 [sender.py:send_request():418] send_request: stop_status
+2024-10-04 11:33:40,985 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: internal_messages
+2024-10-04 11:33:40,988 INFO    Thread-17 :2031635 [dir_watcher.py:_on_file_modified():288] file/dir modified: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20241004_113334-o8u1790x/files/conda-environment.yaml
+2024-10-04 11:33:40,989 INFO    Thread-17 :2031635 [dir_watcher.py:_on_file_created():271] file/dir created: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20241004_113334-o8u1790x/files/wandb-metadata.json
+2024-10-04 11:33:40,989 INFO    Thread-17 :2031635 [dir_watcher.py:_on_file_created():271] file/dir created: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20241004_113334-o8u1790x/files/requirements.txt
+2024-10-04 11:33:41,219 DEBUG   SenderThread:2031635 [sender.py:send():391] send: telemetry
+2024-10-04 11:33:41,455 INFO    wandb-upload_0:2031635 [upload_job.py:push():130] Uploaded file /tmp/tmpgzv70xckwandb/m0udbld6-wandb-metadata.json
+2024-10-04 11:33:43,165 DEBUG   SenderThread:2031635 [sender.py:send():391] send: files
+2024-10-04 11:33:43,165 INFO    SenderThread:2031635 [sender.py:_save_file():1466] saving file media/images/fig/Energy_Landscape_0_1d3735c7f75524fb76e5.png with policy now
+2024-10-04 11:33:43,205 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: partial_history
+2024-10-04 11:33:43,206 DEBUG   SenderThread:2031635 [sender.py:send():391] send: history
+2024-10-04 11:33:43,207 DEBUG   SenderThread:2031635 [sender.py:send_request():418] send_request: summary_record
+2024-10-04 11:33:43,215 INFO    SenderThread:2031635 [sender.py:_save_file():1466] saving file wandb-summary.json with policy end
+2024-10-04 11:33:43,773 INFO    wandb-upload_0:2031635 [upload_job.py:push():130] Uploaded file /tmp/tmpgzv70xckwandb/51axkzqm-media/images/fig/Energy_Landscape_0_1d3735c7f75524fb76e5.png
+2024-10-04 11:33:43,996 INFO    Thread-17 :2031635 [dir_watcher.py:_on_file_created():271] file/dir created: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20241004_113334-o8u1790x/files/wandb-summary.json
+2024-10-04 11:33:43,996 INFO    Thread-17 :2031635 [dir_watcher.py:_on_file_created():271] file/dir created: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20241004_113334-o8u1790x/files/media/images/fig/Energy_Landscape_0_1d3735c7f75524fb76e5.png
+2024-10-04 11:33:43,998 INFO    Thread-17 :2031635 [dir_watcher.py:_on_file_created():271] file/dir created: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20241004_113334-o8u1790x/files/media/images/fig
+2024-10-04 11:33:44,004 INFO    Thread-17 :2031635 [dir_watcher.py:_on_file_created():271] file/dir created: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20241004_113334-o8u1790x/files/media/images
+2024-10-04 11:33:44,005 INFO    Thread-17 :2031635 [dir_watcher.py:_on_file_created():271] file/dir created: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20241004_113334-o8u1790x/files/media
+2024-10-04 11:33:44,651 INFO    wandb-upload_0:2031635 [upload_job.py:push():130] Uploaded file /tmp/tmpgzv70xckwandb/0bvzegh3-media/images/fig/Energy_Landscape_0_1d3735c7f75524fb76e5.png
+2024-10-04 11:33:45,216 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: status_report
+2024-10-04 11:33:50,982 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: status_report
+2024-10-04 11:33:50,983 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: internal_messages
+2024-10-04 11:33:55,980 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: stop_status
+2024-10-04 11:33:55,981 DEBUG   SenderThread:2031635 [sender.py:send_request():418] send_request: stop_status
+2024-10-04 11:33:56,250 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: status_report
+2024-10-04 11:34:00,982 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: internal_messages
+2024-10-04 11:34:01,983 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: status_report
+2024-10-04 11:34:06,988 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: status_report
+2024-10-04 11:34:08,039 INFO    Thread-17 :2031635 [dir_watcher.py:_on_file_modified():288] file/dir modified: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20241004_113334-o8u1790x/files/config.yaml
+2024-10-04 11:34:10,981 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: stop_status
+2024-10-04 11:34:10,981 DEBUG   SenderThread:2031635 [sender.py:send_request():418] send_request: stop_status
+2024-10-04 11:34:11,021 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: internal_messages
+2024-10-04 11:34:13,172 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: status_report
+2024-10-04 11:34:18,983 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: status_report
+2024-10-04 11:34:20,983 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: internal_messages
+2024-10-04 11:34:23,985 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: status_report
+2024-10-04 11:34:25,981 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: stop_status
+2024-10-04 11:34:25,981 DEBUG   SenderThread:2031635 [sender.py:send_request():418] send_request: stop_status
+2024-10-04 11:34:29,220 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: status_report
+2024-10-04 11:34:30,983 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: internal_messages
+2024-10-04 11:34:34,984 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: status_report
+2024-10-04 11:34:35,085 DEBUG   SystemMonitor:2031635 [system_monitor.py:_start():172] Starting system metrics aggregation loop
+2024-10-04 11:34:35,094 DEBUG   SenderThread:2031635 [sender.py:send():391] send: stats
+2024-10-04 11:34:40,981 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: stop_status
+2024-10-04 11:34:40,982 DEBUG   SenderThread:2031635 [sender.py:send_request():418] send_request: stop_status
+2024-10-04 11:34:41,021 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: internal_messages
+2024-10-04 11:34:41,253 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: status_report
+2024-10-04 11:34:46,984 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: status_report
+2024-10-04 11:34:50,983 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: internal_messages
+2024-10-04 11:34:51,984 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: status_report
+2024-10-04 11:34:55,981 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: stop_status
+2024-10-04 11:34:55,982 DEBUG   SenderThread:2031635 [sender.py:send_request():418] send_request: stop_status
+2024-10-04 11:34:57,204 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: status_report
+2024-10-04 11:35:00,983 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: internal_messages
+2024-10-04 11:35:02,984 DEBUG   HandlerThread:2031635 [handler.py:handle_request():158] handle_request: status_report

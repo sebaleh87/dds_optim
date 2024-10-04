@@ -1,0 +1,206 @@
+2024-09-27 14:18:20,278 INFO    StreamThr :1163766 [internal.py:wandb_internal():85] W&B internal server running at pid: 1163766, started at: 2024-09-27 14:18:20.276158
+2024-09-27 14:18:20,281 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: status
+2024-09-27 14:18:20,283 INFO    WriterThread:1163766 [datastore.py:open_for_write():87] open: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20240927_141820-iudj1qou/run-iudj1qou.wandb
+2024-09-27 14:18:20,290 DEBUG   SenderThread:1163766 [sender.py:send():391] send: header
+2024-09-27 14:18:20,362 DEBUG   SenderThread:1163766 [sender.py:send():391] send: run
+2024-09-27 14:18:20,926 INFO    SenderThread:1163766 [dir_watcher.py:__init__():211] watching files in: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20240927_141820-iudj1qou/files
+2024-09-27 14:18:20,926 INFO    SenderThread:1163766 [sender.py:_start_run_threads():1200] run started: iudj1qou with start time 1727439500.277392
+2024-09-27 14:18:20,963 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: run_start
+2024-09-27 14:18:21,006 DEBUG   HandlerThread:1163766 [system_info.py:__init__():26] System info init
+2024-09-27 14:18:21,006 DEBUG   HandlerThread:1163766 [system_info.py:__init__():41] System info init done
+2024-09-27 14:18:21,006 INFO    HandlerThread:1163766 [system_monitor.py:start():194] Starting system monitor
+2024-09-27 14:18:21,008 INFO    HandlerThread:1163766 [system_monitor.py:probe():214] Collecting system info
+2024-09-27 14:18:21,008 INFO    SystemMonitor:1163766 [system_monitor.py:_start():158] Starting system asset monitoring threads
+2024-09-27 14:18:21,010 INFO    SystemMonitor:1163766 [interfaces.py:start():188] Started cpu monitoring
+2024-09-27 14:18:21,012 INFO    SystemMonitor:1163766 [interfaces.py:start():188] Started disk monitoring
+2024-09-27 14:18:21,013 INFO    SystemMonitor:1163766 [interfaces.py:start():188] Started gpu monitoring
+2024-09-27 14:18:21,017 INFO    SystemMonitor:1163766 [interfaces.py:start():188] Started memory monitoring
+2024-09-27 14:18:21,020 INFO    SystemMonitor:1163766 [interfaces.py:start():188] Started network monitoring
+2024-09-27 14:18:21,099 DEBUG   HandlerThread:1163766 [system_info.py:probe():152] Probing system
+2024-09-27 14:18:21,179 DEBUG   HandlerThread:1163766 [gitlib.py:_init_repo():56] git repository is invalid
+2024-09-27 14:18:21,179 DEBUG   HandlerThread:1163766 [system_info.py:probe():200] Probing system done
+2024-09-27 14:18:21,181 DEBUG   HandlerThread:1163766 [system_monitor.py:probe():223] {'os': 'Linux-4.18.0-553.16.1.el8_10.x86_64-x86_64-with-glibc2.28', 'python': '3.10.11', 'heartbeatAt': '2024-09-27T12:18:21.099279', 'startedAt': '2024-09-27T12:18:20.246700', 'docker': None, 'cuda': None, 'args': (), 'state': 'running', 'program': '/system/user/publicwork/sanokows/Denoising_diff_sampler/main.py', 'codePathLocal': 'main.py', 'codePath': 'main.py', 'host': 'gorilla', 'username': 'sanokows', 'executable': '/system/apps/userenv/sanokows/rayjay_clone/bin/python', 'cpu_count': 48, 'cpu_count_logical': 96, 'cpu_freq': {'current': 2747.2086562500003, 'min': 1200.0, 'max': 3700.0}, 'cpu_freq_per_core': [{'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 3400.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 3400.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 3400.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 3550.164, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 3548.226, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 3400.007, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}, {'current': 2700.0, 'min': 1200.0, 'max': 3700.0}], 'disk': {'/': {'total': 185.34247970581055, 'used': 26.675983428955078}}, 'gpu': 'NVIDIA A40', 'gpu_count': 8, 'gpu_devices': [{'name': 'NVIDIA A40', 'memory_total': 48305799168}, {'name': 'NVIDIA A40', 'memory_total': 48305799168}, {'name': 'NVIDIA A40', 'memory_total': 48305799168}, {'name': 'NVIDIA A40', 'memory_total': 48305799168}, {'name': 'NVIDIA A40', 'memory_total': 48305799168}, {'name': 'NVIDIA A40', 'memory_total': 48305799168}, {'name': 'NVIDIA A40', 'memory_total': 48305799168}, {'name': 'NVIDIA A40', 'memory_total': 48305799168}], 'memory': {'total': 754.0076217651367}}
+2024-09-27 14:18:21,181 INFO    HandlerThread:1163766 [system_monitor.py:probe():224] Finished collecting system info
+2024-09-27 14:18:21,181 INFO    HandlerThread:1163766 [system_monitor.py:probe():227] Publishing system info
+2024-09-27 14:18:21,181 DEBUG   HandlerThread:1163766 [system_info.py:_save_conda():209] Saving list of conda packages installed into the current environment
+2024-09-27 14:18:21,933 INFO    Thread-17 :1163766 [dir_watcher.py:_on_file_created():271] file/dir created: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20240927_141820-iudj1qou/files/conda-environment.yaml
+2024-09-27 14:18:26,414 DEBUG   HandlerThread:1163766 [system_info.py:_save_conda():224] Saving conda packages done
+2024-09-27 14:18:26,425 INFO    HandlerThread:1163766 [system_monitor.py:probe():229] Finished publishing system info
+2024-09-27 14:18:26,432 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: status_report
+2024-09-27 14:18:26,433 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: keepalive
+2024-09-27 14:18:26,434 DEBUG   SenderThread:1163766 [sender.py:send():391] send: files
+2024-09-27 14:18:26,434 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file wandb-metadata.json with policy now
+2024-09-27 14:18:26,773 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: python_packages
+2024-09-27 14:18:26,773 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: python_packages
+2024-09-27 14:18:26,775 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: stop_status
+2024-09-27 14:18:26,777 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: internal_messages
+2024-09-27 14:18:26,777 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: stop_status
+2024-09-27 14:18:26,933 INFO    Thread-17 :1163766 [dir_watcher.py:_on_file_modified():288] file/dir modified: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20240927_141820-iudj1qou/files/conda-environment.yaml
+2024-09-27 14:18:26,934 INFO    Thread-17 :1163766 [dir_watcher.py:_on_file_created():271] file/dir created: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20240927_141820-iudj1qou/files/requirements.txt
+2024-09-27 14:18:26,935 INFO    Thread-17 :1163766 [dir_watcher.py:_on_file_created():271] file/dir created: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20240927_141820-iudj1qou/files/wandb-metadata.json
+2024-09-27 14:18:26,968 DEBUG   SenderThread:1163766 [sender.py:send():391] send: telemetry
+2024-09-27 14:18:27,077 INFO    wandb-upload_0:1163766 [upload_job.py:push():130] Uploaded file /tmp/tmp1zyx74qnwandb/j4z969e3-wandb-metadata.json
+2024-09-27 14:18:29,661 DEBUG   SenderThread:1163766 [sender.py:send():391] send: files
+2024-09-27 14:18:29,662 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: partial_history
+2024-09-27 14:18:29,662 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file media/images/target/Energy_Landscape_0_0b3506093eb8344c4a7f.png with policy now
+2024-09-27 14:18:29,664 DEBUG   SenderThread:1163766 [sender.py:send():391] send: history
+2024-09-27 14:18:29,665 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: summary_record
+2024-09-27 14:18:29,670 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file wandb-summary.json with policy end
+2024-09-27 14:18:29,940 INFO    Thread-17 :1163766 [dir_watcher.py:_on_file_created():271] file/dir created: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20240927_141820-iudj1qou/files/media/images/target/Energy_Landscape_0_0b3506093eb8344c4a7f.png
+2024-09-27 14:18:29,941 INFO    Thread-17 :1163766 [dir_watcher.py:_on_file_created():271] file/dir created: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20240927_141820-iudj1qou/files/wandb-summary.json
+2024-09-27 14:18:29,941 INFO    Thread-17 :1163766 [dir_watcher.py:_on_file_created():271] file/dir created: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20240927_141820-iudj1qou/files/media
+2024-09-27 14:18:29,942 INFO    Thread-17 :1163766 [dir_watcher.py:_on_file_created():271] file/dir created: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20240927_141820-iudj1qou/files/media/images
+2024-09-27 14:18:29,943 INFO    Thread-17 :1163766 [dir_watcher.py:_on_file_created():271] file/dir created: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20240927_141820-iudj1qou/files/media/images/target
+2024-09-27 14:18:30,137 INFO    wandb-upload_0:1163766 [upload_job.py:push():130] Uploaded file /tmp/tmp1zyx74qnwandb/22i19e4b-media/images/target/Energy_Landscape_0_0b3506093eb8344c4a7f.png
+2024-09-27 14:18:30,728 INFO    wandb-upload_0:1163766 [upload_job.py:push():130] Uploaded file /tmp/tmp1zyx74qnwandb/kkxfr5lb-media/images/target/Energy_Landscape_0_0b3506093eb8344c4a7f.png
+2024-09-27 14:18:31,671 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: status_report
+2024-09-27 14:18:34,351 DEBUG   SenderThread:1163766 [sender.py:send():391] send: files
+2024-09-27 14:18:34,351 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file media/images/fig/1d_trajectories_1_c5da99fd6670e19bdb2f.png with policy now
+2024-09-27 14:18:34,392 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: partial_history
+2024-09-27 14:18:34,393 DEBUG   SenderThread:1163766 [sender.py:send():391] send: history
+2024-09-27 14:18:34,394 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: summary_record
+2024-09-27 14:18:34,396 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file wandb-summary.json with policy end
+2024-09-27 14:18:34,845 DEBUG   SenderThread:1163766 [sender.py:send():391] send: files
+2024-09-27 14:18:34,845 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: partial_history
+2024-09-27 14:18:34,845 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file media/images/fig/1d_histogram_2_4df4a51302acbe7e9a8c.png with policy now
+2024-09-27 14:18:34,848 DEBUG   SenderThread:1163766 [sender.py:send():391] send: history
+2024-09-27 14:18:34,849 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: summary_record
+2024-09-27 14:18:34,852 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file wandb-summary.json with policy end
+2024-09-27 14:18:34,951 INFO    Thread-17 :1163766 [dir_watcher.py:_on_file_modified():288] file/dir modified: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20240927_141820-iudj1qou/files/wandb-summary.json
+2024-09-27 14:18:34,951 INFO    Thread-17 :1163766 [dir_watcher.py:_on_file_created():271] file/dir created: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20240927_141820-iudj1qou/files/media/images/fig/1d_histogram_2_4df4a51302acbe7e9a8c.png
+2024-09-27 14:18:34,952 INFO    Thread-17 :1163766 [dir_watcher.py:_on_file_created():271] file/dir created: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20240927_141820-iudj1qou/files/media/images/fig/1d_trajectories_1_c5da99fd6670e19bdb2f.png
+2024-09-27 14:18:34,953 INFO    Thread-17 :1163766 [dir_watcher.py:_on_file_modified():288] file/dir modified: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20240927_141820-iudj1qou/files/media/images
+2024-09-27 14:18:34,954 INFO    Thread-17 :1163766 [dir_watcher.py:_on_file_created():271] file/dir created: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20240927_141820-iudj1qou/files/media/images/fig
+2024-09-27 14:18:35,054 INFO    wandb-upload_0:1163766 [upload_job.py:push():130] Uploaded file /tmp/tmp1zyx74qnwandb/xqz6cxl5-media/images/fig/1d_trajectories_1_c5da99fd6670e19bdb2f.png
+2024-09-27 14:18:35,447 INFO    wandb-upload_1:1163766 [upload_job.py:push():130] Uploaded file /tmp/tmp1zyx74qnwandb/qg2lrdi8-media/images/fig/1d_histogram_2_4df4a51302acbe7e9a8c.png
+2024-09-27 14:18:36,200 INFO    wandb-upload_0:1163766 [upload_job.py:push():130] Uploaded file /tmp/tmp1zyx74qnwandb/7xxi3q8h-media/images/fig/1d_trajectories_1_c5da99fd6670e19bdb2f.png
+2024-09-27 14:18:36,729 INFO    wandb-upload_1:1163766 [upload_job.py:push():130] Uploaded file /tmp/tmp1zyx74qnwandb/n4pfs2e8-media/images/fig/1d_histogram_2_4df4a51302acbe7e9a8c.png
+2024-09-27 14:18:36,776 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: status_report
+2024-09-27 14:18:36,776 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: internal_messages
+2024-09-27 14:18:38,438 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: partial_history
+2024-09-27 14:18:38,439 DEBUG   SenderThread:1163766 [sender.py:send():391] send: history
+2024-09-27 14:18:38,440 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: summary_record
+2024-09-27 14:18:38,444 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file wandb-summary.json with policy end
+2024-09-27 14:18:38,529 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: partial_history
+2024-09-27 14:18:38,530 DEBUG   SenderThread:1163766 [sender.py:send():391] send: history
+2024-09-27 14:18:38,530 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: summary_record
+2024-09-27 14:18:38,533 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file wandb-summary.json with policy end
+2024-09-27 14:18:38,553 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: partial_history
+2024-09-27 14:18:38,553 DEBUG   SenderThread:1163766 [sender.py:send():391] send: history
+2024-09-27 14:18:38,554 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: summary_record
+2024-09-27 14:18:38,554 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: partial_history
+2024-09-27 14:18:38,557 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file wandb-summary.json with policy end
+2024-09-27 14:18:38,557 DEBUG   SenderThread:1163766 [sender.py:send():391] send: history
+2024-09-27 14:18:38,557 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: summary_record
+2024-09-27 14:18:38,560 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file wandb-summary.json with policy end
+2024-09-27 14:18:38,578 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: partial_history
+2024-09-27 14:18:38,579 DEBUG   SenderThread:1163766 [sender.py:send():391] send: history
+2024-09-27 14:18:38,579 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: summary_record
+2024-09-27 14:18:38,579 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: partial_history
+2024-09-27 14:18:38,581 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file wandb-summary.json with policy end
+2024-09-27 14:18:38,582 DEBUG   SenderThread:1163766 [sender.py:send():391] send: history
+2024-09-27 14:18:38,582 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: summary_record
+2024-09-27 14:18:38,585 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file wandb-summary.json with policy end
+2024-09-27 14:18:38,603 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: partial_history
+2024-09-27 14:18:38,604 DEBUG   SenderThread:1163766 [sender.py:send():391] send: history
+2024-09-27 14:18:38,604 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: summary_record
+2024-09-27 14:18:38,605 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: partial_history
+2024-09-27 14:18:38,607 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file wandb-summary.json with policy end
+2024-09-27 14:18:38,607 DEBUG   SenderThread:1163766 [sender.py:send():391] send: history
+2024-09-27 14:18:38,608 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: summary_record
+2024-09-27 14:18:38,611 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file wandb-summary.json with policy end
+2024-09-27 14:18:38,629 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: partial_history
+2024-09-27 14:18:38,629 DEBUG   SenderThread:1163766 [sender.py:send():391] send: history
+2024-09-27 14:18:38,630 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: summary_record
+2024-09-27 14:18:38,630 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: partial_history
+2024-09-27 14:18:38,633 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file wandb-summary.json with policy end
+2024-09-27 14:18:38,633 DEBUG   SenderThread:1163766 [sender.py:send():391] send: history
+2024-09-27 14:18:38,634 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: summary_record
+2024-09-27 14:18:38,636 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file wandb-summary.json with policy end
+2024-09-27 14:18:38,654 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: partial_history
+2024-09-27 14:18:38,655 DEBUG   SenderThread:1163766 [sender.py:send():391] send: history
+2024-09-27 14:18:38,655 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: summary_record
+2024-09-27 14:18:38,655 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: partial_history
+2024-09-27 14:18:38,658 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file wandb-summary.json with policy end
+2024-09-27 14:18:38,658 DEBUG   SenderThread:1163766 [sender.py:send():391] send: history
+2024-09-27 14:18:38,659 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: summary_record
+2024-09-27 14:18:38,661 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file wandb-summary.json with policy end
+2024-09-27 14:18:38,680 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: partial_history
+2024-09-27 14:18:38,681 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: partial_history
+2024-09-27 14:18:38,683 DEBUG   SenderThread:1163766 [sender.py:send():391] send: history
+2024-09-27 14:18:38,684 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: summary_record
+2024-09-27 14:18:38,687 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file wandb-summary.json with policy end
+2024-09-27 14:18:38,687 DEBUG   SenderThread:1163766 [sender.py:send():391] send: history
+2024-09-27 14:18:38,688 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: summary_record
+2024-09-27 14:18:38,690 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file wandb-summary.json with policy end
+2024-09-27 14:18:38,704 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: partial_history
+2024-09-27 14:18:38,705 DEBUG   SenderThread:1163766 [sender.py:send():391] send: history
+2024-09-27 14:18:38,705 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: summary_record
+2024-09-27 14:18:38,706 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: partial_history
+2024-09-27 14:18:38,708 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file wandb-summary.json with policy end
+2024-09-27 14:18:38,709 DEBUG   SenderThread:1163766 [sender.py:send():391] send: history
+2024-09-27 14:18:38,709 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: summary_record
+2024-09-27 14:18:38,712 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file wandb-summary.json with policy end
+2024-09-27 14:18:38,729 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: partial_history
+2024-09-27 14:18:38,730 DEBUG   SenderThread:1163766 [sender.py:send():391] send: history
+2024-09-27 14:18:38,730 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: partial_history
+2024-09-27 14:18:38,731 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: summary_record
+2024-09-27 14:18:38,734 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file wandb-summary.json with policy end
+2024-09-27 14:18:38,734 DEBUG   SenderThread:1163766 [sender.py:send():391] send: history
+2024-09-27 14:18:38,735 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: summary_record
+2024-09-27 14:18:38,738 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file wandb-summary.json with policy end
+2024-09-27 14:18:38,754 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: partial_history
+2024-09-27 14:18:38,755 DEBUG   SenderThread:1163766 [sender.py:send():391] send: history
+2024-09-27 14:18:38,755 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: summary_record
+2024-09-27 14:18:38,755 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: partial_history
+2024-09-27 14:18:38,758 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file wandb-summary.json with policy end
+2024-09-27 14:18:38,758 DEBUG   SenderThread:1163766 [sender.py:send():391] send: history
+2024-09-27 14:18:38,759 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: summary_record
+2024-09-27 14:18:38,762 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file wandb-summary.json with policy end
+2024-09-27 14:18:38,961 INFO    Thread-17 :1163766 [dir_watcher.py:_on_file_modified():288] file/dir modified: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20240927_141820-iudj1qou/files/wandb-summary.json
+2024-09-27 14:18:39,025 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: partial_history
+2024-09-27 14:18:39,027 DEBUG   SenderThread:1163766 [sender.py:send():391] send: history
+2024-09-27 14:18:39,027 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: summary_record
+2024-09-27 14:18:39,030 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file wandb-summary.json with policy end
+2024-09-27 14:18:39,964 INFO    Thread-17 :1163766 [dir_watcher.py:_on_file_modified():288] file/dir modified: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20240927_141820-iudj1qou/files/wandb-summary.json
+2024-09-27 14:18:39,964 INFO    Thread-17 :1163766 [dir_watcher.py:_on_file_created():271] file/dir created: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20240927_141820-iudj1qou/files/output.log
+2024-09-27 14:18:41,774 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: stop_status
+2024-09-27 14:18:41,775 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: stop_status
+2024-09-27 14:18:41,968 INFO    Thread-17 :1163766 [dir_watcher.py:_on_file_modified():288] file/dir modified: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20240927_141820-iudj1qou/files/output.log
+2024-09-27 14:18:42,018 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: status_report
+2024-09-27 14:18:42,678 DEBUG   SenderThread:1163766 [sender.py:send():391] send: files
+2024-09-27 14:18:42,679 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: partial_history
+2024-09-27 14:18:42,679 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file media/images/fig/1d_trajectories_24_54e6e09f798ee77c0a37.png with policy now
+2024-09-27 14:18:42,681 DEBUG   SenderThread:1163766 [sender.py:send():391] send: history
+2024-09-27 14:18:42,682 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: summary_record
+2024-09-27 14:18:42,686 INFO    SenderThread:1163766 [sender.py:_save_file():1466] saving file wandb-summary.json with policy end
+2024-09-27 14:18:42,971 INFO    Thread-17 :1163766 [dir_watcher.py:_on_file_modified():288] file/dir modified: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20240927_141820-iudj1qou/files/wandb-summary.json
+2024-09-27 14:18:42,972 INFO    Thread-17 :1163766 [dir_watcher.py:_on_file_created():271] file/dir created: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20240927_141820-iudj1qou/files/media/images/fig/1d_trajectories_24_54e6e09f798ee77c0a37.png
+2024-09-27 14:18:42,973 INFO    Thread-17 :1163766 [dir_watcher.py:_on_file_modified():288] file/dir modified: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20240927_141820-iudj1qou/files/media/images/fig
+2024-09-27 14:18:43,247 INFO    wandb-upload_0:1163766 [upload_job.py:push():130] Uploaded file /tmp/tmp1zyx74qnwandb/cdfpmmoy-media/images/fig/1d_trajectories_24_54e6e09f798ee77c0a37.png
+2024-09-27 14:18:43,806 INFO    wandb-upload_1:1163766 [upload_job.py:push():130] Uploaded file /tmp/tmp1zyx74qnwandb/yutqwjh5-media/images/fig/1d_trajectories_24_54e6e09f798ee77c0a37.png
+2024-09-27 14:18:46,777 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: internal_messages
+2024-09-27 14:18:47,777 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: status_report
+2024-09-27 14:18:53,782 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: status_report
+2024-09-27 14:18:53,997 INFO    Thread-17 :1163766 [dir_watcher.py:_on_file_modified():288] file/dir modified: /system/user/publicwork/sanokows/Denoising_diff_sampler/wandb/run-20240927_141820-iudj1qou/files/config.yaml
+2024-09-27 14:18:56,775 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: stop_status
+2024-09-27 14:18:56,775 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: stop_status
+2024-09-27 14:18:56,815 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: internal_messages
+2024-09-27 14:18:59,954 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: status_report
+2024-09-27 14:19:05,778 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: status_report
+2024-09-27 14:19:06,777 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: internal_messages
+2024-09-27 14:19:10,779 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: status_report
+2024-09-27 14:19:11,775 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: stop_status
+2024-09-27 14:19:11,776 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: stop_status
+2024-09-27 14:19:16,029 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: status_report
+2024-09-27 14:19:16,778 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: internal_messages
+2024-09-27 14:19:21,020 DEBUG   SystemMonitor:1163766 [system_monitor.py:_start():172] Starting system metrics aggregation loop
+2024-09-27 14:19:21,027 DEBUG   SenderThread:1163766 [sender.py:send():391] send: stats
+2024-09-27 14:19:21,778 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: status_report
+2024-09-27 14:19:26,775 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: stop_status
+2024-09-27 14:19:26,776 DEBUG   SenderThread:1163766 [sender.py:send_request():418] send_request: stop_status
+2024-09-27 14:19:26,815 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: internal_messages
+2024-09-27 14:19:27,026 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: status_report
+2024-09-27 14:19:32,778 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: status_report
+2024-09-27 14:19:36,777 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: internal_messages
+2024-09-27 14:19:37,779 DEBUG   HandlerThread:1163766 [handler.py:handle_request():158] handle_request: status_report
