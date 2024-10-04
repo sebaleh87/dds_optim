@@ -178,22 +178,28 @@ class EnergyModelClass:
         plt.close()
 
     def plot_1_D_histogram(self, samples):
-        
-        # Create 1D histogram
+                # Calculate the histogram
         hist, bin_edges = np.histogram(samples, bins=100, density=True)
-        
-        # Plot the histogram
+
+        # Filter out bins with small likelihood
+        threshold = 0.01  # Define a threshold for small likelihood
+        filtered_indices = hist > threshold
+        filtered_bin_edges = bin_edges[:-1][filtered_indices]
+        filtered_hist = hist[filtered_indices]
+
+        # Plot the filtered histogram
         fig, ax = plt.subplots(figsize=(10, 6))
-        ax.plot(bin_edges[:-1], hist, drawstyle='steps-post', color='blue')
-        
+        ax.plot(filtered_bin_edges, filtered_hist, drawstyle='steps-post', color='blue')
+
         ax.set_title('1D Histogram with Likelihood')
         ax.set_xlabel('Value')
         ax.set_ylabel('Likelihood')
         ax.grid(True)
-        
+
         # Log the figure using wandb
         wandb.log({"fig/1d_histogram": wandb.Image(fig)})
         plt.close()
+
 
     def plot_2_D_histogram(self, samples):
         # Filter samples where both coordinates are within [-4, 4]

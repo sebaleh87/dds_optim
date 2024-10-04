@@ -31,7 +31,7 @@ if(__name__ == "__main__"):
 
     Anneal_Config = {
         "name": "Linear",
-        "T_start": 0.4,
+        "T_start": 0.2,
         "T_end": 0.0,
         "N_anneal": 1000,
     }
