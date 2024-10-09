@@ -6,8 +6,8 @@ from functools import partial
 
 class Reverse_KL_Loss_Class(Base_SDE_Loss_Class):
 
-    def __init__(self, SDE_config, EnergyClass, model):
-        super().__init__(SDE_config, EnergyClass, model)
+    def __init__(self, SDE_config, Optimizer_Config, EnergyClass, model):
+        super().__init__(SDE_config, Optimizer_Config, EnergyClass, model)
 
     #@partial(jax.jit, static_argnums=(0,))  
     def compute_loss(self, params, key, n_integration_steps = 100, n_states = 10, temp = 1.0, x_dim = 2):
@@ -22,4 +22,4 @@ class Reverse_KL_Loss_Class(Base_SDE_Loss_Class):
         mean_Energy = jnp.mean(Energy)
         R_diff = jnp.mean(jnp.sum(1/2*dt*jnp.sum( ( self.SDE_type.get_diffusion(None, ts)[:,None, None]*score)**2, axis = -1), axis = 0))
         loss = temp*R_diff + mean_Energy
-        return loss, {"mean_energy": mean_Energy, "R_diff": R_diff, "key": key, "X_0": x_last}
+        return loss, {"mean_energy": mean_Energy, "R_diff": R_diff, "likelihood_ratio": jnp.mean(loss), "key": key, "X_0": x_last}

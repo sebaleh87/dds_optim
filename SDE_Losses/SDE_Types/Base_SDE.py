@@ -7,9 +7,13 @@ class Base_SDE_Class:
 
     def __init__(self, config) -> None:
         self.config = config
+        self.stop_gradient = False
         pass
 
     def compute_p_xt_g_x0_statistics(self, x0, xt, t):
+        raise NotImplementedError("get_diffusion method not implemented")
+
+    def get_log_prior(self, x):
         raise NotImplementedError("get_diffusion method not implemented")
 
     def get_diffusion(self, t, x):
@@ -85,13 +89,14 @@ class Base_SDE_Class:
     def simulate_reverse_sde_scan(self, model, params, key, n_states = 100, x_dim = 2, n_integration_steps = 1000):
         def scan_fn(carry, step):
             x, t, key = carry
-            t_arr = jnp.ones((x.shape[0], 1)) * t
+            t_arr = t*jnp.ones((x.shape[0], 1)) 
             score = model.apply(params, x, t_arr)
             reverse_out_dict, key = self.reverse_sde(score, x, t, dt, key)
 
             SDE_tracker_step = {
-            "xs": reverse_out_dict["x_next"],
-            "ts": reverse_out_dict["t_next"],
+            "dW": reverse_out_dict["dW"],
+            "xs": x,
+            "ts": t,
             "scores": score,
             "forward_drift": reverse_out_dict["forward_drift"],
             "reverse_drift": reverse_out_dict["reverse_drift"],
@@ -108,6 +113,8 @@ class Base_SDE_Class:
         t = 1.0
         dt = 1. / n_integration_steps
 
+        #print("no scan", model.apply(params, x0[0:10], t*jnp.ones((10, 1))))
+
         (x_final, t_final, key), SDE_tracker_steps = jax.lax.scan(
             scan_fn,
             (x0, t, key),
@@ -115,37 +122,53 @@ class Base_SDE_Class:
         )
 
         SDE_tracker = {
-            "xs": jnp.array(SDE_tracker_steps["xs"]),
-            "ts": jnp.array(SDE_tracker_steps["ts"]),
-            "scores": jnp.array(SDE_tracker_steps["scores"]),
-            "forward_drift": jnp.array(SDE_tracker_steps["forward_drift"]),
-            "reverse_drift": jnp.array(SDE_tracker_steps["reverse_drift"]),
-            "drift_ref": jnp.array(SDE_tracker_steps["drift_ref"]),
-            "beta_t": jnp.array(SDE_tracker_steps["beta_t"])
+            "dW": SDE_tracker_steps["dW"],
+            "xs": SDE_tracker_steps["xs"],
+            "ts": SDE_tracker_steps["ts"],
+            "scores": SDE_tracker_steps["scores"],
+            "forward_drift": SDE_tracker_steps["forward_drift"],
+            "reverse_drift": SDE_tracker_steps["reverse_drift"],
+            "drift_ref": SDE_tracker_steps["drift_ref"],
+            "beta_t": SDE_tracker_steps["beta_t"],
+            "x_final": x_final,
         }
+        # tbs = jnp.repeat(SDE_tracker_steps["ts"][:,None, None], SDE_tracker_steps["xs"].shape[1], axis = 1)
+        # score2 = jax.vmap(model.apply, in_axes=(None, 0,0))(params, SDE_tracker_steps["xs"][:,0:10], tbs[:,0:10])
+        # print("diff", SDE_tracker_steps["scores"][:,0:10] - score2)
 
+        # tbs = jnp.repeat(SDE_tracker_steps["ts"][:,None, None], SDE_tracker_steps["xs"].shape[1], axis = 1)
+        # score2 = model.apply(params, SDE_tracker_steps["xs"][0,0:10], tbs[0,0:10])
+        # print("diff", SDE_tracker_steps["scores"][0,0:10] - score2)
+
+        # tbs = SDE_tracker_steps["ts"][0]*jnp.ones_like(SDE_tracker_steps["xs"][0,0:10])
+        # score2 = model.apply(params, SDE_tracker_steps["xs"][0,0:10], tbs)
+        # print("diff", SDE_tracker_steps["scores"][0,0:10] - score2)
         return SDE_tracker, key
 
-    def simulate_reverse_sde(self, model, params, key, n_states = 100, x_dim = 2, n_integration_steps = 1000):
-        key, subkey = random.split(key)
-        x0 = random.normal(subkey, shape=(n_states,x_dim))
-        x = x0
-        t = 1.0
-        dt = 1./n_integration_steps
+    # def simulate_reverse_sde(self, model, params, key, n_states = 100, x_dim = 2, n_integration_steps = 1000):
+    #     key, subkey = random.split(key)
+    #     x0 = random.normal(subkey, shape=(n_states,x_dim))
+    #     x = x0
+    #     t = 1.0
+    #     dt = 1./n_integration_steps
 
-        SDE_tracker = {"xs": [], "ts": [], "scores": [], "forward_drift": [], "reverse_drift": [], "drift_ref":[], "beta_t": []}
-        for step in range(n_integration_steps):
-            t_arr = jnp.ones((x.shape[0],1))*t
-            score = model.apply(params, x, t_arr)
-            reverse_out_dict, key = self.reverse_sde(score,x, t, dt, key)
+    #     SDE_tracker = {"xs": [x0], "ts": [t], "scores": [], "forward_drift": [], "reverse_drift": [], "drift_ref":[], "beta_t": []}
+    #     for step in range(n_integration_steps):
+    #         t_arr = jnp.ones((x.shape[0],1))*t
+    #         score = model.apply(params, x, t_arr)
 
-            SDE_tracker["xs"].append(reverse_out_dict["x_next"])
-            SDE_tracker["ts"].append(reverse_out_dict["t_next"]) 
-            SDE_tracker["scores"].append(score)
-            SDE_tracker["drift_ref"].append(reverse_out_dict["drift_ref"])
-            SDE_tracker["beta_t"].append(reverse_out_dict["beta_t"])
-            SDE_tracker["forward_drift"].append(reverse_out_dict["forward_drift"])
-            x = reverse_out_dict["x_next"]
-            t = reverse_out_dict["t_next"]
+    #         if(self.stop_gradient):
+    #             x = jax.lax.stop_gradient(x)
 
-        return SDE_tracker, key
+    #         reverse_out_dict, key = self.reverse_sde(score,x, t, dt, key)
+
+    #         SDE_tracker["xs"].append(reverse_out_dict["x_next"])
+    #         SDE_tracker["ts"].append(reverse_out_dict["t_next"]) 
+    #         SDE_tracker["scores"].append(score)
+    #         SDE_tracker["drift_ref"].append(reverse_out_dict["drift_ref"])
+    #         SDE_tracker["beta_t"].append(reverse_out_dict["beta_t"])
+    #         SDE_tracker["forward_drift"].append(reverse_out_dict["forward_drift"])
+    #         x = reverse_out_dict["x_next"]
+    #         t = reverse_out_dict["t_next"]
+
+    #     return SDE_tracker, key

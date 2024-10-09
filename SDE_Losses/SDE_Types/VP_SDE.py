@@ -15,6 +15,9 @@ class VP_SDE_Class(Base_SDE_Class):
         super().__init__(SDE_Type_Config)
         ### THIS code assumes that sigma of reference distribution is 1
 
+    def get_log_prior(self, x):
+        return jax.scipy.stats.norm.logpdf(x, loc=0, scale=1)
+
     def compute_p_xt_g_x0_statistics(self, x0, xt, t):
         mean_xt = x0 * jnp.exp(-self.beta_int(t)) 
         std_xt = jnp.sqrt(1.-1.*jnp.exp(-2*self.beta_int(t)))
@@ -45,25 +48,25 @@ class VP_SDE_Class(Base_SDE_Class):
         diffusion = self.sigma_sde*jnp.sqrt(2*self.beta(t))
         return diffusion
     
-    def reverse_sde(self, score, x, t, dt, key, mode = "DIS"):
+    def reverse_sde(self, score, x, t, dt, key):
         ### TODO implement hacks
         ### TODO also use gradet of target sto parameterize the score?
         # initialize to optial controls at t= 0 and t = 1
         beta_t = self.beta(t)
         forward_drift = self.get_drift(x, t)
         diffusion = self.get_diffusion(x, t)
-        if(mode == "DIS"):
-            reverse_drift = diffusion**2*score - forward_drift #(forward_drift - beta_t * score)
-        else:
-            reverse_drift = forward_drift - beta_t * score
+
+        reverse_drift = diffusion**2*score - forward_drift #(forward_drift - beta_t * score)
+
 
         key, subkey = random.split(key)
         noise = random.normal(subkey, shape=x.shape)
+        dW = jnp.sqrt(dt) * noise
 
-        x_next = x + reverse_drift  * dt  + diffusion * jnp.sqrt(dt) * noise
+        x_next = x + reverse_drift  * dt  + diffusion * dW
 
         ### TODO check at which x drift ref should be evaluated?
-        reverse_out_dict = {"x_next": x_next, "t_next": t - dt, "drift_ref": x, "beta_t": beta_t, "forward_drift": forward_drift, "reverse_drift": reverse_drift}
+        reverse_out_dict = {"x_next": x_next, "t_next": t - dt, "drift_ref": x, "beta_t": beta_t, "forward_drift": forward_drift, "reverse_drift": reverse_drift, "dW": dW}
         return reverse_out_dict, key
 
     def sample(self, shape, key):
