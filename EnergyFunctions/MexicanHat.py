@@ -10,7 +10,14 @@ class MexicanHatClass(EnergyModelClass):
         
         :param a: Position of the minima.
         """
-        self.a = a
+        pos = 3
+        f = 1.3
+        self.a1 = jnp.array([[pos,pos]])
+        self.a2 = jnp.array([[-pos,-pos]])
+        self.a3 = jnp.array([[pos,-pos]])
+        self.a4 = jnp.array([[-pos*f,pos]])
+        self.A_list = [self.a1, self.a2, self.a3, self.a4]
+
         super().__init__(config)
 
     @partial(jax.jit, static_argnums=(0,))
@@ -21,4 +28,8 @@ class MexicanHatClass(EnergyModelClass):
         :param x: Input array.
         :return: Energy value.
         """
-        return (x ** 2 - self.a ** 2) ** 2
+        value = 1.
+        for a in self.A_list:
+            value *= jnp.sum((x - a) ** 2, axis = -1)
+
+        return jnp.sqrt(value)

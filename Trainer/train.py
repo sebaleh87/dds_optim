@@ -46,8 +46,8 @@ class TrainerClass:
         for epoch in range(self.num_epochs):
             SDE_tracer, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, key, n_integration_steps = self.n_integration_steps, n_states = 500*2000)
             self.EnergyClass.plot_trajectories(np.array(SDE_tracer["xs"])[:,0:10,:])
-            self.EnergyClass.plot_histogram(np.array(SDE_tracer["xs"])[-1,:,:])
-            self.EnergyClass.plot_last_samples(np.array(SDE_tracer["xs"])[-1,:,:])
+            self.EnergyClass.plot_histogram(np.array(SDE_tracer["x_final"])[:,:])
+            self.EnergyClass.plot_last_samples(np.array(SDE_tracer["x_final"])[:,:])
 
 
             T_curr = self.AnnealClass.update_temp()
@@ -56,12 +56,19 @@ class TrainerClass:
                 params, self.opt_state, loss, out_dict = self.SDE_LossClass.update(params, self.opt_state, key, T_curr)
                 key = out_dict["key"]	
 
-                wandb.log({key: out_dict[key] for key in out_dict.keys() if (key != "key" and key != "X_0")})
-                wandb.log({"X_statistics/abs_mean": np.mean(np.sqrt(np.sum(out_dict["X_0"]**2, axis = -1))), "X_statistics/mean": np.mean(np.mean(out_dict["X_0"], axis = -1))})
+                if not hasattr(self, 'aggregated_out_dict'):
+                    self.aggregated_out_dict = {k: [] for k in out_dict.keys() if k != "key" and k != "X_0"}
+
+                for k, v in out_dict.items():
+                    if k != "key" and k != "X_0":
+                        self.aggregated_out_dict[k].append(v)
+
                 loss_list.append(float(loss))
             mean_loss = np.mean(loss_list)
             lr = self.SDE_LossClass.schedule(epoch*(self.Optimizer_Config["steps_per_epoch"]))
             wandb.log({"loss": mean_loss, "schedules/temp": T_curr, "schedules/lr": lr})
+            wandb.log({dict_key: np.mean(self.aggregated_out_dict[dict_key]) for dict_key in self.aggregated_out_dict})
+            wandb.log({"X_statistics/abs_mean": np.mean(np.sqrt(np.sum(out_dict["X_0"]**2, axis = -1))), "X_statistics/mean": np.mean(np.mean(out_dict["X_0"], axis = -1))})
             print(f"Epoch {epoch + 1} completed")
             print(mean_loss)
 

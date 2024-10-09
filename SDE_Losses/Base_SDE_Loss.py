@@ -5,11 +5,12 @@ import jax.numpy as jnp
 from functools import partial
 
 class Base_SDE_Loss_Class:
-    def __init__(self, SDE_config, Optimizer_Config, Energy_Class, model):
+    def __init__(self, SDE_config, Optimizer_Config, Energy_Class, model, lr_factor = 1.):
         SDE_Type_Config = SDE_config["SDE_Type_Config"]
         self.Optimizer_Config = Optimizer_Config
         self.SDE_type = get_SDE_Type_Class(SDE_Type_Config)
         
+        self.lr_factor = lr_factor
         self.batch_size = SDE_config["batch_size"]
         self.n_integration_steps = SDE_config["n_integration_steps"]
 
@@ -38,7 +39,7 @@ class Base_SDE_Loss_Class:
     def initialize_optimizer(self):
         l_start = 1e-10
         l_max = self.Optimizer_Config["lr"]
-        overall_steps = self.Optimizer_Config["epochs"]*self.Optimizer_Config["steps_per_epoch"]
+        overall_steps = self.Optimizer_Config["epochs"]*self.Optimizer_Config["steps_per_epoch"]*self.inner_loop_steps
         warmup_steps = int(0.1 * overall_steps)
 
         self.schedule = lambda epoch: learning_rate_schedule(epoch, l_max, l_start, overall_steps, warmup_steps)

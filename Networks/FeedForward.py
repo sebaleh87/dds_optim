@@ -36,9 +36,10 @@ class FeedForwardNetwork(nn.Module):
     #@partial(flax.linen.jit, static_argnums=(0,))
     def __call__(self, x_in, t):
         # Concatenate x and t along the last dimension
-        t = FourierFeatureModule(feature_dim=self.feature_dim)(t)
-        x = jnp.concatenate([x_in, t], axis=-1)
-        
+        t_fourier = FourierFeatureModule(feature_dim=self.feature_dim)(t)
+        x_fourier = FourierFeatureModule(feature_dim=self.feature_dim)(x_in)
+        #x = jnp.concatenate([x_in, x_fourier, t, t_fourier], axis=-1)
+        x = jnp.concatenate([ x_fourier,  t_fourier], axis=-1)
         for _ in range(self.n_layers - 1):
             x_skip = x
             x = nn.Dense(self.hidden_dim)(x)

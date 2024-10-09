@@ -8,11 +8,12 @@ import optax
 class LogVarianceLoss_MC_Class(Base_SDE_Loss_Class):
 
     def __init__(self, SDE_config, Optimizer_Config,  EnergyClass, model):
-        super().__init__(SDE_config, Optimizer_Config, EnergyClass, model)
-        self.SDE_type.stop_gradient = True
         self.minib_time_steps = SDE_config["minib_time_steps"]
+        self.inner_loop_steps = int(SDE_config["n_integration_steps"]/self.minib_time_steps)
+        self.lr_factor = self.inner_loop_steps
+        super().__init__(SDE_config, Optimizer_Config, EnergyClass, model, lr_factor = self.lr_factor)
+        self.SDE_type.stop_gradient = True
         print("Gradient over expectation is supposed to be stopped from now on")
-
         self._init_index_arrays()
 
     def _init_index_arrays(self):
@@ -73,7 +74,7 @@ class LogVarianceLoss_MC_Class(Base_SDE_Loss_Class):
         Energy = Energy[...,0]
 
         perm_diff_array, _, jax_key = self._shuffle_index_array(jax_key)
-        inner_loop_steps = int(self.n_integration_steps/self.minib_time_steps)
+        inner_loop_steps = self.inner_loop_steps
         perm_diff_array_list = self._split_arrays(perm_diff_array, inner_loop_steps, axis = 0)
         #perm_diff_array_list = [self.T_indices]
 
