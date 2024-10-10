@@ -6,7 +6,8 @@ from functools import partial
 class RastriginClass(EnergyModelClass):
     def __init__(self, config ):
         super().__init__(config)
-    
+        self.norm = 80
+
     @partial(jax.jit, static_argnums=(0,))
     def calc_energy(self, x):
         """
@@ -15,6 +16,7 @@ class RastriginClass(EnergyModelClass):
         Where A = 10, and n is the dimension of x.
         """
         A = 10
-        return A * len(x) + jnp.sum(x**2 - A * jnp.cos(2 * jnp.pi * x))
+        energy_value = A * len(x) + jnp.sum(x**2 - A * jnp.cos(2 * jnp.pi * x))
+        return energy_value/self.norm
     
 

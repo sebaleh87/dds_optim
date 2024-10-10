@@ -2,7 +2,7 @@ import jax
 import optax
 from jax import random, grad, jit
 from typing import Any, Callable
-from Networks.FeedForward import FeedForwardNetwork
+from Networks import get_network
 ### TODO implement energy function registry
 from EnergyFunctions import get_Energy_class
 from AnnealSchedules import get_AnnealSchedule_class
@@ -16,14 +16,14 @@ class TrainerClass:
     def __init__(self, base_config):
         self.config = base_config
 
-        ### TODO also make network registry
-        self.model = FeedForwardNetwork(n_layers=base_config["n_layers"], hidden_dim=base_config["n_hidden"])
-
         AnnealConfig = base_config["Anneal_Config"]
         Energy_Config = base_config["EnergyConfig"]
         SDE_Loss_Config = base_config["SDE_Loss_Config"]
+        Network_Config = base_config["Network_Config"]
         self.Optimizer_Config = base_config["Optimizer_Config"]
         self.dim_x = Energy_Config["dim_x"]
+
+        self.model = get_network(Network_Config, SDE_Loss_Config)
 
         self.EnergyClass = get_Energy_class(Energy_Config)
         self.AnnealClass = get_AnnealSchedule_class(AnnealConfig)
@@ -44,7 +44,7 @@ class TrainerClass:
         params = self.params
         key = jax.random.PRNGKey(0)
         for epoch in range(self.num_epochs):
-            SDE_tracer, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, key, n_integration_steps = self.n_integration_steps, n_states = 500*2000)
+            SDE_tracer, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, key, n_integration_steps = self.n_integration_steps, n_states = 1500*2000)
             self.EnergyClass.plot_trajectories(np.array(SDE_tracer["xs"])[:,0:10,:])
             self.EnergyClass.plot_histogram(np.array(SDE_tracer["x_final"])[:,:])
             self.EnergyClass.plot_last_samples(np.array(SDE_tracer["x_final"])[:,:])
@@ -53,7 +53,7 @@ class TrainerClass:
             T_curr = self.AnnealClass.update_temp()
             loss_list = []
             for i in range(self.Optimizer_Config["steps_per_epoch"]):
-                params, self.opt_state, loss, out_dict = self.SDE_LossClass.update(params, self.opt_state, key, T_curr)
+                params, self.opt_state, loss, out_dict = self.SDE_LossClass.update_step(params, self.opt_state, key, T_curr)
                 key = out_dict["key"]	
 
                 if not hasattr(self, 'aggregated_out_dict'):
@@ -65,7 +65,7 @@ class TrainerClass:
 
                 loss_list.append(float(loss))
             mean_loss = np.mean(loss_list)
-            lr = self.SDE_LossClass.schedule(epoch*(self.Optimizer_Config["steps_per_epoch"]))
+            lr = self.SDE_LossClass.schedule(epoch*(self.Optimizer_Config["steps_per_epoch"]*self.SDE_LossClass.lr_factor)) ### TODO correct this for MC case
             wandb.log({"loss": mean_loss, "schedules/temp": T_curr, "schedules/lr": lr})
             wandb.log({dict_key: np.mean(self.aggregated_out_dict[dict_key]) for dict_key in self.aggregated_out_dict})
             wandb.log({"X_statistics/abs_mean": np.mean(np.sqrt(np.sum(out_dict["X_0"]**2, axis = -1))), "X_statistics/mean": np.mean(np.mean(out_dict["X_0"], axis = -1))})

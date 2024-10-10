@@ -31,15 +31,21 @@ class FeedForwardNetwork(nn.Module):
     n_layers: int = 2
     hidden_dim: int = 32
     feature_dim: int = 32
+    max_position: float = 10.
+    max_time: float = 1.
 
     @nn.compact
     #@partial(flax.linen.jit, static_argnums=(0,))
     def __call__(self, x_in, t):
+        t = self.max_time * t
         # Concatenate x and t along the last dimension
-        t_fourier = FourierFeatureModule(feature_dim=self.feature_dim)(t)
-        x_fourier = FourierFeatureModule(feature_dim=self.feature_dim)(x_in)
+        # t_encodings = FourierFeatureModule(feature_dim=self.feature_dim)(t)
+        # x_encodings = FourierFeatureModule(feature_dim=self.feature_dim)(x_in)
+        t_encodings = get_sinusoidal_positional_encoding(t, self.feature_dim, self.max_time)
+        x_encodings = get_sinusoidal_positional_encoding(x_in, self.feature_dim, self.max_position)
         #x = jnp.concatenate([x_in, x_fourier, t, t_fourier], axis=-1)
-        x = jnp.concatenate([ x_fourier,  t_fourier], axis=-1)
+        #x = jnp.concatenate([ x_in, x_encodings, t, t_encodings], axis=-1)
+        x = jnp.concatenate([ x_encodings, t_encodings], axis=-1)
         for _ in range(self.n_layers - 1):
             x_skip = x
             x = nn.Dense(self.hidden_dim)(x)
@@ -50,8 +56,29 @@ class FeedForwardNetwork(nn.Module):
                 x = nn.LayerNorm()(x)
         
         # Output layer without nonlinearity
-        x = nn.Dense(x_in.shape[-1])(x)
         return x
+
+class FourierNetwork(nn.Module):
+    n_layers: int = 2
+    hidden_dim: int = 32
+    feature_dim: int = 32
+    max_position: float = 10.
+    max_time: float = 1.
+    mode: str = "continuous"
+
+    @nn.compact
+    #@partial(flax.linen.jit, static_argnums=(0,))
+    def __call__(self, x_in, t):
+        t = self.max_time * t
+        # Concatenate x and t along the last dimension
+        t_encodings = FourierFeatureModule(feature_dim=self.hidden_dim)(t)
+        x_encodings = FourierFeatureModule(feature_dim=self.hidden_dim)(x_in)
+        x = jnp.concatenate([ x_encodings, t_encodings], axis=-1)
+        for _ in range(self.n_layers - 1):
+            x = FourierFeatureModule(self.hidden_dim)(x)
+
+        return x
+
 
 class FourierFeatureModule(nn.Module):
     feature_dim: int = 32

@@ -17,7 +17,7 @@ class MexicanHatClass(EnergyModelClass):
         self.a3 = jnp.array([[pos,-pos]])
         self.a4 = jnp.array([[-pos*f,pos]])
         self.A_list = [self.a1, self.a2, self.a3, self.a4]
-
+        self.norm = 200
         super().__init__(config)
 
     @partial(jax.jit, static_argnums=(0,))
@@ -32,4 +32,4 @@ class MexicanHatClass(EnergyModelClass):
         for a in self.A_list:
             value *= jnp.sum((x - a) ** 2, axis = -1)
 
-        return jnp.sqrt(value)
+        return jnp.sqrt(value)/self.norm

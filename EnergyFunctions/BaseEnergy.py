@@ -19,6 +19,13 @@ class EnergyModelClass:
         """
         raise NotImplementedError("Subclasses should implement this method")
 
+    def compute_normed_energy(self, x, mean, std, eps = 10**-10):
+        return (self.calc_energy(x)-mean)/(std+eps)
+    
+    def compute_energies(self, x, std, eps = 10**-10):
+        energy_dict = {"energy": self.calc_energy(x), "normed_energy": self.compute_normed_energy(x, std, eps)}
+        return energy_dict
+
     def calc_log_probs(self, x, T):
         """
         Calculate the log probabilities, where T is the temperature.
@@ -201,24 +208,25 @@ class EnergyModelClass:
         plt.close()
 
 
-    def plot_2_D_histogram(self, samples):
+    def plot_2_D_histogram(self, samples, x_range = 4, y_range = 4, n_bins = 40):
         # Filter samples where both coordinates are within [-4, 4]
         filtered_samples = samples[(samples[:, 0] >= -4) & (samples[:, 0] <= 4) & (samples[:, 1] >= -4) & (samples[:, 1] <= 4)]
         # Assuming `samples` is provided and wandb is initialized
 
         # Create 2D histogram
-        heatmap, xedges, yedges = np.histogram2d(filtered_samples[:, 0], filtered_samples[:, 1], bins=100, density=True)
-
+        x = filtered_samples[:, 0]
+        y = filtered_samples[:, 1]
         extent = [-4, 4, -4, 4]
 
         # Plot the zoomed-in heatmap
         fig, ax = plt.subplots(figsize=(10, 8))
-        cax = ax.imshow(heatmap.T, extent=extent, origin='lower', cmap='viridis', aspect='auto')
-
+        ax.hist2d(y, -x, bins=n_bins, cmap='viridis')
+        ax.set_xlim(xmin=- x_range, xmax=x_range)
+        ax.set_ylim(ymin=-x_range, ymax=x_range)
         ax.set_title('Zoomed 2D Histogram with Likelihood')
         ax.set_xlabel('X-axis')
         ax.set_ylabel('Y-axis')
-        fig.colorbar(cax, ax=ax, label='Likelihood')
+        #fig.colorbar(cax, ax=ax, label='Likelihood')
 
         # Log the figure using wandb
         wandb.log({"fig/2d_histogram": wandb.Image(fig)})

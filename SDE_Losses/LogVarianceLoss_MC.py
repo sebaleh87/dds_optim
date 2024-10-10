@@ -57,14 +57,14 @@ class LogVarianceLoss_MC_Class(Base_SDE_Loss_Class):
         return minib_SDE_tracer
 
     @partial(jax.jit, static_argnums=(0,))
-    def _update_params(self, params, opt_state, minib_SDE_tracer, T_curr, log_prior, Energy):
+    def update_params(self, params, opt_state, minib_SDE_tracer, T_curr, log_prior, Energy):
         (loss_value, out_dict), (grads,) = jax.value_and_grad(self.compute_loss, argnums=(0,), has_aux = True)(params, minib_SDE_tracer, log_prior, Energy, T_curr)
         updates, opt_state = self.optimizer.update(grads, opt_state)
         params = optax.apply_updates(params, updates)
         return params, opt_state, loss_value, out_dict
 
     #@partial(jax.jit, static_argnums=(0,))
-    def update(self, params, opt_state, jax_key, T_curr):
+    def update_step(self, params, opt_state, jax_key, T_curr):
         SDE_tracer, jax_key = self.SDE_type.simulate_reverse_sde_scan(self.model , params, jax_key, n_integration_steps = self.n_integration_steps, n_states = self.batch_size, x_dim = self.x_dim)
         
         xs = SDE_tracer["xs"]
@@ -85,7 +85,7 @@ class LogVarianceLoss_MC_Class(Base_SDE_Loss_Class):
             ### TODO adjust lr schedule accordingly
             minib_SDE_tracer = SDE_tracer#self._select_minibatch(SDE_tracer, perm_diff_array)
 
-            params, opt_state, loss_value, out_dict = self._update_params(params, opt_state, minib_SDE_tracer, T_curr, log_prior, Energy)
+            params, opt_state, loss_value, out_dict = self.update_params(params, opt_state, minib_SDE_tracer, T_curr, log_prior, Energy)
 
             for key in out_dict.keys():
                 if(key != "key" and key != "X_0"):

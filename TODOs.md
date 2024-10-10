@@ -3,6 +3,8 @@
 - add gradients to score?
 - add clipping hacks?
 
+### TODO normalized the energy with running avergage?
+
 
 ### IDEA
 ### input dependent cosine embeddings

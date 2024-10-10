@@ -1,7 +1,7 @@
 from .VP_SDE import VP_SDE_Class
+from .DiscreteTime_SDE import DiscreteTime_SDE_Class
 
-
-SDE_Type_registry = {"VP_SDE": VP_SDE_Class}
+SDE_Type_registry = {"VP_SDE": VP_SDE_Class, "DiscreteTime_SDE": DiscreteTime_SDE_Class}
 
 
 

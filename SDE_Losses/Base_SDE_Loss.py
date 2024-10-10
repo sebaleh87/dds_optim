@@ -27,8 +27,11 @@ class Base_SDE_Loss_Class:
         loss, key = self.compute_loss( params, key, n_integration_steps = self.n_integration_steps, n_states = self.batch_size, temp = T_curr, x_dim = self.EnergyClass.dim_x)
         return loss, key
 
+    def update_step(self, params, opt_state, key, T_curr):
+        return self.update_params(params, opt_state, key, T_curr)
+
     @partial(jax.jit, static_argnums=(0,))
-    def update(self, params, opt_state, key, T_curr):
+    def update_params(self, params, opt_state, key, T_curr):
         (loss_value, out_dict), (grads,) = jax.value_and_grad(self.loss_fn, argnums=(0,), has_aux = True)(params, T_curr, key)
         updates, opt_state = self.optimizer.update(grads, opt_state)
         params = optax.apply_updates(params, updates)
@@ -39,7 +42,7 @@ class Base_SDE_Loss_Class:
     def initialize_optimizer(self):
         l_start = 1e-10
         l_max = self.Optimizer_Config["lr"]
-        overall_steps = self.Optimizer_Config["epochs"]*self.Optimizer_Config["steps_per_epoch"]*self.inner_loop_steps
+        overall_steps = self.Optimizer_Config["epochs"]*self.Optimizer_Config["steps_per_epoch"]*self.lr_factor
         warmup_steps = int(0.1 * overall_steps)
 
         self.schedule = lambda epoch: learning_rate_schedule(epoch, l_max, l_start, overall_steps, warmup_steps)
@@ -58,6 +61,9 @@ class Base_SDE_Loss_Class:
         :return: The calculated loss.
         """
         raise NotImplementedError("get_loss method not implemented")
+    
+
+
     
 
 def learning_rate_schedule(step, l_max = 1e-4, l_start = 1e-5, overall_steps = 1000, warmup_steps = 100):

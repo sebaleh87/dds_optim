@@ -1,7 +1,7 @@
 
 from .GaussianMixture import GaussianMixtureClass
 from .MexicanHat import MexicanHatClass
-from .Rastragin import RastriginClass
+from .Rastrigin import RastriginClass
 
 
 Energy_Registry = {"GaussianMixture": GaussianMixtureClass, "MexicanHat": MexicanHatClass, "Rastrigin": RastriginClass}
