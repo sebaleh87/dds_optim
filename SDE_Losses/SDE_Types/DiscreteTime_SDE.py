@@ -11,19 +11,13 @@ class DiscreteTime_SDE_Class(Base_SDE_Class):
     def __init__(self, SDE_Type_Config) -> None:
         self.stop_gradient = False
         self.n_diff_steps = SDE_Type_Config["n_diff_steps"]
+        self.temp_mode = SDE_Type_Config["temp_mode"]
         self._make_beta_list()
         self.config = SDE_Type_Config
         super().__init__(SDE_Type_Config)
     
     def get_log_prior(self, x):
         return jax.scipy.stats.norm.logpdf(x, loc=0, scale=1)
-    
-    def beta_int(self, t):
-        beta_int_value = 1/4*t**2*(self.beta_max-self.beta_min) + 0.5*t*self.beta_min
-        return beta_int_value
-
-    def beta(self, t):
-        return 0.5*(self.beta_min + t * (self.beta_max - self.beta_min))
     
     def _gaussian_noise_energy(self, X_prev, X_next, gamma_t_i):
         #gamma_t = jnp.clip(gamma_t_i , a_min = 0.01)
@@ -40,7 +34,11 @@ class DiscreteTime_SDE_Class(Base_SDE_Class):
         mean = output_dict["mean_x"]
         sigma = jnp.exp(0.5 * log_var)
         key, split_key = jax.random.split(key)
-        eps = jax.random.normal(split_key, shape= (log_var.shape[0] , log_var.shape[-1]))*jnp.sqrt(output_dict["T_curr"])
+        if(self.temp_mode):
+            eps = jax.random.normal(split_key, shape= (log_var.shape[0] , log_var.shape[-1]))*jnp.sqrt(output_dict["T_curr"])
+        else:
+            eps = jax.random.normal(split_key, shape= (log_var.shape[0] , log_var.shape[-1]))
+            
         samples = mean + sigma * eps
         output_dict["samples"] = samples
         output_dict["key"] = key

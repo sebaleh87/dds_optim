@@ -20,7 +20,7 @@ class Base_SDE_Loss_Class:
 
         self.optimizer = self.initialize_optimizer()
 
-        self.vmap_calc_Energy =  jax.vmap(self.EnergyClass.calc_energy, in_axes = (0,))
+        self.vmap_calc_Energy =  jax.jit(jax.vmap(self.EnergyClass.calc_energy, in_axes = (0,)))
         self.vmap_model = jax.vmap(self.model.apply, in_axes=(None,0,0))
 
     @partial(jax.jit, static_argnums=(0,))

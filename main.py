@@ -20,8 +20,15 @@ parser.add_argument("--lr", type=float, default=0.001)
 parser.add_argument("--N_anneal", type=int, default=1000)
 parser.add_argument("--N_warmup", type=int, default=0)
 parser.add_argument("--steps_per_epoch", type=int, default=100)
+
+parser.add_argument("--temp_mode", type=str, default="True")
+
+parser.add_argument("--feature_dim", type=int, default=32)
+parser.add_argument("--n_hidden", type=int, default=124)
+parser.add_argument("--n_layers", type=int, default=3)
+
 parser.add_argument("--SDE_time_mode", type=str, default="Discrete_Time", choices=["Discrete_Time", "Continuous_Time"], help="SDE Time Mode")
-parser.add_argument("--Network_Type", type=str, default="FourierNetwork", choices=["FourierNetwork", "FeedForward"], help="SDE Time Mode")
+parser.add_argument("--Network_Type", type=str, default="FeedForward", choices=["FourierNetwork", "FeedForward"], help="SDE Time Mode")
 args = parser.parse_args()
 
 if(__name__ == "__main__"):
@@ -42,15 +49,22 @@ if(__name__ == "__main__"):
 
     Network_Config = {
         "name": args.Network_Type,
-        "feature_dim": 64,
-        "n_hidden": 120,
-        "n_layers": 3,
+        "feature_dim": args.feature_dim,
+        "n_hidden": args.n_hidden,
+        "n_layers": args.n_layers,
     }
 
     if(args.SDE_Loss == "Discrete_Time_rKL_Loss"):
+
+        if(args.temp_mode == "True"):
+            temp_mode = True
+        else:
+            temp_mode = False
+
         SDE_Type_Config = {
             "name": "DiscreteTime_SDE", 
             "n_diff_steps": args.n_integration_steps,
+            "temp_mode": temp_mode,
         }
         
         SDE_Loss_Config = {

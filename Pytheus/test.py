@@ -5,9 +5,12 @@ from pytheus.fancy_classes import Graph, State
 import numpy as np
 import jax.numpy as jnp
 import jax
-#import optax
+import optax
+import os
 
 if(__name__ == '__main__'):
+    os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   # see issue #152
+    os.environ["CUDA_VISIBLE_DEVICES"]=f"{5}"
     challenges = [(4,4,2),(5,4,4),(6,4,6),(7,4,8),(8,4,10),(9,4,12)]
 
     dim, n_ph, anc = challenges[1]
@@ -41,19 +44,18 @@ if(__name__ == '__main__'):
     loss_fun = lambda x: - fidelity(normed_state(graph_state(x)))
 
 
-    boundaries = [(-1,1)] * len(all_edges)
-    epochs = 1000
-    result_list = []
-    for epoch in range(epochs):
-        x0 = np.random.rand(len(all_edges))
-        result = minimize(loss_fun, #lambda x: loss_fun(x) + sum(x**2)*1e-10,
-                        x0, bounds= boundaries,method='L-BFGS-B')
-        result_list.append(result)
-        print("epoch", epoch, "result", result.fun)
-        print("best result", min([result.fun for result in result_list]))
+    # boundaries = [(-1,1)] * len(all_edges)
+    # epochs = 1000
+    # result_list = []
+    # for epoch in range(epochs):
+    #     x0 = np.random.rand(len(all_edges))
+    #     result = minimize(loss_fun, #lambda x: loss_fun(x) + sum(x**2)*1e-10,
+    #                     x0, bounds= boundaries,method='L-BFGS-B')
+    #     result_list.append(result)
+    #     print("epoch", epoch, "result", result.fun)
+    #     print("best result", min([result.fun for result in result_list]))
 
 
-    raise ValueError("run is finished")
     PERFECT_MATCHINGS = jnp.array(PERFECT_MATCHINGS)
 
     TARGET_NORMED = jnp.array(TARGET_NORMED)
@@ -63,7 +65,7 @@ if(__name__ == '__main__'):
     normed_state = lambda state: state / (eps + jnp.sqrt(state @ state))
     fidelity = lambda state: (state @ TARGET_NORMED)**2
     loss_fun = lambda x: - fidelity(normed_state(graph_state(x)))
-
+    x0 = np.random.rand(len(all_edges))
     x0 = jnp.array(x0)
 
     graph_state = jax.jit(graph_state)
@@ -98,12 +100,23 @@ if(__name__ == '__main__'):
         x = optax.apply_updates(x, updates)
         
         return x, opt_state, loss
+    
+    reps = 1000
+    result_list = []
+    for rep in range(reps):
+        x0 = jnp.array(np.random.rand(len(all_edges)))
+        
+        optimizer = optax.adam(learning_rate=0.1)
+        x = jnp.array(x0)  # Initial value of x
+        opt_state = optimizer.init(x)
 
-    num_steps = 100
-    for step in range(num_steps):
-        x, opt_state, loss = update_step(x, opt_state)
-        if step % 10 == 0:
-            print(f"Step {step}: loss = {loss}.")#, x = {x}")
+        num_steps = 1000
+        for step in range(num_steps):
+            x, opt_state, loss = update_step(x, opt_state)
+            result_list.append(np.array(loss))
+            if step % 10 == 0:
+                print(f"Step {step}: loss = {loss}.")#, x = {x}")
+        print("Best value is", min(result_list))
 
     print(f"Final optimized x, with loss {loss},\n{x}")
 

@@ -42,9 +42,9 @@ class FeedForwardNetwork(nn.Module):
         # t_encodings = FourierFeatureModule(feature_dim=self.feature_dim)(t)
         # x_encodings = FourierFeatureModule(feature_dim=self.feature_dim)(x_in)
         t_encodings = get_sinusoidal_positional_encoding(t, self.feature_dim, self.max_time)
-        x_encodings = get_sinusoidal_positional_encoding(x_in, self.feature_dim, self.max_position)
+        #x_encodings = get_sinusoidal_positional_encoding(x_in, self.feature_dim, self.max_position)
         #x = jnp.concatenate([x_in, x_fourier, t, t_fourier], axis=-1)
-        x = jnp.concatenate([ x_in, x_encodings, t, t_encodings], axis=-1)
+        x = jnp.concatenate([ x_in, t, t_encodings], axis=-1)
         #x = jnp.concatenate([ x_encodings, t_encodings], axis=-1)
         for _ in range(self.n_layers - 1):
             x_skip = x

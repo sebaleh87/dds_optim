@@ -6,6 +6,7 @@ from functools import partial
 class Discrete_Time_rKL_Loss_Class(Base_SDE_Loss_Class):
 
     def __init__(self, SDE_config, Optimizer_Config, EnergyClass, model):
+        self.temp_mode = SDE_config["SDE_Type_Config"]["temp_mode"]
         super().__init__(SDE_config, Optimizer_Config, EnergyClass, model)
 
     @partial(jax.jit, static_argnums=(0,), static_argnames=("n_integration_steps", "n_states", "x_dim"))  
@@ -22,5 +23,8 @@ class Discrete_Time_rKL_Loss_Class(Base_SDE_Loss_Class):
         Energy = self.vmap_calc_Energy(x_last)
         mean_Energy = jnp.mean(Energy)
 
-        loss = temp*entropy_loss + noise_loss + mean_Energy
+        if(self.temp_mode):
+            loss = temp*entropy_loss + noise_loss + mean_Energy
+        else:
+            loss = temp*entropy_loss + temp*noise_loss + mean_Energy
         return loss, {"mean_energy": mean_Energy, "best_Energy": jnp.min(Energy), "noise_loss": noise_loss, "entropy_loss": entropy_loss, "key": key, "X_0": x_last}

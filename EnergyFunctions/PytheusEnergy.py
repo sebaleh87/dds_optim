@@ -9,6 +9,7 @@ from pytheus import theseus as th
 from pytheus.fancy_classes import Graph, State
 import numpy as np
 #import optax
+from flax import linen as nn
 
 
 
@@ -44,19 +45,21 @@ class PytheusEnergyClass(EnergyModelClass):
 
         PERFECT_MATCHINGS = jnp.array(PERFECT_MATCHINGS)
 
-        TARGET_NORMED = jnp.array(TARGET_NORMED)
+        self.TARGET_NORMED = jnp.array(TARGET_NORMED)
 
-        eps = 1e-10
+        self.eps = 1e-20
         graph_state = lambda edges: edges[PERFECT_MATCHINGS].prod(axis=-1).sum(axis=-1)
-        normed_state = lambda state: state / (eps + jnp.sqrt(state @ state))
-        fidelity = lambda state: (state @ TARGET_NORMED)**2
-        loss_fun = lambda x: - fidelity(normed_state(graph_state(x)))
+        normed_state = lambda state, state_norm: state / (self.eps + state_norm)
+        fidelity = lambda state: (state @ self.TARGET_NORMED)**2
+        #loss_fun = lambda x: - fidelity(normed_state(graph_state(x)))
 
         self.x_dim = len(all_edges)
-        self.loss_fun = jax.jit(loss_fun)
+        self.fidelity = jax.jit(fidelity)
+        self.graph_state = jax.jit(graph_state)
+        self.norm_state = jax.jit(normed_state)
 
         config["dim_x"] = self.x_dim
-        print("End initializing PytheusEnergyClass")
+        print("End initializing PytheusEnergyClass", "variable size is", self.x_dim)
         super().__init__(config)
 
     @partial(jax.jit, static_argnums=(0,))
@@ -67,5 +70,10 @@ class PytheusEnergyClass(EnergyModelClass):
         :param x: Input array.
         :return: Energy value.
         """
+        graph_state = self.graph_state(x)
+        state_norm = jnp.linalg.norm(graph_state)
+        normed_state = self.norm_state(graph_state, state_norm)
+        self.energy_value = -self.fidelity(normed_state) + 1
 
-        return self.loss_fun(x)
+        vec_norm = state_norm
+        return self.energy_value #+ vec_norm**2 *jnp.heaviside(vec_norm - 1.0, 0.0)

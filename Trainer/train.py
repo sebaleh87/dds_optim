@@ -46,7 +46,7 @@ class TrainerClass:
         key = jax.random.PRNGKey(0)
         Best_Energy_value_ever = np.infty
         for epoch in range(self.num_epochs):
-            if(epoch % 100 == 0):
+            if(epoch % int(0.05*self.num_epochs) == 0):
                 n_samples = 100*2000
                 SDE_tracer, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, key, n_integration_steps = self.n_integration_steps, n_states = n_samples)
                 self.EnergyClass.plot_trajectories(np.array(SDE_tracer["xs"])[:,0:10,:])
