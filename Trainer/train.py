@@ -11,6 +11,7 @@ from functools import partial
 import jax.numpy as jnp
 import wandb
 import numpy as np
+from tqdm.auto import trange
 
 class TrainerClass:
     def __init__(self, base_config):
@@ -45,8 +46,9 @@ class TrainerClass:
         params = self.params
         key = jax.random.PRNGKey(0)
         Best_Energy_value_ever = np.infty
-        for epoch in range(self.num_epochs):
-            if(epoch % int(0.05*self.num_epochs) == 0):
+        pbar = trange(self.num_epochs)
+        for epoch in pbar:
+            if(epoch % 100 == 0):
                 n_samples = 100*2000
                 SDE_tracer, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, key, n_integration_steps = self.n_integration_steps, n_states = n_samples)
                 self.EnergyClass.plot_trajectories(np.array(SDE_tracer["xs"])[:,0:10,:])
@@ -56,7 +58,7 @@ class TrainerClass:
                 best_Energy_value = np.min(Energy_values)
                 if(best_Energy_value < Best_Energy_value_ever):
                     Best_Energy_value_ever = best_Energy_value
-                    print("New best Energy value found", Best_Energy_value_ever)
+                    #print("New best Energy value found", Best_Energy_value_ever)
                 wandb.log({"Best_Energy_value": Best_Energy_value_ever})
 
 
@@ -79,8 +81,7 @@ class TrainerClass:
             wandb.log({"loss": mean_loss, "schedules/temp": T_curr, "schedules/lr": lr, "epoch": epoch})
             wandb.log({dict_key: np.mean(self.aggregated_out_dict[dict_key]) for dict_key in self.aggregated_out_dict})
             wandb.log({"X_statistics/abs_mean": np.mean(np.sqrt(np.sum(out_dict["X_0"]**2, axis = -1))), "X_statistics/mean": np.mean(np.mean(out_dict["X_0"], axis = -1))})
-            print(f"Epoch {epoch + 1} completed")
-            print(mean_loss)
+            pbar.set_description(f"mean_loss {mean_loss:.4f}, best energy: {Best_Energy_value_ever:.4f}")
 
         return params
 
