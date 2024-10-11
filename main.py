@@ -8,7 +8,7 @@ import argparse
 ### TODO make seperate run configs for discrete time and continuous time
 
 parser = argparse.ArgumentParser(description="Denoising Diffusion Sampler")
-parser.add_argument("--GPU", type=str, default="5", help="GPU id to use")
+parser.add_argument("--GPU", type=str, default="0", help="GPU id to use")
 parser.add_argument("--SDE_Loss", type=str, default="Discrete_Time_rKL_Loss", choices=["Reverse_KL_Loss","LogVariance_Loss", "LogVarianceLoss_MC_Class", "Discrete_Time_rKL_Loss"], help="GPU id to use")
 parser.add_argument("--Energy_Config", type=str, default="Rastrigin", choices=["GaussianMixture", "Rastrigin", "MexicanHat", "Pytheus"], help="EnergyClass")
 parser.add_argument("--T_start", type=float, default=2., help="Starting Temperature")
