@@ -2,9 +2,10 @@
 from .GaussianMixture import GaussianMixtureClass
 from .MexicanHat import MexicanHatClass
 from .Rastrigin import RastriginClass
+from .PytheusEnergy import PytheusEnergyClass
 
 
-Energy_Registry = {"GaussianMixture": GaussianMixtureClass, "MexicanHat": MexicanHatClass, "Rastrigin": RastriginClass}
+Energy_Registry = {"GaussianMixture": GaussianMixtureClass, "MexicanHat": MexicanHatClass, "Rastrigin": RastriginClass, "Pytheus": PytheusEnergyClass}
 
 
 

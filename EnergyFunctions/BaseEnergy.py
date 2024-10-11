@@ -172,8 +172,26 @@ class EnergyModelClass:
     
     def plot_2_D_last_samples(self, Xs):
         fig = plt.figure(figsize=(10, 6))
-        plt.plot(Xs[:,0], Xs[:,1], "x")
-        
+
+        # Create a grid of points over the specified range
+        x = jnp.linspace(-5, 5, 100)
+        y = jnp.linspace(-5, 5, 100)
+        X, Y = jnp.meshgrid(x, y)
+
+        # Stack X and Y into a 2D array of coordinates for vectorized evaluation
+        grid_points = jnp.stack([X.ravel(), Y.ravel()], axis=-1)
+
+        # Calculate energy for each point in the grid
+        Z_energy = jax.vmap(self.calc_energy)(grid_points)
+
+        # Reshape results back into a 2D grid
+        Z_energy = Z_energy.reshape(X.shape)
+
+        # Plot the energy landscape in the background
+        plt.plot(Xs[:,0], Xs[:,1], "o", alpha=0.15)
+        energy_plot = plt.contourf(X, Y, Z_energy, levels=100, cmap='Reds', alpha=0.6)
+        plt.colorbar(energy_plot, label='Energy')
+
         plt.xlabel('X-axis')
         plt.ylabel('Y-axis')
         plt.title('2D last samples')
@@ -214,19 +232,39 @@ class EnergyModelClass:
         # Assuming `samples` is provided and wandb is initialized
 
         # Create 2D histogram
-        x = filtered_samples[:, 0]
-        y = filtered_samples[:, 1]
+        x_samples = filtered_samples[:, 0]
+        y_samples = filtered_samples[:, 1]
         extent = [-4, 4, -4, 4]
 
-        # Plot the zoomed-in heatmap
+        # Create a grid of points over the specified range
+        x = jnp.linspace(-x_range, x_range, n_bins)
+        y = jnp.linspace(-y_range, y_range, n_bins)
+        X, Y = jnp.meshgrid(x, y)
+        
+        # Stack X and Y into a 2D array of coordinates for vectorized evaluation
+        grid_points = jnp.stack([X.ravel(), Y.ravel()], axis=-1)
+        
+        # Calculate energy for each point in the grid
+        Z_energy = jax.vmap(self.calc_energy)(grid_points)
+        
+        # Reshape results back into a 2D grid
+        Z_energy = Z_energy.reshape(X.shape)
+
+        # Plot the energy landscape in the background
         fig, ax = plt.subplots(figsize=(10, 8))
-        ax.hist2d(y, -x, bins=n_bins, cmap='viridis')
-        ax.set_xlim(xmin=- x_range, xmax=x_range)
-        ax.set_ylim(ymin=-x_range, ymax=x_range)
-        ax.set_title('Zoomed 2D Histogram with Likelihood')
+        energy_plot = ax.contourf(X, Y, Z_energy, levels=100, cmap='Reds', alpha=0.6)
+        fig.colorbar(energy_plot, ax=ax, label='Energy')
+        
+        # Plot the zoomed-in heatmap
+        hist2d = ax.hist2d(y_samples, -x_samples, bins=n_bins, cmap='Blues', alpha=0.7)
+        fig.colorbar(hist2d[3], ax=ax, label='Likelihood')
+        
+        ax.set_xlim(xmin=-x_range, xmax=x_range)
+        ax.set_ylim(ymin=-y_range, ymax=y_range)
+        ax.set_title('Zoomed 2D Histogram with Energy Landscape')
         ax.set_xlabel('X-axis')
         ax.set_ylabel('Y-axis')
-        #fig.colorbar(cax, ax=ax, label='Likelihood')
+        plt.tight_layout()
 
         # Log the figure using wandb
         wandb.log({"fig/2d_histogram": wandb.Image(fig)})

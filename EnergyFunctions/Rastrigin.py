@@ -17,6 +17,6 @@ class RastriginClass(EnergyModelClass):
         """
         A = 10
         energy_value = A * len(x) + jnp.sum(x**2 - A * jnp.cos(2 * jnp.pi * x))
-        return energy_value/self.norm
+        return energy_value#/self.norm
     
 

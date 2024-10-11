@@ -44,11 +44,12 @@ class FeedForwardNetwork(nn.Module):
         t_encodings = get_sinusoidal_positional_encoding(t, self.feature_dim, self.max_time)
         x_encodings = get_sinusoidal_positional_encoding(x_in, self.feature_dim, self.max_position)
         #x = jnp.concatenate([x_in, x_fourier, t, t_fourier], axis=-1)
-        #x = jnp.concatenate([ x_in, x_encodings, t, t_encodings], axis=-1)
-        x = jnp.concatenate([ x_encodings, t_encodings], axis=-1)
+        x = jnp.concatenate([ x_in, x_encodings, t, t_encodings], axis=-1)
+        #x = jnp.concatenate([ x_encodings, t_encodings], axis=-1)
         for _ in range(self.n_layers - 1):
             x_skip = x
-            x = nn.Dense(self.hidden_dim)(x)
+            x = nn.Dense(self.hidden_dim, kernel_init=nn.initializers.he_normal(),
+                                 bias_init=nn.initializers.zeros)(x)
             x = nn.relu(x)
             if(_ != 0):
                 x = nn.LayerNorm()(x + x_skip)

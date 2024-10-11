@@ -8,39 +8,40 @@ import argparse
 ### TODO make seperate run configs for discrete time and continuous time
 
 parser = argparse.ArgumentParser(description="Denoising Diffusion Sampler")
-parser.add_argument("--gpu", type=str, default="5", help="GPU id to use")
+parser.add_argument("--GPU", type=str, default="5", help="GPU id to use")
 parser.add_argument("--SDE_Loss", type=str, default="Discrete_Time_rKL_Loss", choices=["Reverse_KL_Loss","LogVariance_Loss", "LogVarianceLoss_MC_Class", "Discrete_Time_rKL_Loss"], help="GPU id to use")
-parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "Rastrigin", "MexicanHat"], help="EnergyClass")
+parser.add_argument("--Energy_Config", type=str, default="Rastrigin", choices=["GaussianMixture", "Rastrigin", "MexicanHat", "Pytheus"], help="EnergyClass")
 parser.add_argument("--T_start", type=float, default=2., help="Starting Temperature")
 parser.add_argument("--T_end", type=float, default=0., help="End Temperature")
-parser.add_argument("--n_integration_steps", type=int, default=200)
-parser.add_argument("--minib_time_steps", type=int, default=100)
+parser.add_argument("--n_integration_steps", type=int, default=10)
+parser.add_argument("--minib_time_steps", type=int, default=20)
 parser.add_argument("--batch_size", type=int, default=200)
 parser.add_argument("--lr", type=float, default=0.001)
 parser.add_argument("--N_anneal", type=int, default=1000)
 parser.add_argument("--N_warmup", type=int, default=0)
+parser.add_argument("--steps_per_epoch", type=int, default=100)
 parser.add_argument("--SDE_time_mode", type=str, default="Discrete_Time", choices=["Discrete_Time", "Continuous_Time"], help="SDE Time Mode")
+parser.add_argument("--Network_Type", type=str, default="FourierNetwork", choices=["FourierNetwork", "FeedForward"], help="SDE Time Mode")
 args = parser.parse_args()
 
 if(__name__ == "__main__"):
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   # see issue #152
-    os.environ["CUDA_VISIBLE_DEVICES"]=f"{str(args.gpu)}"
+    os.environ["CUDA_VISIBLE_DEVICES"]=f"{str(args.GPU)}"
     #disable JIT compilation
     #jax.config.update("jax_disable_jit", True)
 
     N_anneal = args.N_anneal
     epochs = N_anneal + args.N_warmup
-    steps_per_epoch = 10
 
     Optimizer_Config = {
         "name": "Adam",
         "lr": args.lr,
         "epochs": epochs,
-        "steps_per_epoch": steps_per_epoch,
+        "steps_per_epoch": args.steps_per_epoch,
     }
 
     Network_Config = {
-        "name": "FourierNetwork",
+        "name": args.Network_Type,
         "feature_dim": 64,
         "n_hidden": 120,
         "n_layers": 3,
@@ -91,6 +92,11 @@ if(__name__ == "__main__"):
         Energy_Config = {
             "name": "MexicanHat",
             "dim_x": 2,
+        }
+    elif(args.Energy_Config == "Pytheus"):
+        Energy_Config = {
+            "name": "Pytheus",
+            "challenge_index": 1,
         }
     else:
         raise ValueError("Energy Config not found")

@@ -104,6 +104,7 @@ class LogVarianceLoss_MC_Class(Base_SDE_Loss_Class):
 
         return params, opt_state, loss_value, overall_out_dict
 
+    @partial(jax.jit, static_argnums=(0,))
     def compute_loss(self, params, minib_SDE_tracer, log_prior, Energy, temp):
         ### TODO also add KL regularization term
         T = self.n_integration_steps

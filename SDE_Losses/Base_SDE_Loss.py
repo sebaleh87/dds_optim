@@ -23,6 +23,7 @@ class Base_SDE_Loss_Class:
         self.vmap_calc_Energy =  jax.vmap(self.EnergyClass.calc_energy, in_axes = (0,))
         self.vmap_model = jax.vmap(self.model.apply, in_axes=(None,0,0))
 
+    @partial(jax.jit, static_argnums=(0,))
     def loss_fn(self, params, T_curr, key):
         loss, key = self.compute_loss( params, key, n_integration_steps = self.n_integration_steps, n_states = self.batch_size, temp = T_curr, x_dim = self.EnergyClass.dim_x)
         return loss, key
@@ -46,7 +47,8 @@ class Base_SDE_Loss_Class:
         warmup_steps = int(0.1 * overall_steps)
 
         self.schedule = lambda epoch: learning_rate_schedule(epoch, l_max, l_start, overall_steps, warmup_steps)
-        optimizer = optax.adam(self.schedule)
+        #optimizer = optax.adam(self.schedule)
+        optimizer = optax.chain(optax.clip_by_global_norm(1.0), optax.scale_by_radam(), optax.scale_by_schedule(lambda lr: -self.schedule(lr)))
         return optimizer
 
     def simulate_reverse_sde_scan(self, params, key, n_states = 100, n_integration_steps = 1000):

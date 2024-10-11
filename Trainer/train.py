@@ -21,13 +21,14 @@ class TrainerClass:
         SDE_Loss_Config = base_config["SDE_Loss_Config"]
         Network_Config = base_config["Network_Config"]
         self.Optimizer_Config = base_config["Optimizer_Config"]
-        self.dim_x = Energy_Config["dim_x"]
 
         self.model = get_network(Network_Config, SDE_Loss_Config)
 
         self.EnergyClass = get_Energy_class(Energy_Config)
         self.AnnealClass = get_AnnealSchedule_class(AnnealConfig)
         self.SDE_LossClass = get_SDE_Loss_class(SDE_Loss_Config, self.Optimizer_Config, self.EnergyClass, self.model)
+
+        self.dim_x = self.EnergyClass.dim_x
 
         self.num_epochs = base_config["num_epochs"]
         self.n_integration_steps = SDE_Loss_Config["n_integration_steps"]
@@ -43,11 +44,20 @@ class TrainerClass:
 
         params = self.params
         key = jax.random.PRNGKey(0)
+        Best_Energy_value_ever = np.infty
         for epoch in range(self.num_epochs):
-            SDE_tracer, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, key, n_integration_steps = self.n_integration_steps, n_states = 1500*2000)
-            self.EnergyClass.plot_trajectories(np.array(SDE_tracer["xs"])[:,0:10,:])
-            self.EnergyClass.plot_histogram(np.array(SDE_tracer["x_final"])[:,:])
-            self.EnergyClass.plot_last_samples(np.array(SDE_tracer["x_final"])[:,:])
+            if(epoch % 100 == 0):
+                n_samples = 100*2000
+                SDE_tracer, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, key, n_integration_steps = self.n_integration_steps, n_states = n_samples)
+                self.EnergyClass.plot_trajectories(np.array(SDE_tracer["xs"])[:,0:10,:])
+                self.EnergyClass.plot_histogram(np.array(SDE_tracer["x_final"])[:,:])
+                self.EnergyClass.plot_last_samples(np.array(SDE_tracer["x_final"])[0:int(0.05*n_samples)])
+                Energy_values = self.SDE_LossClass.vmap_calc_Energy(SDE_tracer["x_final"])
+                best_Energy_value = np.min(Energy_values)
+                if(best_Energy_value < Best_Energy_value_ever):
+                    Best_Energy_value_ever = best_Energy_value
+                    print("New best Energy value found", Best_Energy_value_ever)
+                wandb.log({"Best_Energy_value": Best_Energy_value_ever})
 
 
             T_curr = self.AnnealClass.update_temp()

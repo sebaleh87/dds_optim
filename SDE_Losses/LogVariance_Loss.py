@@ -1,7 +1,7 @@
 from .Base_SDE_Loss import Base_SDE_Loss_Class
 import jax
 from jax import numpy as jnp
-
+from functools import partial
 
 class LogVariance_Loss_Class(Base_SDE_Loss_Class):
 
@@ -10,6 +10,7 @@ class LogVariance_Loss_Class(Base_SDE_Loss_Class):
         self.SDE_type.stop_gradient = True
         print("Gradient over expectation is supposed to be stopped from now on")
 
+    @partial(jax.jit, static_argnums=(0,), static_argnames=("n_integration_steps", "n_states", "x_dim"))  
     def compute_loss(self, params, key, n_integration_steps = 100, n_states = 10, temp = 1.0, x_dim = 2):
         SDE_tracer, key = self.SDE_type.simulate_reverse_sde_scan(self.model , params, key, n_integration_steps = n_integration_steps, n_states = n_states, x_dim = x_dim)
         score = SDE_tracer["scores"]

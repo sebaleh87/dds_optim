@@ -26,8 +26,12 @@ class DiscreteTime_SDE_Class(Base_SDE_Class):
         return 0.5*(self.beta_min + t * (self.beta_max - self.beta_min))
     
     def _gaussian_noise_energy(self, X_prev, X_next, gamma_t_i):
-        gamma_t_i = jnp.clip(gamma_t_i , a_min = 0.01)
-        noise_loss = jnp.mean(jnp.sum( 0.5 * (X_prev - jnp.sqrt(1 - gamma_t_i) * X_next) ** 2 /gamma_t_i ** 2, axis=- 1))
+        #gamma_t = jnp.clip(gamma_t_i , a_min = 0.01)
+        gamma_t = gamma_t_i*jnp.ones_like(X_prev)
+        #noise_loss = -jnp.mean(jnp.sum(- 0.5 * (X_prev - jnp.sqrt(1 - gamma_t) * X_next) ** 2 /gamma_t ** 2 - 0.5*jnp.log(2*jnp.pi*gamma_t**2), axis=- 1)) 
+        ### TODO check why noise loss below is not working
+        ### TODO 
+        noise_loss = -jnp.mean(jnp.sum(jax.scipy.stats.norm.logpdf(X_prev, loc=X_next*jnp.sqrt(1-gamma_t), scale=gamma_t*jnp.ones_like(X_next)), axis = -1))
         return noise_loss
     
     def sample_from_model(self, output_dict):
@@ -36,7 +40,7 @@ class DiscreteTime_SDE_Class(Base_SDE_Class):
         mean = output_dict["mean_x"]
         sigma = jnp.exp(0.5 * log_var)
         key, split_key = jax.random.split(key)
-        eps = jax.random.normal(split_key, shape= (log_var.shape[0] , log_var.shape[-1]))
+        eps = jax.random.normal(split_key, shape= (log_var.shape[0] , log_var.shape[-1]))*jnp.sqrt(output_dict["T_curr"])
         samples = mean + sigma * eps
         output_dict["samples"] = samples
         output_dict["key"] = key
@@ -75,12 +79,12 @@ class DiscreteTime_SDE_Class(Base_SDE_Class):
     def sample(self, shape, key):
         return random.normal(key, shape)
     
-    def simulate_reverse_sde_scan(self, model, params, key, n_states = 100, x_dim = 2, n_integration_steps = 1000):
+    def simulate_reverse_sde_scan(self, model, params, key, n_states = 100, x_dim = 2, n_integration_steps = 1000, T_curr = 1.0):
         def scan_fn(carry, step):
-            x, t, dt, step, key = carry
+            x, t, dt, step, T_curr, key = carry
             t_arr = t*jnp.ones((x.shape[0], 1)) 
             mean_x, log_var_x = model.apply(params, x, t_arr)
-            output_dict = {"mean_x": mean_x, "log_var": log_var_x, "xs": x, "ts": t, "key": key}
+            output_dict = {"mean_x": mean_x, "log_var": log_var_x, "xs": x, "ts": t, "T_curr": T_curr, "key": key}
             reverse_out_dict = self.reverse_sde(output_dict)
             reverse_out_dict["t_next"] = t - dt
 
@@ -94,7 +98,7 @@ class DiscreteTime_SDE_Class(Base_SDE_Class):
             x = reverse_out_dict["x_next"]
             t = reverse_out_dict["t_next"]
             step += 1
-            return (x, t, dt, step, key), SDE_tracker_step
+            return (x, t, dt, step, T_curr, key), SDE_tracker_step
 
         key, subkey = random.split(key)
         x0 = random.normal(subkey, shape=(n_states, x_dim))
@@ -104,9 +108,9 @@ class DiscreteTime_SDE_Class(Base_SDE_Class):
 
         #print("no scan", model.apply(params, x0[0:10], t*jnp.ones((10, 1))))
 
-        (x_final, t_final, _, _, key), SDE_tracker_steps = jax.lax.scan(
+        (x_final, t_final, _, _, _, key), SDE_tracker_steps = jax.lax.scan(
             scan_fn,
-            (x0, t, dt, step, key),
+            (x0, t, dt, step, T_curr, key),
             jnp.arange(n_integration_steps)
         )
 
@@ -125,7 +129,7 @@ class DiscreteTime_SDE_Class(Base_SDE_Class):
         return SDE_tracker, key
     
     def _cos_func(self, t, n_steps, s=10 ** -2):
-        f_t = jnp.cos(np.pi / 2 * ((t / n_steps) / (s + 1))) ** 2
+        f_t = jnp.cos(jnp.pi / 2 * ((t / n_steps) / (s + 1))) ** 2
         return f_t
 
     def _calc_gamma(self, alpha_hat_t, alpha_hat_t_prev, clip_value=0.99):

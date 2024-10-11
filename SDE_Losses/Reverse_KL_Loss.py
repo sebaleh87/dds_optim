@@ -9,7 +9,7 @@ class Reverse_KL_Loss_Class(Base_SDE_Loss_Class):
     def __init__(self, SDE_config, Optimizer_Config, EnergyClass, model):
         super().__init__(SDE_config, Optimizer_Config, EnergyClass, model)
 
-    #@partial(jax.jit, static_argnums=(0,))  
+    @partial(jax.jit, static_argnums=(0,), static_argnames=("n_integration_steps", "n_states", "x_dim"))  
     def compute_loss(self, params, key, n_integration_steps = 100, n_states = 10, temp = 1.0, x_dim = 2):
         SDE_tracer, key = self.SDE_type.simulate_reverse_sde_scan(self.model , params, key, n_integration_steps = n_integration_steps, n_states = n_states, x_dim = x_dim)
         score = jnp.array(SDE_tracer["scores"])
