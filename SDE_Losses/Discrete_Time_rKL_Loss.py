@@ -23,4 +23,4 @@ class Discrete_Time_rKL_Loss_Class(Base_SDE_Loss_Class):
         mean_Energy = jnp.mean(Energy)
 
         loss = temp*entropy_loss + noise_loss + mean_Energy
-        return loss, {"mean_energy": mean_Energy, "noise_loss": noise_loss, "entropy_loss": entropy_loss, "key": key, "X_0": x_last}
+        return loss, {"mean_energy": mean_Energy, "best_Energy": jnp.min(Energy), "noise_loss": noise_loss, "entropy_loss": entropy_loss, "key": key, "X_0": x_last}

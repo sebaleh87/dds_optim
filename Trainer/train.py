@@ -76,7 +76,7 @@ class TrainerClass:
                 loss_list.append(float(loss))
             mean_loss = np.mean(loss_list)
             lr = self.SDE_LossClass.schedule(epoch*(self.Optimizer_Config["steps_per_epoch"]*self.SDE_LossClass.lr_factor)) ### TODO correct this for MC case
-            wandb.log({"loss": mean_loss, "schedules/temp": T_curr, "schedules/lr": lr})
+            wandb.log({"loss": mean_loss, "schedules/temp": T_curr, "schedules/lr": lr, "epoch": epoch})
             wandb.log({dict_key: np.mean(self.aggregated_out_dict[dict_key]) for dict_key in self.aggregated_out_dict})
             wandb.log({"X_statistics/abs_mean": np.mean(np.sqrt(np.sum(out_dict["X_0"]**2, axis = -1))), "X_statistics/mean": np.mean(np.mean(out_dict["X_0"], axis = -1))})
             print(f"Epoch {epoch + 1} completed")
