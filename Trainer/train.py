@@ -65,7 +65,7 @@ class TrainerClass:
             for i in range(self.Optimizer_Config["steps_per_epoch"]):
                 params, self.opt_state, loss, out_dict = self.SDE_LossClass.update_step(params, self.opt_state, key, T_curr)
                 key = out_dict["key"]	
-
+                #print(out_dict)
                 if not hasattr(self, 'aggregated_out_dict'):
                     self.aggregated_out_dict = {k: [] for k in out_dict.keys() if k != "key" and k != "X_0"}
 

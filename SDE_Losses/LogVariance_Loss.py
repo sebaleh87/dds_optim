@@ -24,10 +24,11 @@ class LogVariance_Loss_Class(Base_SDE_Loss_Class):
         # print("diff", score - score2)
 
         x_last = SDE_tracer["x_final"]
+        x_dim = x_last.shape[-1]
 
         U = self.SDE_type.get_diffusion(None, ts)[:,None, None]*score
 
-        div_drift = - x_dim*self.SDE_type.beta(ts)[:,None, None]
+        div_drift = - self.x_dim*self.SDE_type.beta(ts)[:,None, None]
         f = U * jax.lax.stop_gradient(U) - U**2/2 - div_drift
         S = jnp.sum(jnp.sum(U * dW, axis = -1), axis = 0)
 

@@ -8,13 +8,13 @@ import numpy as np
 
 class DiscreteTime_SDE_Class(Base_SDE_Class):
 
-    def __init__(self, SDE_Type_Config) -> None:
+    def __init__(self, SDE_Type_Config, Energy_Class) -> None:
         self.stop_gradient = False
         self.n_diff_steps = SDE_Type_Config["n_diff_steps"]
         self.temp_mode = SDE_Type_Config["temp_mode"]
         self._make_beta_list()
         self.config = SDE_Type_Config
-        super().__init__(SDE_Type_Config)
+        super().__init__(SDE_Type_Config, Energy_Class)
     
     def get_log_prior(self, x):
         return jax.scipy.stats.norm.logpdf(x, loc=0, scale=1)
@@ -25,8 +25,9 @@ class DiscreteTime_SDE_Class(Base_SDE_Class):
         #noise_loss = -jnp.mean(jnp.sum(- 0.5 * (X_prev - jnp.sqrt(1 - gamma_t) * X_next) ** 2 /gamma_t ** 2 - 0.5*jnp.log(2*jnp.pi*gamma_t**2), axis=- 1)) 
         ### TODO check why noise loss below is not working
         ### TODO 
-        noise_loss = -jnp.mean(jnp.sum(jax.scipy.stats.norm.logpdf(X_prev, loc=X_next*jnp.sqrt(1-gamma_t), scale=gamma_t*jnp.ones_like(X_next)), axis = -1))
-        return noise_loss
+        noise_arr = -jnp.sum(jax.scipy.stats.norm.logpdf(X_prev, loc=X_next*jnp.sqrt(1-gamma_t), scale=gamma_t*jnp.ones_like(X_next)), axis = -1)
+        noise_loss = jnp.mean(noise_arr)
+        return noise_loss, noise_arr
     
     def sample_from_model(self, output_dict):
         key = output_dict["key"]
@@ -40,6 +41,9 @@ class DiscreteTime_SDE_Class(Base_SDE_Class):
             eps = jax.random.normal(split_key, shape= (log_var.shape[0] , log_var.shape[-1]))
             
         samples = mean + sigma * eps
+        if(self.stop_gradient):
+            samples = jax.lax.stop_gradient(samples)
+
         output_dict["samples"] = samples
         output_dict["key"] = key
         return output_dict
@@ -47,7 +51,9 @@ class DiscreteTime_SDE_Class(Base_SDE_Class):
     def get_model_entropy(self, output_dict):
         log_var = output_dict["log_var"]
         logdet = jnp.sum(log_var, axis=-1)
-        entropy = jnp.mean(0.5 * logdet)
+        entropy_arr = 0.5 * logdet
+        entropy = jnp.mean(entropy_arr)
+        output_dict["entropy_arr"] = entropy_arr
         output_dict["entropy"] = entropy
         return output_dict
 
@@ -86,9 +92,11 @@ class DiscreteTime_SDE_Class(Base_SDE_Class):
             reverse_out_dict = self.reverse_sde(output_dict)
             reverse_out_dict["t_next"] = t - dt
 
-            noise_loss_value = self._gaussian_noise_energy(x, reverse_out_dict["x_next"], self.gamma_t_arr[step])
+            noise_loss_value, noise_loss_arr = self._gaussian_noise_energy(x, reverse_out_dict["x_next"], self.gamma_t_arr[step])
             reverse_out_dict["noise_loss_value"] = noise_loss_value
             reverse_out_dict["entropy_loss_value"] = -reverse_out_dict["entropy"]
+            reverse_out_dict["noise_loss_arr"] = noise_loss_arr
+            reverse_out_dict["entropy_loss_arr"] = -reverse_out_dict["entropy_arr"]
             key = reverse_out_dict["key"]
 
             SDE_tracker_step = {out_key: reverse_out_dict[out_key] for out_key in reverse_out_dict.keys() if out_key != "key"}
@@ -120,7 +128,9 @@ class DiscreteTime_SDE_Class(Base_SDE_Class):
             #"mean_x": SDE_tracker_steps["mean_x"],
             #"log_var_x": SDE_tracker_steps["log_var_x"],
             "noise_loss_value": SDE_tracker_steps["noise_loss_value"],
-            "entropy_loss_value": SDE_tracker_steps["entropy_loss_value"]
+            "entropy_loss_value": SDE_tracker_steps["entropy_loss_value"],
+            "noise_loss_arr": SDE_tracker_steps["noise_loss_arr"],
+            "entropy_loss_arr": SDE_tracker_steps["entropy_loss_arr"]
         }
         SDE_tracker["x_final"] = x_final
 

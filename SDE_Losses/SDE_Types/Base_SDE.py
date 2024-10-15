@@ -5,9 +5,12 @@ import jax.numpy as jnp
 
 class Base_SDE_Class:
 
-    def __init__(self, config) -> None:
+    def __init__(self, config, Energy_Class) -> None:
         self.config = config
         self.stop_gradient = False
+        self.Energy_Class = Energy_Class
+        self.use_interpol_gradient = config["use_interpol_gradient"]
+        self.vmap_interpol_gradient = jax.vmap(self.prior_target_grad_interpolation, in_axes=(0, None))
         pass
 
     def compute_p_xt_g_x0_statistics(self, x0, xt, t):
@@ -15,6 +18,10 @@ class Base_SDE_Class:
 
     def get_log_prior(self, x):
         raise NotImplementedError("get_diffusion method not implemented")
+    
+    def prior_target_grad_interpolation(self, x, t):
+        interpol = lambda x: (t)*jnp.sum(self.get_log_prior(x), axis = -1) + (1-t)*self.Energy_Class.calc_energy(x)
+        return jax.grad(interpol)( x)
 
     def get_diffusion(self, t, x):
         """
@@ -90,7 +97,15 @@ class Base_SDE_Class:
         def scan_fn(carry, step):
             x, t, key = carry
             t_arr = t*jnp.ones((x.shape[0], 1)) 
-            score = model.apply(params, x, t_arr)
+            if(self.use_interpol_gradient):
+                grad_drift, correction_drift = model.apply(params, x, t_arr)
+                interpolated_grad = self.vmap_interpol_gradient(x, t)
+                grad_score = grad_drift * jnp.clip(interpolated_grad, -10**2, 10**2)
+                correction_grad_score = correction_drift + grad_score
+                score = jnp.clip(correction_grad_score, -10**4, 10**4 )
+            else:
+                score = model.apply(params, x, t_arr)
+                score = jnp.clip(score, -10**4, 10**4)
             reverse_out_dict, key = self.reverse_sde(score, x, t, dt, key)
 
             SDE_tracker_step = {

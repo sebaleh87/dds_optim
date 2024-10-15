@@ -13,6 +13,11 @@ if(__name__ == '__main__'):
     os.environ["CUDA_VISIBLE_DEVICES"]=f"{5}"
     challenges = [(4,4,2),(5,4,4),(6,4,6),(7,4,8),(8,4,10),(9,4,12)]
 
+
+    test_arr = jnp.arange(0,100)
+
+    cumsum = jax.lax.cumsum(test_arr, axis=0)
+
     dim, n_ph, anc = challenges[1]
     halo_state = [str(ii)*n_ph+'0'*anc for ii in range(dim)]
     target_state = State(halo_state)

@@ -3,7 +3,7 @@ import jax
 from jax import numpy as jnp
 from functools import partial
 
-class Discrete_Time_rKL_Loss_Class(Base_SDE_Loss_Class):
+class Discrete_Time_rKL_Loss_Class_reparam(Base_SDE_Loss_Class):
 
     def __init__(self, SDE_config, Optimizer_Config, EnergyClass, model):
         self.temp_mode = SDE_config["SDE_Type_Config"]["temp_mode"]

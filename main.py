@@ -9,9 +9,10 @@ import argparse
 
 parser = argparse.ArgumentParser(description="Denoising Diffusion Sampler")
 parser.add_argument("--GPU", type=str, default="5", help="GPU id to use")
-parser.add_argument("--SDE_Loss", type=str, default="Discrete_Time_rKL_Loss", choices=["Reverse_KL_Loss","LogVariance_Loss", "LogVarianceLoss_MC_Class", "Discrete_Time_rKL_Loss"], help="GPU id to use")
+parser.add_argument("--SDE_Loss", type=str, default="Reverse_KL_Loss", choices=["Reverse_KL_Loss","LogVariance_Loss", "LogVariance_Loss_MC", "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam"], help="GPU id to use")
+parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE"], help="GPU id to use")
 parser.add_argument("--Energy_Config", type=str, default="Rastrigin", choices=["GaussianMixture", "Rastrigin", "MexicanHat", "Pytheus"], help="EnergyClass")
-parser.add_argument("--T_start", type=float, default=2., help="Starting Temperature")
+parser.add_argument("--T_start", type=float, default=1., help="Starting Temperature")
 parser.add_argument("--T_end", type=float, default=0., help="End Temperature")
 parser.add_argument("--n_integration_steps", type=int, default=10)
 parser.add_argument("--minib_time_steps", type=int, default=20)
@@ -21,11 +22,19 @@ parser.add_argument("--N_anneal", type=int, default=1000)
 parser.add_argument("--N_warmup", type=int, default=0)
 parser.add_argument("--steps_per_epoch", type=int, default=100)
 
-parser.add_argument("--temp_mode", type=str, default="True")
+
+parser.add_argument("--beta_min", type=float, default=0.05)
+parser.add_argument("--beta_max", type=float, default=10.)
+parser.add_argument('--temp_mode', action='store_true', default=True, help='only for discrete time model')
+parser.add_argument('--no-temp_mode', action='store_false', help='')
 
 parser.add_argument("--feature_dim", type=int, default=32)
 parser.add_argument("--n_hidden", type=int, default=124)
 parser.add_argument("--n_layers", type=int, default=3)
+
+parser.add_argument('--use_interpol_gradient', action='store_true', default=True, help='gradient of energy function is added to the score')
+parser.add_argument('--no-use_interpol_gradient', action='store_false', help='gradient of energy function is added not to the score')
+
 
 parser.add_argument("--SDE_time_mode", type=str, default="Discrete_Time", choices=["Discrete_Time", "Continuous_Time"], help="SDE Time Mode")
 parser.add_argument("--Network_Type", type=str, default="FeedForward", choices=["FourierNetwork", "FeedForward"], help="SDE Time Mode")
@@ -54,21 +63,16 @@ if(__name__ == "__main__"):
         "n_layers": args.n_layers,
     }
 
-    if(args.SDE_Loss == "Discrete_Time_rKL_Loss"):
-
-        if(args.temp_mode == "True"):
-            temp_mode = True
-        else:
-            temp_mode = False
+    if("Discrete_Time_rKL_Loss" in args.SDE_Loss):
 
         SDE_Type_Config = {
             "name": "DiscreteTime_SDE", 
             "n_diff_steps": args.n_integration_steps,
-            "temp_mode": temp_mode,
+            "temp_mode": args.temp_mode,
         }
         
         SDE_Loss_Config = {
-            "name": "Discrete_Time_rKL_Loss", # Reverse_KL_Loss, LogVariance_Loss
+            "name": args.SDE_Loss, # Reverse_KL_Loss, LogVariance_Loss
             "SDE_Type_Config": SDE_Type_Config,
             "batch_size": args.batch_size,
             "n_integration_steps": args.n_integration_steps,
@@ -77,8 +81,9 @@ if(__name__ == "__main__"):
     else:
         SDE_Type_Config = {
             "name": "VP_SDE", 
-            "beta_min": 0.05,
-            "beta_max": 5.0,
+            "beta_min": args.beta_min,
+            "beta_max": args.beta_max,
+            "use_interpol_gradient": args.use_interpol_gradient,
         }
         
         SDE_Loss_Config = {

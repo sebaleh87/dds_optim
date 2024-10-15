@@ -88,3 +88,55 @@ class FourierFeatureModule(nn.Module):
     def __call__(self, x):
         x = nn.Dense(self.feature_dim)(x)
         return jnp.concatenate([jnp.sin(x), jnp.cos(x)], axis=-1)
+    
+#### TODO change and use the code below
+from typing import Callable, Optional
+
+class TimeEmbed(nn.Module):
+    dim_out: int
+    activation: Callable
+    num_layers: int = 2
+    channels: int = 64
+    last_bias_init: Optional[Callable] = None
+    last_weight_init: Optional[Callable] = None
+
+    def setup(self):
+        # Initialize timestep coefficients
+        self.timestep_coeff = jnp.linspace(0.1, 100, self.channels)[None, :]
+        self.timestep_phase = self.param(
+            'timestep_phase',
+            jax.random.normal,
+            (1, self.channels)
+        )
+
+        # Create hidden layers
+        self.hidden_layer = [nn.Dense(self.channels) for _ in range(self.num_layers - 1)]
+        self.hidden_layer.insert(0, nn.Dense(self.channels * 2))
+
+        # Output layer with optional bias and weight initialization
+        self.out_layer = nn.Dense(
+            self.dim_out,
+            kernel_init=self.last_weight_init or nn.initializers.lecun_normal(),
+            bias_init=self.last_bias_init or nn.initializers.zeros
+        )
+
+    def __call__(self, t: jnp.ndarray) -> jnp.ndarray:
+        # Ensure t is of shape (batch_size, 1)
+        assert t.ndim in [0, 1, 2]
+        if t.ndim == 2:
+            assert t.shape[1] == 1
+        t = t.reshape(-1, 1).astype(jnp.float32)
+
+        # Calculate sinusoidal embeddings
+        sin_embed_t = jnp.sin((self.timestep_coeff * t) + self.timestep_phase)
+        cos_embed_t = jnp.cos((self.timestep_coeff * t) + self.timestep_phase)
+
+        # Concatenate sinusoidal embeddings
+        embed_t = jnp.concatenate([sin_embed_t, cos_embed_t], axis=-1)
+
+        # Pass through hidden layers
+        for layer in self.hidden_layer:
+            embed_t = self.activation(layer(embed_t))
+
+        # Output layer
+        return self.out_layer(embed_t)

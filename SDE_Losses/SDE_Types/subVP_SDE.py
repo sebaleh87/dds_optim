@@ -6,7 +6,7 @@ import wandb
 import numpy as np
 from .Base_SDE import Base_SDE_Class
 
-class VP_SDE_Class(Base_SDE_Class):
+class subVP_SDE_Class(Base_SDE_Class):
     def __init__(self, SDE_Type_Config, Energy_Class):
         self.beta_min = SDE_Type_Config["beta_min"]
         self.beta_max = SDE_Type_Config["beta_max"]
@@ -45,7 +45,7 @@ class VP_SDE_Class(Base_SDE_Class):
         return - self.beta(t) * x
     
     def get_diffusion(self, x, t):
-        diffusion = self.sigma_sde*jnp.sqrt(2*self.beta(t))
+        diffusion = self.sigma_sde*jnp.sqrt(2*self.beta(t)*(1-jnp.exp(- 4*self.beta_int(t))))
         return diffusion
     
     def reverse_sde(self, score, x, t, dt, key):

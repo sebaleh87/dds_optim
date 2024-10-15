@@ -8,7 +8,7 @@ class Base_SDE_Loss_Class:
     def __init__(self, SDE_config, Optimizer_Config, Energy_Class, model, lr_factor = 1.):
         SDE_Type_Config = SDE_config["SDE_Type_Config"]
         self.Optimizer_Config = Optimizer_Config
-        self.SDE_type = get_SDE_Type_Class(SDE_Type_Config)
+        self.SDE_type = get_SDE_Type_Class(SDE_Type_Config, Energy_Class)
         
         self.lr_factor = lr_factor
         self.batch_size = SDE_config["batch_size"]
@@ -36,7 +36,19 @@ class Base_SDE_Loss_Class:
         (loss_value, out_dict), (grads,) = jax.value_and_grad(self.loss_fn, argnums=(0,), has_aux = True)(params, T_curr, key)
         updates, opt_state = self.optimizer.update(grads, opt_state)
         params = optax.apply_updates(params, updates)
-        #p_ref_params = jax.tree_util.tree_map(lambda x, y: x - lam_p_ref * y, p_ref_params, grads_ref)
+
+        flat_grads = jax.tree_util.tree_leaves(grads)
+        # Sum all parameter values and count the total number of elements
+        total_sum = sum([jnp.sum(param) for param in flat_grads])
+        total_elements = sum([param.size for param in flat_grads])
+        # Compute the average value
+        average_grad = total_sum / total_elements
+        out_dict["network/average_grad"] = jnp.abs(average_grad)
+        X_0 = out_dict["X_0"]
+        Energy_grad = jnp.mean(jnp.gradient(self.vmap_calc_Energy(X_0)))
+        out_dict["network/Energy_grad"] = jnp.abs(Energy_grad)
+        #p_ref_params = jax.tree_util.tree_map(lambda x, y: x - lam_p_ref * y, grads)
+
         return params, opt_state, loss_value, out_dict
 
     ### TODO move optimizers and so on here!

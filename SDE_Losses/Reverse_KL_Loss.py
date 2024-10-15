@@ -22,4 +22,5 @@ class Reverse_KL_Loss_Class(Base_SDE_Loss_Class):
         mean_Energy = jnp.mean(Energy)
         R_diff = jnp.mean(jnp.sum(1/2*dt*jnp.sum( ( self.SDE_type.get_diffusion(None, ts)[:,None, None]*score)**2, axis = -1), axis = 0))
         loss = temp*R_diff + mean_Energy
+        print("test score", jnp.mean(score), jnp.mean(loss))
         return loss, {"mean_energy": mean_Energy, "R_diff": R_diff, "likelihood_ratio": jnp.mean(loss), "key": key, "X_0": x_last}

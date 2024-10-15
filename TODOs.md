@@ -1,7 +1,8 @@
 ### TODO
-- implement natural gradient descend?
 - add gradients to score?
 - add clipping hacks?
+- implement log derivative
+- mix diff sampler with adam?
 
 ### TODO normalized the energy with running avergage?
 

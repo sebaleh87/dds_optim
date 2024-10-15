@@ -15,6 +15,7 @@ class LogVarianceLoss_MC_Class(Base_SDE_Loss_Class):
         self.SDE_type.stop_gradient = True
         print("Gradient over expectation is supposed to be stopped from now on")
         self._init_index_arrays()
+        ### TODO find out why this is so slow!
 
     def _init_index_arrays(self):
         diff_step_arr = jnp.arange(0,self.n_integration_steps)
@@ -39,6 +40,7 @@ class LogVarianceLoss_MC_Class(Base_SDE_Loss_Class):
         arr_list = jnp.split(arr, n_splits, axis=axis)
         return arr_list
 
+    @partial(jax.jit, static_argnums=(0,))
     def _preprocess_SDE_tracer(self, SDE_tracer):
         for key in SDE_tracer.keys():
             array = SDE_tracer[key]
@@ -83,7 +85,7 @@ class LogVarianceLoss_MC_Class(Base_SDE_Loss_Class):
         overall_out_dict = {}
         for perm_diff_array in perm_diff_array_list:
             ### TODO adjust lr schedule accordingly
-            minib_SDE_tracer = SDE_tracer#self._select_minibatch(SDE_tracer, perm_diff_array)
+            minib_SDE_tracer = self._select_minibatch(SDE_tracer, perm_diff_array)
 
             params, opt_state, loss_value, out_dict = self.update_params(params, opt_state, minib_SDE_tracer, T_curr, log_prior, Energy)
 
@@ -91,7 +93,7 @@ class LogVarianceLoss_MC_Class(Base_SDE_Loss_Class):
                 if(key != "key" and key != "X_0"):
                     if (key not in overall_out_dict):
                         overall_out_dict[key] = []
-                    overall_out_dict[key].append(out_dict[key])
+                    overall_out_dict[key].append(np.array(out_dict[key]))
                 else:
                     pass
 

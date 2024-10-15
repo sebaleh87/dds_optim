@@ -16,6 +16,7 @@ class BaseModel(nn.Module):
 
     def setup(self):
         self.SDE_mode = self.SDE_Loss_Config["SDE_Type_Config"]["name"]
+        self.use_interpol_gradient = self.SDE_Loss_Config["SDE_Type_Config"]["use_interpol_gradient"]
         self.backbone = get_network(self.network_config, self.SDE_Loss_Config)
         
     @nn.compact
@@ -30,7 +31,13 @@ class BaseModel(nn.Module):
                                                   bias_init=nn.initializers.zeros)(embedding)
 
             return mean_x, log_var_x
+        elif(self.use_interpol_gradient):
+            grad_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
+                                                bias_init=nn.initializers.zeros)(embedding)
+            correction_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
+                                                bias_init=nn.initializers.zeros)(embedding)
+            return grad_drift, correction_drift
         else:
-            x = nn.Dense(x_dim)(embedding)
-            x = jnp.clip(x, -10**4, 10**4)
-            return x
+            score = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
+                                                bias_init=nn.initializers.zeros)(embedding)
+            return score

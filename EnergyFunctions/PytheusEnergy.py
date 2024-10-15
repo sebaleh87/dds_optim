@@ -76,4 +76,12 @@ class PytheusEnergyClass(EnergyModelClass):
         self.energy_value = -self.fidelity(normed_state) + 1
 
         vec_norm = state_norm
-        return self.energy_value #+ vec_norm**2 *jnp.heaviside(vec_norm - 1.0, 0.0)
+        return self.energy_value# + vec_norm**2 *jnp.heaviside(vec_norm - 1.0, 0.0)
+    
+
+
+    #@jax.custom_gradient
+#def sample_from_beta( a,b, subkey):
+ #   samples = jax.random.beta(subkey, a,b, )
+  #  pdf = jax.scipy.stats.beta.pdf(samples, a, b)
+   # return samples, lambda g: (-g*jax.grad(tfp.math.betainc, argnums=0)(a, b, samples)/pdf, -g*jax.grad(tfp.math.betainc, argnums=1)(a, b, samples)/pdf, None)
