@@ -26,10 +26,10 @@ def compute_graph_state_stable(edges, PERFECT_MATCHINGS):
     return graph_state
 
 @jax.jit
-def numerically_stable_norm(state):
+def numerically_stable_norm(state, eps = 10**-20):  ### TODO check if an epsilon is necssary here?
     max_state = jax.lax.stop_gradient(jnp.max(jnp.abs(state)))
-    state = state/max_state
-    state_norm = jnp.linalg.norm(state)
+    state = state/(max_state + eps)
+    state_norm = jnp.linalg.norm(state) + eps
     normed_state = state / state_norm
     return normed_state
 
@@ -91,7 +91,7 @@ class PytheusEnergyClass(EnergyModelClass):
         :param x: Input array.
         :return: Energy value.
         """
-        graph_state = compute_graph_state_stable(x, self.PERFECT_MATCHINGS)#self.graph_state(x)#compute_graph_state_stable(x, self.PERFECT_MATCHINGS)
+        graph_state = self.graph_state(x)#compute_graph_state_stable(x, self.PERFECT_MATCHINGS)
         normed_state = numerically_stable_norm(graph_state)
         # graph_state = self.graph_state(x)
         # state_norm = jnp.linalg.norm(graph_state)
