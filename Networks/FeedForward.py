@@ -30,22 +30,11 @@ def get_sinusoidal_positional_encoding(x, embedding_dim, max_position):
 class FeedForwardNetwork(nn.Module):
     n_layers: int = 2
     hidden_dim: int = 32
-    feature_dim: int = 32
-    max_position: float = 10.
-    max_time: float = 1.
 
     @nn.compact
     #@partial(flax.linen.jit, static_argnums=(0,))
-    def __call__(self, x_in, t):
-        t = self.max_time * t
-        # Concatenate x and t along the last dimension
-        # t_encodings = FourierFeatureModule(feature_dim=self.feature_dim)(t)
-        # x_encodings = FourierFeatureModule(feature_dim=self.feature_dim)(x_in)
-        t_encodings = get_sinusoidal_positional_encoding(t, self.feature_dim, self.max_time)
-        #x_encodings = get_sinusoidal_positional_encoding(x_in, self.feature_dim, self.max_position)
-        #x = jnp.concatenate([x_in, x_fourier, t, t_fourier], axis=-1)
-        x = jnp.concatenate([ x_in, t, t_encodings], axis=-1)
-        #x = jnp.concatenate([ x_encodings, t_encodings], axis=-1)
+    def __call__(self, in_dict):
+        x = in_dict["encoding"]
         for _ in range(self.n_layers - 1):
             x_skip = x
             x = nn.Dense(self.hidden_dim, kernel_init=nn.initializers.he_normal(),
@@ -56,8 +45,28 @@ class FeedForwardNetwork(nn.Module):
             else:
                 x = nn.LayerNorm()(x)
         
-        # Output layer without nonlinearity
         return x
+
+class EncodingNetwork(nn.Module):
+    feature_dim: int = 32
+    max_time: float = 1.
+
+    @nn.compact
+    #@partial(flax.linen.jit, static_argnums=(0,))
+    def __call__(self, in_dict):
+        x_in = jnp.concatenate([in_dict["x"], in_dict["grads"]], axis=-1)
+        t = in_dict["t"]
+        t = self.max_time * t
+        t_encodings = get_sinusoidal_positional_encoding(t, self.feature_dim, self.max_time)
+
+        x_encode = nn.Dense(self.feature_dim, kernel_init=nn.initializers.he_normal(),
+                                 bias_init=nn.initializers.zeros)(x_in)
+
+        x = jnp.concatenate([ x_encode, t, t_encodings], axis=-1)
+
+
+        return x
+
 
 class FourierNetwork(nn.Module):
     n_layers: int = 2

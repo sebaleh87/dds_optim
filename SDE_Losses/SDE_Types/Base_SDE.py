@@ -2,6 +2,7 @@ import jax
 from jax import random
 import matplotlib.pyplot as plt
 import jax.numpy as jnp
+import flax.linen as nn
 
 class Base_SDE_Class:
 
@@ -98,17 +99,17 @@ class Base_SDE_Class:
             x, t, key = carry
             t_arr = t*jnp.ones((x.shape[0], 1)) 
             if(self.use_interpol_gradient):
-                grad_drift, correction_drift = model.apply(params, x, t_arr)
-                interpolated_grad = self.vmap_interpol_gradient(x, t)
-                grad_score = grad_drift * jnp.clip(interpolated_grad, -10**2, 10**2)
-                correction_grad_score = correction_drift + grad_score
-                score = jnp.clip(correction_grad_score, -10**4, 10**4 )
+                interpolated_grad = self.vmap_interpol_gradient(x, t) ### What happens if I put it into architecture and apply layer norm?
+                in_dict = {"x": x, "t": t_arr, "grads": interpolated_grad}
+                score = model.apply(params, in_dict)
             else:
-                score = model.apply(params, x, t_arr)
+                in_dict = {"x": x, "t": t_arr, "grads": jnp.zeros_like(x)}
+                score = model.apply(params, in_dict)
                 score = jnp.clip(score, -10**4, 10**4)
             reverse_out_dict, key = self.reverse_sde(score, x, t, dt, key)
 
             SDE_tracker_step = {
+            "interpolated_grad": interpolated_grad,
             "dW": reverse_out_dict["dW"],
             "xs": x,
             "ts": t,

@@ -1,4 +1,5 @@
 ### TODO
+- learn sigma
 - add gradients to score?
 - add clipping hacks?
 - implement log derivative

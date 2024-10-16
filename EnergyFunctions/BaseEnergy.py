@@ -10,7 +10,17 @@ class EnergyModelClass:
 
     def __init__(self,EnergyConfig):
         self.dim_x = EnergyConfig["dim_x"]
-        pass
+
+        if("shift" in EnergyConfig.keys()):
+            self.shift = EnergyConfig["shift"]
+        else:
+            self.shift = 0.
+
+        self.x_min = -5 + self.shift
+        self.y_min = -5 + self.shift
+        self.x_max = 5 + self.shift
+        self.y_max = 5 + self.shift
+        ### TODO define plot range here
 
     def calc_energy(self, x):
         """
@@ -42,13 +52,13 @@ class EnergyModelClass:
         else:
             pass
 
-    def plot_2_D_properties(self, x_range=(-5.12, 5.12), resolution=100, T=1.0):
+    def plot_2_D_properties(self, resolution=100, T=1.0):
         """
         Plot both the energy landscape and the log probability landscape.
         """
         # Create a grid of points over the specified range
-        x = jnp.linspace(x_range[0], x_range[1], resolution)
-        y = jnp.linspace(x_range[0], x_range[1], resolution)
+        x = jnp.linspace(self.x_min, self.x_max, resolution) 
+        y = jnp.linspace(self.y_min, self.y_max, resolution)
         X, Y = jnp.meshgrid(x, y)
         
         # Stack X and Y into a 2D array of coordinates for vectorized evaluation
@@ -174,8 +184,8 @@ class EnergyModelClass:
         fig = plt.figure(figsize=(10, 6))
 
         # Create a grid of points over the specified range
-        x = jnp.linspace(-5, 5, 100)
-        y = jnp.linspace(-5, 5, 100)
+        x = jnp.linspace(self.x_min, self.x_max, 100) 
+        y = jnp.linspace(self.y_min, self.x_max, 100)
         X, Y = jnp.meshgrid(x, y)
 
         # Stack X and Y into a 2D array of coordinates for vectorized evaluation
@@ -196,8 +206,8 @@ class EnergyModelClass:
         plt.ylabel('Y-axis')
         plt.title('2D last samples')
         plt.grid(True)
-        plt.xlim(-5, 5)
-        plt.ylim(-5, 5)
+        plt.xlim(self.x_min, self.x_max)
+        plt.ylim(self.y_min, self.y_max)
 
         wandb.log({"fig/last_samples": wandb.Image(fig)})
         plt.close()
@@ -226,19 +236,18 @@ class EnergyModelClass:
         plt.close()
 
 
-    def plot_2_D_histogram(self, samples, x_range = 4, y_range = 4, n_bins = 40):
+    def plot_2_D_histogram(self, samples, n_bins = 40):
         # Filter samples where both coordinates are within [-4, 4]
-        filtered_samples = samples[(samples[:, 0] >= -4) & (samples[:, 0] <= 4) & (samples[:, 1] >= -4) & (samples[:, 1] <= 4)]
+        filtered_samples = samples[(samples[:, 0] >= self.x_min) & (samples[:, 0] <= self.x_max) & (samples[:, 1] >= self.y_min) & (samples[:, 1] <= self.y_max)]
         # Assuming `samples` is provided and wandb is initialized
 
         # Create 2D histogram
         x_samples = filtered_samples[:, 0]
         y_samples = filtered_samples[:, 1]
-        extent = [-4, 4, -4, 4]
 
         # Create a grid of points over the specified range
-        x = jnp.linspace(-x_range, x_range, n_bins)
-        y = jnp.linspace(-y_range, y_range, n_bins)
+        x = jnp.linspace(self.x_min, self.x_max, n_bins) 
+        y = jnp.linspace(self.y_min, self.y_max, n_bins)
         X, Y = jnp.meshgrid(x, y)
         
         # Stack X and Y into a 2D array of coordinates for vectorized evaluation
@@ -256,11 +265,11 @@ class EnergyModelClass:
         fig.colorbar(energy_plot, ax=ax, label='Energy')
         
         # Plot the zoomed-in heatmap
-        hist2d = ax.hist2d(y_samples, -x_samples, bins=n_bins, cmap='Blues', alpha=0.7)
+        hist2d = ax.hist2d(x_samples, y_samples, bins=n_bins, cmap='Blues', alpha=0.7)
         fig.colorbar(hist2d[3], ax=ax, label='Likelihood')
         
-        ax.set_xlim(xmin=-x_range, xmax=x_range)
-        ax.set_ylim(ymin=-y_range, ymax=y_range)
+        ax.set_xlim(xmin=self.x_min, xmax=self.x_max)
+        ax.set_ylim(ymin=self.y_min, ymax=self.y_max)
         ax.set_title('Zoomed 2D Histogram with Energy Landscape')
         ax.set_xlabel('X-axis')
         ax.set_ylabel('Y-axis')

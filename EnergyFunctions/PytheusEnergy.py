@@ -11,10 +11,30 @@ import numpy as np
 #import optax
 from flax import linen as nn
 
+@jax.jit
+def compute_graph_state_stable(edges, PERFECT_MATCHINGS):
+    #max_edges = jax.lax.stop_gradient(jnp.max(edges))
+    #edges = edges/max_edges
+    edges = edges[PERFECT_MATCHINGS]
+    log_edges = jnp.log(jnp.abs(edges))
+    log_product = jnp.sum(log_edges, axis=-1)
 
+    product = jnp.exp(log_product) #jax.nn.softmax(log_edges, axis = -1)#
+    minus_sign = (-1)**(jnp.sum(jnp.where(edges < 0, 1, 0), axis = -1))
+
+    graph_state = jnp.sum(minus_sign*product, axis=-1)
+    return graph_state
+
+@jax.jit
+def numerically_stable_norm(state):
+    max_state = jax.lax.stop_gradient(jnp.max(jnp.abs(state)))
+    state = state/max_state
+    state_norm = jnp.linalg.norm(state)
+    normed_state = state / state_norm
+    return normed_state
 
 class PytheusEnergyClass(EnergyModelClass):
-    def __init__(self, config, a=1.0):
+    def __init__(self, config):
         """
         Initialize the Mexican Hat Potential.
         
@@ -23,14 +43,14 @@ class PytheusEnergyClass(EnergyModelClass):
         """
         print("Start initializing PytheusEnergyClass")
         challenge_index = config["challenge_index"]
-        challenges = [(4,4,2),(5,4,4),(6,4,6),(7,4,8),(8,4,10),(9,4,12)]
+        challenges = [(4,4,2),(5,4,4),(6,4,6),(7,4,8),(8,4,10),(9,4,12)] # color, nodes , anc
 
         dim, n_ph, anc = challenges[challenge_index]
         halo_state = [str(ii)*n_ph+'0'*anc for ii in range(dim)]
         target_state = State(halo_state)
 
-        dimensions = [dim]*n_ph+[1]*anc
-        all_edges = th.buildAllEdges(dimensions)
+        dimensions = [dim]*n_ph+[1]*anc 
+        all_edges = th.buildAllEdges(dimensions) # list of tuples (n1, n2, c1, c2)
 
         mathings_catalog = th.allPerfectMatchings(dimensions)
         SPACE_BASIS = list(mathings_catalog.keys())
@@ -44,11 +64,12 @@ class PytheusEnergyClass(EnergyModelClass):
         TARGET_NORMED = target_unnormed / np.sqrt(target_unnormed@target_unnormed)
 
         PERFECT_MATCHINGS = jnp.array(PERFECT_MATCHINGS)
+        self.PERFECT_MATCHINGS = PERFECT_MATCHINGS
 
         self.TARGET_NORMED = jnp.array(TARGET_NORMED)
 
         self.eps = 1e-20
-        graph_state = lambda edges: edges[PERFECT_MATCHINGS].prod(axis=-1).sum(axis=-1)
+        graph_state = lambda edges: edges[PERFECT_MATCHINGS].prod(axis=-1).sum(axis=-1) # use logsumexp?!
         normed_state = lambda state, state_norm: state / (self.eps + state_norm)
         fidelity = lambda state: (state @ self.TARGET_NORMED)**2
         #loss_fun = lambda x: - fidelity(normed_state(graph_state(x)))
@@ -70,12 +91,14 @@ class PytheusEnergyClass(EnergyModelClass):
         :param x: Input array.
         :return: Energy value.
         """
-        graph_state = self.graph_state(x)
-        state_norm = jnp.linalg.norm(graph_state)
-        normed_state = self.norm_state(graph_state, state_norm)
+        graph_state = compute_graph_state_stable(x, self.PERFECT_MATCHINGS)#self.graph_state(x)#compute_graph_state_stable(x, self.PERFECT_MATCHINGS)
+        normed_state = numerically_stable_norm(graph_state)
+        # graph_state = self.graph_state(x)
+        # state_norm = jnp.linalg.norm(graph_state)
+        # normed_state = self.norm_state(graph_state, state_norm)
         self.energy_value = -self.fidelity(normed_state) + 1
 
-        vec_norm = state_norm
+        #vec_norm = state_norm
         return self.energy_value# + vec_norm**2 *jnp.heaviside(vec_norm - 1.0, 0.0)
     
 

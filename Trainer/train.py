@@ -32,7 +32,9 @@ class TrainerClass:
 
         self.num_epochs = base_config["num_epochs"]
         self.n_integration_steps = SDE_Loss_Config["n_integration_steps"]
-        self.params = self.model.init(random.PRNGKey(0), jnp.ones((1,self.dim_x)), jnp.ones((1,1)))
+        x_init = jnp.ones((1,self.dim_x))
+        in_dict = {"x": x_init, "t": jnp.ones((1,1)), "grads": x_init}
+        self.params = self.model.init(random.PRNGKey(0), in_dict)
         self.opt_state = self.SDE_LossClass.optimizer.init(self.params)
         self._init_wandb()
         self.EnergyClass.plot_properties()
@@ -47,7 +49,7 @@ class TrainerClass:
         Best_Energy_value_ever = np.infty
         for epoch in range(self.num_epochs):
             if(epoch % int(0.05*self.num_epochs) == 0):
-                n_samples = 100*2000
+                n_samples = self.config["n_eval_samples"]
                 SDE_tracer, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, key, n_integration_steps = self.n_integration_steps, n_states = n_samples)
                 self.EnergyClass.plot_trajectories(np.array(SDE_tracer["xs"])[:,0:10,:])
                 self.EnergyClass.plot_histogram(np.array(SDE_tracer["x_final"])[:,:])
@@ -71,6 +73,7 @@ class TrainerClass:
 
                 for k, v in out_dict.items():
                     if k != "key" and k != "X_0":
+                        #print("k", k, np.mean(v), i)
                         self.aggregated_out_dict[k].append(v)
 
                 loss_list.append(float(loss))

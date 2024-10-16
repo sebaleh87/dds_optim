@@ -13,6 +13,7 @@ class DiscreteTime_SDE_Class(Base_SDE_Class):
         self.n_diff_steps = SDE_Type_Config["n_diff_steps"]
         self.temp_mode = SDE_Type_Config["temp_mode"]
         self._make_beta_list()
+        SDE_Type_Config["use_interpol_gradient"] = False
         self.config = SDE_Type_Config
         super().__init__(SDE_Type_Config, Energy_Class)
     
@@ -87,7 +88,8 @@ class DiscreteTime_SDE_Class(Base_SDE_Class):
         def scan_fn(carry, step):
             x, t, dt, step, T_curr, key = carry
             t_arr = t*jnp.ones((x.shape[0], 1)) 
-            mean_x, log_var_x = model.apply(params, x, t_arr)
+            in_dict = {"x": x, "t": t_arr, "grads": jnp.zeros_like(x)}
+            mean_x, log_var_x = model.apply(params, in_dict)
             output_dict = {"mean_x": mean_x, "log_var": log_var_x, "xs": x, "ts": t, "T_curr": T_curr, "key": key}
             reverse_out_dict = self.reverse_sde(output_dict)
             reverse_out_dict["t_next"] = t - dt

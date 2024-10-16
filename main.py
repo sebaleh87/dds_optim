@@ -106,6 +106,7 @@ if(__name__ == "__main__"):
         Energy_Config = {
             "name": "Rastrigin",
             "dim_x": 2,
+            "shift": 5.0
         }
     elif(args.Energy_Config == "MexicanHat"):
         Energy_Config = {
@@ -137,6 +138,7 @@ if(__name__ == "__main__"):
         "Network_Config": Network_Config,
 
         "num_epochs": epochs,
+        "n_eval_samples": 100*1000
         
     }
 
