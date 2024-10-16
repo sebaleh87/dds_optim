@@ -104,3 +104,24 @@ htmlcov/
 
 # PyCharm specific
 .idea/
+environment.yml
+AnnealSchedules/__pycache__/__init__.cpython-310.pyc
+AnnealSchedules/__pycache__/BaseSchedule.cpython-310.pyc
+AnnealSchedules/__pycache__/LinearSchedule.cpython-310.pyc
+EnergyFunctions/__pycache__/__init__.cpython-310.pyc
+EnergyFunctions/__pycache__/BaseEnergy.cpython-310.pyc
+EnergyFunctions/__pycache__/GaussianMixture.cpython-310.pyc
+EnergyFunctions/__pycache__/MexicanHat.cpython-310.pyc
+Networks/__pycache__/__init__.cpython-310.pyc
+Networks/__pycache__/FeedForward.cpython-310.pyc
+SDE_Losses/__pycache__/__init__.cpython-310.pyc
+SDE_Losses/__pycache__/Base_SDE_Loss.cpython-310.pyc
+SDE_Losses/__pycache__/LogVariance_Loss.cpython-310.pyc
+SDE_Losses/__pycache__/Reverse_KL_Loss.cpython-310.pyc
+SDE_Losses/SDE_Types/__pycache__/__init__.cpython-310.pyc
+SDE_Losses/SDE_Types/__pycache__/Base_SDE.cpython-310.pyc
+SDE_Losses/SDE_Types/__pycache__/VP_SDE.cpython-310.pyc
+Trainer/__pycache__/train.cpython-310.pyc
+wandb/debug-internal.log
+wandb/debug.log
+wandb/latest-run
