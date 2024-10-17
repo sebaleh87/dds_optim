@@ -6,8 +6,8 @@ SDE_Type_registry = {"VP_SDE": VP_SDE_Class, "DiscreteTime_SDE": DiscreteTime_SD
 
 
 
-def get_SDE_Type_Class(SDE_Type_Config, Energy_Class):
+def get_SDE_Type_Class(SDE_Type_Config, Network_Config, Energy_Class):
 
 
-    return SDE_Type_registry[SDE_Type_Config["name"]](SDE_Type_Config, Energy_Class)
+    return SDE_Type_registry[SDE_Type_Config["name"]](SDE_Type_Config, Network_Config, Energy_Class)
 

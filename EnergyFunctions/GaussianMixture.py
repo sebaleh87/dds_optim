@@ -2,6 +2,7 @@
 from .BaseEnergy import EnergyModelClass
 import jax
 import jax.numpy as jnp
+import numpy as np
 from functools import partial
 
 class GaussianMixtureClass(EnergyModelClass):
@@ -17,6 +18,10 @@ class GaussianMixtureClass(EnergyModelClass):
         self.variances = jnp.array(config["variances"])
         self.weights = jnp.array(config["weights"])
         super().__init__(config)
+        self.x_min = np.min(self.means) - np.max(self.variances) + self.shift
+        self.y_min = np.min(self.means) - np.max(self.variances) + self.shift
+        self.x_max = np.max(self.means) + np.max(self.variances) + self.shift
+        self.y_max = np.max(self.means) + np.max(self.variances) + self.shift
 
     @partial(jax.jit, static_argnums=(0,))
     def calc_energy(self, x):
@@ -27,9 +32,11 @@ class GaussianMixtureClass(EnergyModelClass):
         :return: Energy value.
         """
         def gaussian(x, mean, variance):
-            return -jnp.exp(-0.5 * ((x - mean) ** 2) / variance) / jnp.sqrt(2 * jnp.pi * variance)
+            return -jnp.exp(jnp.sum(-0.5 * ((x - mean) ** 2 / variance) - jnp.log(jnp.sqrt(2 * jnp.pi * variance)), axis = -1))
         
-        gaussians = jnp.array([w * gaussian(x, m, v) for m, v, w in zip(self.means, self.variances, self.weights)])
-        return jnp.sum(gaussians, axis=0)
+        # print([ gaussian(x, m, v).shape for m, v, w in zip(self.means, self.variances, self.weights)])
+        # gaussians = jnp.array([w * gaussian(x, m, v) for m, v, w in zip(self.means, self.variances, self.weights)])
+        # print(gaussians.shape, "gaussians")
+        return jnp.sum(gaussian(x, self.means, self.variances), axis=0)
     
     

@@ -4,7 +4,7 @@ from jax import config as jax_config
 import os
 from Trainer.train import TrainerClass
 import argparse
-
+import numpy as np
 ### TODO make seperate run configs for discrete time and continuous time
 
 parser = argparse.ArgumentParser(description="Denoising Diffusion Sampler")
@@ -37,7 +37,7 @@ parser.add_argument('--no-use_interpol_gradient', action='store_false', help='gr
 
 
 parser.add_argument("--SDE_time_mode", type=str, default="Discrete_Time", choices=["Discrete_Time", "Continuous_Time"], help="SDE Time Mode")
-parser.add_argument("--Network_Type", type=str, default="FeedForward", choices=["FourierNetwork", "FeedForward"], help="SDE Time Mode")
+parser.add_argument("--Network_Type", type=str, default="FeedForward", choices=["FourierNetwork", "FeedForward", "LSTMNetwork"], help="SDE Time Mode")
 args = parser.parse_args()
 
 if(__name__ == "__main__"):
@@ -95,12 +95,17 @@ if(__name__ == "__main__"):
         }
 
     if(args.Energy_Config == "GaussianMixture"):
+        np.random.seed(42)
+        num_gaussians = 40
+        x_min = -40
+        x_max = 40
+        rand_func = lambda x: np.random.uniform(x_min, x_max, 2)
         Energy_Config = {
             "name": "GaussianMixture",
-            "dim_x": 1,
-            "means": [-2.0, 2.0, 5.0],
-            "variances": [1.0, 1.0, 1.],
-            "weights": [0.5, 0.5, 0.5],
+            "dim_x": 2,
+            "means": [rand_func(i) for i in range(num_gaussians)],
+            "variances": [[1.10,1.10] for i in range(num_gaussians)],
+            "weights": [1/num_gaussians for i in range(num_gaussians)],
         }
     elif(args.Energy_Config == "Rastrigin"):
         Energy_Config = {
@@ -138,7 +143,7 @@ if(__name__ == "__main__"):
         "Network_Config": Network_Config,
 
         "num_epochs": epochs,
-        "n_eval_samples": 100*1000
+        "n_eval_samples": 10*1000
         
     }
 

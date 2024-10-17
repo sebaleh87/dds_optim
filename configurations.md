@@ -26,4 +26,4 @@ python main.py --SDE_Loss Reverse_KL_Loss --Energy_Config Rastrigin --n_integrat
 
 ### test model with gradients on pytheus
 
-python main.py --SDE_Loss Reverse_KL_Loss --Energy_Config Pytheus --n_integration_steps 50 --T_start 0.2 --batch_size 200 --lr 0.002 --N_anneal 1000 --feature_dim 32 --n_hidden 200 --GPU 5 --beta_max 10. --use_interpol_gradient
+python main.py --SDE_Loss Reverse_KL_Loss --Energy_Config Pytheus --n_integration_steps 50 --T_start 0.2 --batch_size 200 --lr 0.002 --N_anneal 1000 --feature_dim 32 --n_hidden 200 --GPU 5 --beta_max 10. --use_interpol_gradient --Network_Type LSTMNetwork

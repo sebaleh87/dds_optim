@@ -45,7 +45,8 @@ class FeedForwardNetwork(nn.Module):
             else:
                 x = nn.LayerNorm()(x)
         
-        return x
+        out_dict = {"embedding": x}
+        return out_dict
 
 class EncodingNetwork(nn.Module):
     feature_dim: int = 32

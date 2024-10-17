@@ -5,10 +5,10 @@ import jax.numpy as jnp
 from functools import partial
 
 class Base_SDE_Loss_Class:
-    def __init__(self, SDE_config, Optimizer_Config, Energy_Class, model, lr_factor = 1.):
+    def __init__(self, SDE_config, Optimizer_Config, Energy_Class, Network_Config, model, lr_factor = 1.):
         SDE_Type_Config = SDE_config["SDE_Type_Config"]
         self.Optimizer_Config = Optimizer_Config
-        self.SDE_type = get_SDE_Type_Class(SDE_Type_Config, Energy_Class)
+        self.SDE_type = get_SDE_Type_Class(SDE_Type_Config, Network_Config, Energy_Class)
         
         self.lr_factor = lr_factor
         self.batch_size = SDE_config["batch_size"]
@@ -81,7 +81,7 @@ class Base_SDE_Loss_Class:
     
 
 def learning_rate_schedule(step, l_max = 1e-4, l_start = 1e-5, overall_steps = 1000, warmup_steps = 100):
-
-    cosine_decay = optax.cosine_decay_schedule(init_value=l_max, decay_steps=overall_steps - warmup_steps)
+    lr_min = l_max/10
+    cosine_decay = lambda step: optax.cosine_decay_schedule(init_value=(l_max - lr_min), decay_steps=overall_steps - warmup_steps)(step) + lr_min
 
     return jnp.where(step < warmup_steps, l_start + (l_max - l_start) * (step / warmup_steps), cosine_decay(step - warmup_steps))

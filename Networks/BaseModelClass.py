@@ -1,11 +1,11 @@
 from .FeedForward import FeedForwardNetwork, FourierNetwork, EncodingNetwork
-
+from .LSTM import LSTMNetwork
 from flax import linen as nn
 from functools import partial
 import jax.numpy as jnp
 import jax
 
-NetworkRegistry = {"FeedForward": FeedForwardNetwork, "FourierNetwork": FourierNetwork}
+NetworkRegistry = {"FeedForward": FeedForwardNetwork, "FourierNetwork": FourierNetwork, "LSTMNetwork": LSTMNetwork}
 
 
 def get_network(network_config, SDE_Loss_Config):
@@ -30,7 +30,8 @@ class BaseModel(nn.Module):
         encoding = self.encoding_network(in_dict)
         in_dict["encoding"] = encoding
 
-        embedding = self.backbone(in_dict)
+        out_dict = self.backbone(in_dict)
+        embedding = out_dict["embedding"]
 
         x_dim = in_dict["x"].shape[-1]
         if(self.SDE_mode == "DiscreteTime_SDE"):
@@ -39,12 +40,15 @@ class BaseModel(nn.Module):
             log_var_x = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
                                                   bias_init=nn.initializers.zeros)(embedding)
 
-            return mean_x, log_var_x
+            out_dict["mean_x"] = mean_x
+            out_dict["log_var"] = log_var_x
+            return out_dict
         elif(self.use_interpol_gradient and self.use_normal):
             grads = in_dict["grads"]
             t = in_dict["t"]
             time_in_dict = {"t": t, "grads": t, "x": t} 
-            time_embedding = self.time_backbone(time_in_dict)
+            time_out_dict = self.time_backbone(time_in_dict)
+            time_embedding = time_out_dict["embedding"]
             grad_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
                                                 bias_init=nn.initializers.zeros)(time_embedding)
             
@@ -56,16 +60,18 @@ class BaseModel(nn.Module):
             correction_grad_score = correction_drift + grad_score
             score = jnp.clip(correction_grad_score, -10**4, 10**4 )
 
-            return score
+            out_dict["score"] = score
+            return out_dict
         elif(self.use_interpol_gradient and not self.use_normal):
             correction_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
                                                 bias_init=nn.initializers.zeros)(embedding)
             
             correction_grad_score = correction_drift 
             score = jnp.clip(correction_grad_score, -10**4, 10**4 )
-
-            return score
+            out_dict["score"] = score
+            return out_dict
         else:
             score = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
                                                 bias_init=nn.initializers.zeros)(embedding)
-            return score
+            out_dict["score"] = score            
+            return out_dict

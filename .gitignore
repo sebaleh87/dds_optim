@@ -57,6 +57,7 @@ Thumbs.db
 wandb/
 *.wandb
 
+Figures/
 # TensorBoard logs
 logs/
 

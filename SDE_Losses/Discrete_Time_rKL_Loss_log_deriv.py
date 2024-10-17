@@ -5,9 +5,9 @@ from functools import partial
 
 class Discrete_Time_rKL_Loss_Class_log_deriv(Base_SDE_Loss_Class):
 
-    def __init__(self, SDE_config, Optimizer_Config, EnergyClass, model):
+    def __init__(self, SDE_config, Optimizer_Config, EnergyClass, Network_Config, model):
         self.temp_mode = SDE_config["SDE_Type_Config"]["temp_mode"]
-        super().__init__(SDE_config, Optimizer_Config, EnergyClass, model)
+        super().__init__(SDE_config, Optimizer_Config, EnergyClass, Network_Config, model)
         self.SDE_type.stop_gradient = True
 
     @partial(jax.jit, static_argnums=(0,), static_argnames=("n_integration_steps", "n_states", "x_dim"))  

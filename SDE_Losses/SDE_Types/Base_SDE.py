@@ -6,13 +6,18 @@ import flax.linen as nn
 
 class Base_SDE_Class:
 
-    def __init__(self, config, Energy_Class) -> None:
+    def __init__(self, config, Network_Config, Energy_Class) -> None:
         self.config = config
         self.stop_gradient = False
         self.Energy_Class = Energy_Class
         self.use_interpol_gradient = config["use_interpol_gradient"]
         self.vmap_interpol_gradient = jax.vmap(self.prior_target_grad_interpolation, in_axes=(0, None))
-        pass
+        self.Network_Config = Network_Config
+        if("LSTM" in Network_Config["name"]):
+            self.network_has_hidden_state = True
+        else:
+            self.network_has_hidden_state = False
+
 
     def compute_p_xt_g_x0_statistics(self, x0, xt, t):
         raise NotImplementedError("get_diffusion method not implemented")
@@ -96,16 +101,25 @@ class Base_SDE_Class:
     
     def simulate_reverse_sde_scan(self, model, params, key, n_states = 100, x_dim = 2, n_integration_steps = 1000):
         def scan_fn(carry, step):
-            x, t, key = carry
+            x, t, key, carry_dict = carry
             t_arr = t*jnp.ones((x.shape[0], 1)) 
             if(self.use_interpol_gradient):
-                interpolated_grad = self.vmap_interpol_gradient(x, t) ### What happens if I put it into architecture and apply layer norm?
-                in_dict = {"x": x, "t": t_arr, "grads": interpolated_grad}
-                score = model.apply(params, in_dict)
+                if(self.network_has_hidden_state):
+                    interpolated_grad = self.vmap_interpol_gradient(x, t) ### What happens if I put it into architecture and apply layer norm?
+                    in_dict = {"x": x, "t": t_arr, "grads": interpolated_grad, "hidden_state": carry_dict["hidden_state"]}
+                    out_dict = model.apply(params, in_dict)
+                    score = out_dict["score"]
+                    carry_dict["hidden_state"] = out_dict["hidden_state"]
+                else:
+                    interpolated_grad = self.vmap_interpol_gradient(x, t) ### What happens if I put it into architecture and apply layer norm?
+                    in_dict = {"x": x, "t": t_arr, "grads": interpolated_grad}
+                    out_dict = model.apply(params, in_dict)
+                    score = out_dict["score"]
             else:
                 in_dict = {"x": x, "t": t_arr, "grads": jnp.zeros_like(x)}
-                score = model.apply(params, in_dict)
-                score = jnp.clip(score, -10**4, 10**4)
+                out_dict = model.apply(params, in_dict)
+                score = out_dict["score"]
+
             reverse_out_dict, key = self.reverse_sde(score, x, t, dt, key)
 
             SDE_tracker_step = {
@@ -122,7 +136,7 @@ class Base_SDE_Class:
 
             x = reverse_out_dict["x_next"]
             t = reverse_out_dict["t_next"]
-            return (x, t, key), SDE_tracker_step
+            return (x, t, key, carry_dict), SDE_tracker_step
 
         key, subkey = random.split(key)
         x0 = random.normal(subkey, shape=(n_states, x_dim))
@@ -130,10 +144,11 @@ class Base_SDE_Class:
         dt = 1. / n_integration_steps
 
         #print("no scan", model.apply(params, x0[0:10], t*jnp.ones((10, 1))))
-
-        (x_final, t_final, key), SDE_tracker_steps = jax.lax.scan(
+        init_carry = jnp.zeros((n_states, self.Network_Config["n_hidden"]))
+        carry_dict = {"hidden_state": [(init_carry, init_carry)  for i in range(self.Network_Config["n_layers"])]}
+        (x_final, t_final, key, carry_dict), SDE_tracker_steps = jax.lax.scan(
             scan_fn,
-            (x0, t, key),
+            (x0, t, key, carry_dict),
             jnp.arange(n_integration_steps)
         )
 

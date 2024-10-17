@@ -6,8 +6,8 @@ from functools import partial
 
 class Reverse_KL_Loss_Class(Base_SDE_Loss_Class):
 
-    def __init__(self, SDE_config, Optimizer_Config, EnergyClass, model):
-        super().__init__(SDE_config, Optimizer_Config, EnergyClass, model)
+    def __init__(self, SDE_config, Optimizer_Config, EnergyClass, Network_Config, model):
+        super().__init__(SDE_config, Optimizer_Config, EnergyClass, Network_Config, model)
 
     @partial(jax.jit, static_argnums=(0,), static_argnames=("n_integration_steps", "n_states", "x_dim"))  
     def compute_loss(self, params, key, n_integration_steps = 100, n_states = 10, temp = 1.0, x_dim = 2):

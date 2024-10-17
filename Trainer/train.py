@@ -27,14 +27,15 @@ class TrainerClass:
 
         self.EnergyClass = get_Energy_class(Energy_Config)
         self.AnnealClass = get_AnnealSchedule_class(AnnealConfig)
-        self.SDE_LossClass = get_SDE_Loss_class(SDE_Loss_Config, self.Optimizer_Config, self.EnergyClass, self.model)
+        self.SDE_LossClass = get_SDE_Loss_class(SDE_Loss_Config, self.Optimizer_Config, self.EnergyClass, Network_Config, self.model)
 
         self.dim_x = self.EnergyClass.dim_x
 
         self.num_epochs = base_config["num_epochs"]
         self.n_integration_steps = SDE_Loss_Config["n_integration_steps"]
         x_init = jnp.ones((1,self.dim_x))
-        in_dict = {"x": x_init, "t": jnp.ones((1,1)), "grads": x_init}
+        init_carry = jnp.zeros((1, Network_Config["n_hidden"]))
+        in_dict = {"x": x_init, "t": jnp.ones((1,1)), "grads": x_init, "hidden_state": [(init_carry, init_carry) for i in range(Network_Config["n_layers"])]}
         self.params = self.model.init(random.PRNGKey(0), in_dict)
         self.opt_state = self.SDE_LossClass.optimizer.init(self.params)
         self._init_wandb()
@@ -52,11 +53,11 @@ class TrainerClass:
         pbar = trange(self.num_epochs)
         for epoch in pbar:
             if(epoch % 100 == 0):
-                n_samples = 100*2000
+                n_samples = self.config["n_eval_samples"]
                 SDE_tracer, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, key, n_integration_steps = self.n_integration_steps, n_states = n_samples)
                 self.EnergyClass.plot_trajectories(np.array(SDE_tracer["xs"])[:,0:10,:])
                 self.EnergyClass.plot_histogram(np.array(SDE_tracer["x_final"])[:,:])
-                self.EnergyClass.plot_last_samples(np.array(SDE_tracer["x_final"])[0:int(0.05*n_samples)])
+                self.EnergyClass.plot_last_samples(np.array(SDE_tracer["x_final"]))
                 Energy_values = self.SDE_LossClass.vmap_calc_Energy(SDE_tracer["x_final"])
                 best_Energy_value = np.min(Energy_values)
                 if(best_Energy_value < Best_Energy_value_ever):

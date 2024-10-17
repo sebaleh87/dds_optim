@@ -5,8 +5,8 @@ from functools import partial
 
 class LogVariance_Loss_Class(Base_SDE_Loss_Class):
 
-    def __init__(self, SDE_config, Optimizer_Config,  EnergyClass, model):
-        super().__init__(SDE_config, Optimizer_Config, EnergyClass, model)
+    def __init__(self, SDE_config, Optimizer_Config,  EnergyClass, Network_Config, model):
+        super().__init__(SDE_config, Optimizer_Config, EnergyClass, Network_Config, model)
         self.SDE_type.stop_gradient = True
         print("Gradient over expectation is supposed to be stopped from now on")
 

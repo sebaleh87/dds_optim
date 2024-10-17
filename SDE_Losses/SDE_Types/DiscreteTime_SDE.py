@@ -8,14 +8,14 @@ import numpy as np
 
 class DiscreteTime_SDE_Class(Base_SDE_Class):
 
-    def __init__(self, SDE_Type_Config, Energy_Class) -> None:
+    def __init__(self, SDE_Type_Config, Network_Config, Energy_Class) -> None:
         self.stop_gradient = False
         self.n_diff_steps = SDE_Type_Config["n_diff_steps"]
         self.temp_mode = SDE_Type_Config["temp_mode"]
         self._make_beta_list()
         SDE_Type_Config["use_interpol_gradient"] = False
         self.config = SDE_Type_Config
-        super().__init__(SDE_Type_Config, Energy_Class)
+        super().__init__(SDE_Type_Config, Network_Config, Energy_Class)
     
     def get_log_prior(self, x):
         return jax.scipy.stats.norm.logpdf(x, loc=0, scale=1)
@@ -89,7 +89,10 @@ class DiscreteTime_SDE_Class(Base_SDE_Class):
             x, t, dt, step, T_curr, key = carry
             t_arr = t*jnp.ones((x.shape[0], 1)) 
             in_dict = {"x": x, "t": t_arr, "grads": jnp.zeros_like(x)}
-            mean_x, log_var_x = model.apply(params, in_dict)
+
+            out_dict = model.apply(params, in_dict)
+            mean_x = out_dict["mean_x"]
+            log_var_x = out_dict["log_var"]
             output_dict = {"mean_x": mean_x, "log_var": log_var_x, "xs": x, "ts": t, "T_curr": T_curr, "key": key}
             reverse_out_dict = self.reverse_sde(output_dict)
             reverse_out_dict["t_next"] = t - dt
