@@ -1,4 +1,5 @@
 import jax.numpy as jnp
+import jax
 
 class MovAvrgCalculator:
     def __init__(self, alpha):
@@ -6,21 +7,22 @@ class MovAvrgCalculator:
         self.mean_moving_avg = None
         self.std_moving_avg = None
 
-    def compute_averages(self, Energy_values):
-        mean = jnp.mean(Energy_values)
-        std = jnp.std(Energy_values)
+    def initialize_averages(self, array):
+        mean_moving_avg = 0.
+        std_moving_avg = 1.
+        mov_average_dict = {"mean": mean_moving_avg, "std": std_moving_avg}
+        return mov_average_dict
 
-        if self.mean_moving_avg is None:
-            self.mean_moving_avg = mean
-        else:
-            self.mean_moving_avg = self.alpha * mean + (1 - self.alpha) * self.mean_moving_avg
+    @jax.jit
+    def update_averages(self, array, mov_average_dict):
+        mean = jnp.mean(array)
+        std = jnp.std(array)
 
-        if self.std_moving_avg is None:
-            self.std_moving_avg = std
-        else:
-            self.std_moving_avg = self.alpha * std + (1 - self.alpha) * self.std_moving_avg
+        mov_average_dict["mean"] = self.alpha * mean + (1 - self.alpha) * mov_average_dict["mean"]
 
-        return mean, std, self.mean_moving_avg, self.std_moving_avg
+        mov_average_dict["std"]  = self.alpha * std + (1 - self.alpha) * mov_average_dict["sdt"]
+
+        return mov_average_dict
     
 
 if(__name__ == "__main__"):

@@ -2,6 +2,7 @@ import flax
 from flax import linen as nn
 from functools import partial
 import jax.numpy as jnp
+import jax
 
 def get_sinusoidal_positional_encoding(x, embedding_dim, max_position):
     """

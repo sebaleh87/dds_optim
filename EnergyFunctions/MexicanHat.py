@@ -21,7 +21,7 @@ class MexicanHatClass(EnergyModelClass):
         super().__init__(config)
 
     @partial(jax.jit, static_argnums=(0,))
-    def calc_energy(self, x):
+    def energy_function(self, x):
         """
         Calculate the energy of the Mexican Hat Potential.
         

@@ -11,7 +11,6 @@ class Base_SDE_Class:
         self.stop_gradient = False
         self.Energy_Class = Energy_Class
         self.use_interpol_gradient = config["use_interpol_gradient"]
-        self.vmap_interpol_gradient = jax.vmap(self.prior_target_grad_interpolation, in_axes=(0, None))
         self.Network_Config = Network_Config
         if("LSTM" in Network_Config["name"]):
             self.network_has_hidden_state = True
@@ -25,11 +24,18 @@ class Base_SDE_Class:
     def get_log_prior(self, x):
         raise NotImplementedError("get_diffusion method not implemented")
     
-    def prior_target_grad_interpolation(self, x, t):
-        interpol = lambda x: (t)*jnp.sum(self.get_log_prior(x), axis = -1) + (1-t)*self.Energy_Class.calc_energy(x)
+    def vmap_prior_target_grad_interpolation(self, x, t, SDE_params, key):
+        key, subkey = random.split(key)
+        batched_subkey = random.split(subkey, x.shape[0])
+        vmap_grad = jax.vmap(self.prior_target_grad_interpolation, in_axes=(0, None, None, 0))(x,t, SDE_params, batched_subkey)
+        return vmap_grad, key
+    
+    def prior_target_grad_interpolation(self, x, t, SDE_params, key):
+        Energy_value, key = self.Energy_Class.calc_energy(x, SDE_params, key)
+        interpol = lambda x: (t)*jnp.sum(self.get_log_prior(x), axis = -1) + (1-t)*Energy_value
         return jax.grad(interpol)( x)
 
-    def get_diffusion(self, t, x):
+    def get_diffusion(self, t, x, log_sigma):
         """
         Method to get the diffusion term of the SDE.
         
@@ -99,24 +105,25 @@ class Base_SDE_Class:
 
         return SDE_tracker, key
     
-    def simulate_reverse_sde_scan(self, model, params, key, n_states = 100, x_dim = 2, n_integration_steps = 1000):
+    def simulate_reverse_sde_scan(self, model, params, SDE_params, key, n_states = 100, x_dim = 2, n_integration_steps = 1000):
         def scan_fn(carry, step):
             x, t, key, carry_dict = carry
             t_arr = t*jnp.ones((x.shape[0], 1)) 
             if(self.use_interpol_gradient):
                 if(self.network_has_hidden_state):
-                    interpolated_grad = self.vmap_interpol_gradient(x, t) ### What happens if I put it into architecture and apply layer norm?
+                    interpolated_grad, key = self.vmap_prior_target_grad_interpolation(x, t, SDE_params, key) 
                     in_dict = {"x": x, "t": t_arr, "grads": interpolated_grad, "hidden_state": carry_dict["hidden_state"]}
                     out_dict = model.apply(params, in_dict)
                     score = out_dict["score"]
                     carry_dict["hidden_state"] = out_dict["hidden_state"]
                 else:
-                    interpolated_grad = self.vmap_interpol_gradient(x, t) ### What happens if I put it into architecture and apply layer norm?
+                    interpolated_grad, key = self.vmap_prior_target_grad_interpolation(x, t, SDE_params, key) 
                     in_dict = {"x": x, "t": t_arr, "grads": interpolated_grad}
                     out_dict = model.apply(params, in_dict)
                     score = out_dict["score"]
             else:
-                in_dict = {"x": x, "t": t_arr, "grads": jnp.zeros_like(x)}
+                interpolated_grad = jnp.zeros_like(x)
+                in_dict = {"x": x, "t": t_arr, "grads": interpolated_grad}
                 out_dict = model.apply(params, in_dict)
                 score = out_dict["score"]
 
@@ -139,7 +146,7 @@ class Base_SDE_Class:
             return (x, t, key, carry_dict), SDE_tracker_step
 
         key, subkey = random.split(key)
-        x0 = random.normal(subkey, shape=(n_states, x_dim))
+        x_prior = random.normal(subkey, shape=(n_states, x_dim))
         t = 1.0
         dt = 1. / n_integration_steps
 
@@ -148,7 +155,7 @@ class Base_SDE_Class:
         carry_dict = {"hidden_state": [(init_carry, init_carry)  for i in range(self.Network_Config["n_layers"])]}
         (x_final, t_final, key, carry_dict), SDE_tracker_steps = jax.lax.scan(
             scan_fn,
-            (x0, t, key, carry_dict),
+            (x_prior, t, key, carry_dict),
             jnp.arange(n_integration_steps)
         )
 
@@ -162,6 +169,7 @@ class Base_SDE_Class:
             "drift_ref": SDE_tracker_steps["drift_ref"],
             "beta_t": SDE_tracker_steps["beta_t"],
             "x_final": x_final,
+            "x_prior": x_prior
         }
         # tbs = jnp.repeat(SDE_tracker_steps["ts"][:,None, None], SDE_tracker_steps["xs"].shape[1], axis = 1)
         # score2 = jax.vmap(model.apply, in_axes=(None, 0,0))(params, SDE_tracker_steps["xs"][:,0:10], tbs[:,0:10])

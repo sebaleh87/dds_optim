@@ -12,6 +12,7 @@ import jax.numpy as jnp
 import wandb
 import numpy as np
 from tqdm.auto import trange
+import time
 
 class TrainerClass:
     def __init__(self, base_config):
@@ -39,7 +40,7 @@ class TrainerClass:
         self.params = self.model.init(random.PRNGKey(0), in_dict)
         self.opt_state = self.SDE_LossClass.optimizer.init(self.params)
         self._init_wandb()
-        self.EnergyClass.plot_properties()
+        #self.EnergyClass.plot_properties()
 
     def _init_wandb(self):
         wandb.init(project=f"DDS_{self.EnergyClass.__class__.__name__}", config=self.config)
@@ -52,13 +53,14 @@ class TrainerClass:
 
         pbar = trange(self.num_epochs)
         for epoch in pbar:
+            start_time = time.time()
             if(epoch % 100 == 0):
                 n_samples = self.config["n_eval_samples"]
                 SDE_tracer, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, key, n_integration_steps = self.n_integration_steps, n_states = n_samples)
-                self.EnergyClass.plot_trajectories(np.array(SDE_tracer["xs"])[:,0:10,:])
-                self.EnergyClass.plot_histogram(np.array(SDE_tracer["x_final"])[:,:])
-                self.EnergyClass.plot_last_samples(np.array(SDE_tracer["x_final"]))
-                Energy_values = self.SDE_LossClass.vmap_calc_Energy(SDE_tracer["x_final"])
+                self.EnergyClass.plot_trajectories(np.array(SDE_tracer["ys"])[:,0:10,:])
+                self.EnergyClass.plot_histogram(np.array(SDE_tracer["y_final"]))
+                self.EnergyClass.plot_last_samples(np.array(SDE_tracer["y_final"]))
+                Energy_values = self.SDE_LossClass.vmap_Energy_function(SDE_tracer["y_final"])
                 best_Energy_value = np.min(Energy_values)
                 if(best_Energy_value < Best_Energy_value_ever):
                     Best_Energy_value_ever = best_Energy_value
@@ -78,15 +80,18 @@ class TrainerClass:
                 for k, v in out_dict.items():
                     if k != "key" and k != "X_0":
                         #print("k", k, np.mean(v), i)
-                        self.aggregated_out_dict[k].append(v)
+                        self.aggregated_out_dict[k].append(np.array(v))
 
                 loss_list.append(float(loss))
+
+            epoch_time = time.time() - start_time
             mean_loss = np.mean(loss_list)
             lr = self.SDE_LossClass.schedule(epoch*(self.Optimizer_Config["steps_per_epoch"]*self.SDE_LossClass.lr_factor)) ### TODO correct this for MC case
-            wandb.log({"loss": mean_loss, "schedules/temp": T_curr, "schedules/lr": lr, "epoch": epoch})
+            wandb.log({"loss": mean_loss, "schedules/temp": T_curr, "schedules/lr": lr, "time/epoch": epoch_time, "epoch": epoch})
             wandb.log({dict_key: np.mean(self.aggregated_out_dict[dict_key]) for dict_key in self.aggregated_out_dict})
-            wandb.log({"X_statistics/abs_mean": np.mean(np.sqrt(np.sum(out_dict["X_0"]**2, axis = -1))), "X_statistics/mean": np.mean(np.mean(out_dict["X_0"], axis = -1))})
+            wandb.log({"X_statistics/mean": np.mean(out_dict["X_0"]), "X_statistics/sdt": np.std(np.mean(out_dict["X_0"], axis = -1))})
             pbar.set_description(f"mean_loss {mean_loss:.4f}, best energy: {Best_Energy_value_ever:.4f}")
+            del self.aggregated_out_dict
 
         return params
 

@@ -20,28 +20,41 @@ class EnergyModelClass:
         self.y_min = -5 + self.shift
         self.x_max = 5 + self.shift
         self.y_max = 5 + self.shift
+        self.latent_dim = self.dim_x
         ### TODO define plot range here
 
-    def calc_energy(self, x):
+    def init_EnergyParams(self):
+        return {"log_var_x": jnp.log(1.)*jnp.ones((self.dim_x, self.latent_dim))}
+
+    def energy_function(self, x):
         """
         This method should be overridden by subclasses to define
         the specific energy function.
         """
         raise NotImplementedError("Subclasses should implement this method")
-
-    def compute_normed_energy(self, x, mean, std, eps = 10**-10):
-        return (self.calc_energy(x)-mean)/(std+eps)
     
-    def compute_energies(self, x, std, eps = 10**-10):
-        energy_dict = {"energy": self.calc_energy(x), "normed_energy": self.compute_normed_energy(x, std, eps)}
-        return energy_dict
+    def calc_energy(self, diff_samples, energy_params, key):
+        y, key = self.scale_samples(diff_samples, energy_params, key)
+        return self.energy_function(y), key
+
+    def vmap_calc_energy(self, diff_samples, energy_params, key):
+        key, subkey = jax.random.split(key)
+        batched_key = jax.random.split(subkey, diff_samples.shape[0])
+        energy_value, batched_key = jax.vmap(self.calc_energy, in_axes=(0, None, 0))(diff_samples, energy_params, batched_key)
+        return energy_value, key
+    
+    def scale_samples(self, diff_samples, energy_params, key):
+        sigma = jnp.exp(energy_params["log_var_x"])
+        Y = jnp.tensordot(sigma, diff_samples, axes = ([-1],[0]))
+        return Y, key
+
 
     def calc_log_probs(self, x, T):
         """
         Calculate the log probabilities, where T is the temperature.
         log_probs = -1/T * energy(x)
         """
-        energy = self.calc_energy(x)
+        energy = self.energy_function(x)
         return -1.0 / T * energy
     
     def plot_properties(self):
@@ -65,7 +78,7 @@ class EnergyModelClass:
         grid_points = jnp.stack([X.ravel(), Y.ravel()], axis=-1)
         
         # Calculate energy and log-probs for each point in the grid
-        Z_energy = jax.vmap(self.calc_energy)(grid_points)
+        Z_energy = jax.vmap(self.energy_function)(grid_points)
         Z_log_probs = jax.vmap(lambda pt: self.calc_log_probs(pt, T))(grid_points)
         
         # Reshape results back into a 2D grid
@@ -105,7 +118,7 @@ class EnergyModelClass:
         x = jnp.linspace(x_range[0], x_range[1], resolution)
         
         # Calculate energy and log-probs for each point in the range
-        Z_energy = jax.vmap(self.calc_energy)(x)
+        Z_energy = jax.vmap(self.energy_function)(x)
         Z_log_probs = jax.vmap(lambda pt: self.calc_log_probs(pt, T))(x)
 
         # Plotting
@@ -134,18 +147,24 @@ class EnergyModelClass:
             self.plot_2_D_trajectories(Xs)
         elif(self.dim_x == 1):
             self.plot_1_D_trajectories(Xs)
+        else:
+            pass
 
     def plot_last_samples(self, Xs):
         if(self.dim_x == 2):
             self.plot_2_D_last_samples(Xs)
         elif(self.dim_x == 1):
             pass
+        else:
+            self.visualize_samples(Xs)
 
     def plot_histogram(self, Xs):
         if(self.dim_x == 2):
             self.plot_2_D_histogram(Xs)
         elif(self.dim_x == 1):
             self.plot_1_D_histogram(Xs)
+        else:
+            pass
     
     def plot_1_D_trajectories(self, Xs):
         T, B, D = Xs.shape
@@ -192,14 +211,14 @@ class EnergyModelClass:
         grid_points = jnp.stack([X.ravel(), Y.ravel()], axis=-1)
 
         # Calculate energy for each point in the grid
-        Z_energy = jax.vmap(self.calc_energy)(grid_points)
+        Z_energy = jax.vmap(self.energy_function)(grid_points)
 
         # Reshape results back into a 2D grid
         Z_energy = Z_energy.reshape(X.shape)
 
         # Plot the energy landscape in the background
         plt.plot(Xs[:,0], Xs[:,1], "o", alpha=0.15)
-        energy_plot = plt.contourf(X, Y, Z_energy, levels=100, cmap='Reds', alpha=0.6)
+        energy_plot = plt.contourf(X, Y, Z_energy, levels=100, cmap='Reds', alpha=0.3)
         plt.colorbar(energy_plot, label='Energy')
 
         plt.xlabel('X-axis')
@@ -236,7 +255,7 @@ class EnergyModelClass:
         plt.close()
 
 
-    def plot_2_D_histogram(self, samples, n_bins = 40):
+    def plot_2_D_histogram(self, samples, n_bins = 80):
         # Filter samples where both coordinates are within [-4, 4]
         filtered_samples = samples[(samples[:, 0] >= self.x_min) & (samples[:, 0] <= self.x_max) & (samples[:, 1] >= self.y_min) & (samples[:, 1] <= self.y_max)]
         # Assuming `samples` is provided and wandb is initialized
@@ -254,7 +273,7 @@ class EnergyModelClass:
         grid_points = jnp.stack([X.ravel(), Y.ravel()], axis=-1)
         
         # Calculate energy for each point in the grid
-        Z_energy = jax.vmap(self.calc_energy)(grid_points)
+        Z_energy = jax.vmap(self.energy_function)(grid_points)
         
         # Reshape results back into a 2D grid
         Z_energy = Z_energy.reshape(X.shape)

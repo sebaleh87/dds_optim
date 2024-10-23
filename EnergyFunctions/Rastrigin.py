@@ -10,7 +10,7 @@ class RastriginClass(EnergyModelClass):
         self.shift = config["shift"]
 
     @partial(jax.jit, static_argnums=(0,))
-    def calc_energy(self, x):
+    def energy_function(self, x):
         """
         Rastrigin function is given by:
         f(x) = A * n + sum([x_i^2 - A * cos(2*pi*x_i)]) for all dimensions

@@ -11,8 +11,8 @@ class LogVariance_Loss_Class(Base_SDE_Loss_Class):
         print("Gradient over expectation is supposed to be stopped from now on")
 
     @partial(jax.jit, static_argnums=(0,), static_argnames=("n_integration_steps", "n_states", "x_dim"))  
-    def compute_loss(self, params, key, n_integration_steps = 100, n_states = 10, temp = 1.0, x_dim = 2):
-        SDE_tracer, key = self.SDE_type.simulate_reverse_sde_scan(self.model , params, key, n_integration_steps = n_integration_steps, n_states = n_states, x_dim = x_dim)
+    def compute_loss(self, params, log_sigma, key, n_integration_steps = 100, n_states = 10, temp = 1.0, x_dim = 2):
+        SDE_tracer, key = self.SDE_type.simulate_reverse_sde_scan(self.model , params, log_sigma, key, n_integration_steps = n_integration_steps, n_states = n_states, x_dim = x_dim)
         score = SDE_tracer["scores"]
         dW = SDE_tracer["dW"]
         xs = SDE_tracer["xs"]
@@ -26,17 +26,17 @@ class LogVariance_Loss_Class(Base_SDE_Loss_Class):
         x_last = SDE_tracer["x_final"]
         x_dim = x_last.shape[-1]
 
-        U = self.SDE_type.get_diffusion(None, ts)[:,None, None]*score
+        U = self.SDE_type.get_diffusion(None, ts, log_sigma)[:,None, None]*score
 
         div_drift = - self.x_dim*self.SDE_type.beta(ts)[:,None, None]
         f = U * jax.lax.stop_gradient(U) - U**2/2 - div_drift
         S = jnp.sum(jnp.sum(U * dW, axis = -1), axis = 0)
 
 
-        log_prior = self.SDE_type.get_log_prior( xs[0])[...,0]
+        log_prior = self.SDE_type.get_log_prior( xs[0], log_sigma)[...,0]
         Energy = self.vmap_calc_Energy(x_last)
         Energy = Energy[...,0]
         R_diff = jnp.sum(dt*jnp.sum( f, axis = -1), axis = 0)
         obs = temp*R_diff + temp*S+ temp*log_prior + Energy
         log_var_loss = jnp.mean((obs)**2) - jnp.mean(obs)**2
-        return log_var_loss, {"mean_energy": jnp.mean(Energy), "f_int": jnp.mean(R_diff), "S_int": jnp.mean(S), "likelihood_ratio": jnp.mean(obs), "key": key, "X_0": x_last}
+        return log_var_loss, {"mean_energy": jnp.mean(Energy), "f_int": jnp.mean(R_diff), "S_int": jnp.mean(S), "likelihood_ratio": jnp.mean(obs), "key": key, "X_0": x_last, "log_sigma": log_sigma, "sigma": jnp.exp(log_sigma)}

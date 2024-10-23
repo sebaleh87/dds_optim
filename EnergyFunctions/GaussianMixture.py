@@ -24,7 +24,7 @@ class GaussianMixtureClass(EnergyModelClass):
         self.y_max = np.max(self.means) + np.max(self.variances) + self.shift
 
     @partial(jax.jit, static_argnums=(0,))
-    def calc_energy(self, x):
+    def energy_function(self, x):
         """
         Calculate the energy of the Gaussian Mixture Model.
         
@@ -32,11 +32,12 @@ class GaussianMixtureClass(EnergyModelClass):
         :return: Energy value.
         """
         def gaussian(x, mean, variance):
-            return -jnp.exp(jnp.sum(-0.5 * ((x - mean) ** 2 / variance) - jnp.log(jnp.sqrt(2 * jnp.pi * variance)), axis = -1))
+            return -jnp.exp(jnp.sum(-0.5 * ((x[None, ...] - mean) ** 2 / variance) - jnp.log(jnp.sqrt(2 * jnp.pi * variance)), axis = -1))
         
         # print([ gaussian(x, m, v).shape for m, v, w in zip(self.means, self.variances, self.weights)])
         # gaussians = jnp.array([w * gaussian(x, m, v) for m, v, w in zip(self.means, self.variances, self.weights)])
         # print(gaussians.shape, "gaussians")
         return jnp.sum(gaussian(x, self.means, self.variances), axis=0)
+
     
     

@@ -5,7 +5,10 @@
 - implement log derivative
 - mix diff sampler with adam?
 
-### TODO normalized the energy with running avergage?
+### Thought
+- own sigma for each direction?
+- SDE Entropy can only be increased by increasing sigma in prior?
+- TODO check this by computing the Entropy during Annealing?
 
 
 ### IDEA

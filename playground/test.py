@@ -11,6 +11,19 @@ import os
 if(__name__ == '__main__'):
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   # see issue #152
     os.environ["CUDA_VISIBLE_DEVICES"]=f"{5}"
+
+    # def gaussian(x, mean, variance):
+    #     return -jnp.exp(jnp.sum(-0.5 * ((x[None,:] - mean) ** 2 / variance) - 0.5*jnp.log(2 * jnp.pi * variance), axis = -1))
+
+    # means = jnp.array([[0., 10.], [11,0]])
+    # variances = jnp.array([[1., 1.], [1.,1.]])
+    # xs = [jnp.array([11,0])]
+    # for x in xs:
+    #     print(-jnp.exp(-0.5 * jnp.sum((x - means[1]) ** 2 / variances[1], axis = -1) )/jnp.sqrt(4*jnp.pi**2*variances[1,0]*jnp.pi*variances[1,1]))
+    #     value = jnp.sum(gaussian(x, means, variances), axis=0)
+    #     print(x, value)
+    # raise ValueError("")
+
     challenges = [(4,4,2),(5,4,4),(6,4,6),(7,4,8),(8,4,10),(9,4,12)]
 
 
@@ -122,6 +135,7 @@ if(__name__ == '__main__'):
             if step % 10 == 0:
                 print(f"Step {step}: loss = {loss}.")#, x = {x}")
         print("Best value is", min(result_list))
+        print(jnp.min(jnp.abs(x)), jnp.max(jnp.abs(x)))
 
     print(f"Final optimized x, with loss {loss},\n{x}")
 

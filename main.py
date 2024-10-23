@@ -8,16 +8,18 @@ import numpy as np
 ### TODO make seperate run configs for discrete time and continuous time
 
 parser = argparse.ArgumentParser(description="Denoising Diffusion Sampler")
-parser.add_argument("--GPU", type=str, default="5", help="GPU id to use")
+parser.add_argument("--GPU", type=str, default="6", help="GPU id to use")
 parser.add_argument("--SDE_Loss", type=str, default="Reverse_KL_Loss", choices=["Reverse_KL_Loss","LogVariance_Loss", "LogVariance_Loss_MC", "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam"], help="GPU id to use")
 parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE"], help="GPU id to use")
-parser.add_argument("--Energy_Config", type=str, default="Rastrigin", choices=["GaussianMixture", "Rastrigin", "MexicanHat", "Pytheus"], help="EnergyClass")
+parser.add_argument("--Energy_Config", type=str, default="WavePINN_latent", choices=["GaussianMixture", "Rastrigin", "MexicanHat", "Pytheus", "WavePINN_latent", "WavePINN_hyperparam"], help="EnergyClass")
 parser.add_argument("--T_start", type=float, default=1., help="Starting Temperature")
 parser.add_argument("--T_end", type=float, default=0., help="End Temperature")
 parser.add_argument("--n_integration_steps", type=int, default=10)
+
 parser.add_argument("--minib_time_steps", type=int, default=20)
 parser.add_argument("--batch_size", type=int, default=200)
 parser.add_argument("--lr", type=float, default=0.001)
+parser.add_argument("--sigma_lr", type=float, default=10**-4)
 parser.add_argument("--N_anneal", type=int, default=1000)
 parser.add_argument("--N_warmup", type=int, default=0)
 parser.add_argument("--steps_per_epoch", type=int, default=100)
@@ -32,7 +34,7 @@ parser.add_argument("--feature_dim", type=int, default=32)
 parser.add_argument("--n_hidden", type=int, default=124)
 parser.add_argument("--n_layers", type=int, default=3)
 
-parser.add_argument('--use_interpol_gradient', action='store_true', default=True, help='gradient of energy function is added to the score')
+parser.add_argument('--use_interpol_gradient', action='store_true', default=False, help='gradient of energy function is added to the score')
 parser.add_argument('--no-use_interpol_gradient', action='store_false', help='gradient of energy function is added not to the score')
 
 
@@ -52,6 +54,7 @@ if(__name__ == "__main__"):
     Optimizer_Config = {
         "name": "Adam",
         "lr": args.lr,
+        "sigma_lr": args.sigma_lr,
         "epochs": epochs,
         "steps_per_epoch": args.steps_per_epoch,
     }
@@ -94,6 +97,7 @@ if(__name__ == "__main__"):
             "minib_time_steps": args.minib_time_steps
         }
 
+    n_eval_samples = 10000
     if(args.Energy_Config == "GaussianMixture"):
         np.random.seed(42)
         num_gaussians = 40
@@ -123,13 +127,23 @@ if(__name__ == "__main__"):
             "name": "Pytheus",
             "challenge_index": 1,
         }
+    elif("WavePINN" in args.Energy_Config):
+        Energy_Config = {
+            "name": args.Energy_Config,
+            "dim_x": 3, ### x dim is here the latent dim
+            "d_in": 1,
+            "l1_d": 64,
+            "l2_d": 64,
+            "d_out": 1,
+        }
+        n_eval_samples = 10
     else:
         raise ValueError("Energy Config not found")
 
     Anneal_Config = {
         "name": "Linear",
         "T_start": args.T_start,
-        "T_end": 0.0,
+        "T_end": args.T_end,
         "N_anneal": args.N_anneal,
         "N_warmup": args.N_warmup,
     }
@@ -143,7 +157,7 @@ if(__name__ == "__main__"):
         "Network_Config": Network_Config,
 
         "num_epochs": epochs,
-        "n_eval_samples": 10*1000
+        "n_eval_samples": n_eval_samples
         
     }
 
