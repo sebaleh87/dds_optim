@@ -26,5 +26,5 @@ python main.py --SDE_Loss Discrete_Time_rKL_Loss --Energy_Config Rastrigin --n_i
 
 # Experiment on Pytheus
 ```
-main.py main.py --SDE_Loss Discrete_Time_rKL_Loss --Energy_Config Pytheus --n_integration_steps 10 --T_start 0.5 --batch_size 400 --lr 0.001 --N_anneal 1000 --feature_dim 0 --n_hidden 200
+python main.py main.py --SDE_Loss Discrete_Time_rKL_Loss --Energy_Config Pytheus --n_integration_steps 10 --T_start 0.5 --batch_size 400 --lr 0.001 --N_anneal 1000 --feature_dim 0 --n_hidden 200
 ```
