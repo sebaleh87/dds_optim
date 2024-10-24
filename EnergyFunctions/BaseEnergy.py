@@ -24,7 +24,7 @@ class EnergyModelClass:
         ### TODO define plot range here
 
     def init_EnergyParams(self):
-        return {"log_var_x": jnp.log(1.)*jnp.ones((self.dim_x, self.latent_dim))}
+        return {"log_var_x": jnp.log(1.)*jnp.ones((self.dim_x))}
 
     def energy_function(self, x):
         """
@@ -45,7 +45,7 @@ class EnergyModelClass:
     
     def scale_samples(self, diff_samples, energy_params, key):
         sigma = jnp.exp(energy_params["log_var_x"])
-        Y = jnp.tensordot(sigma, diff_samples, axes = ([-1],[0]))
+        Y = sigma*diff_samples
         return Y, key
 
 

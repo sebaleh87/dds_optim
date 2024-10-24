@@ -56,7 +56,7 @@ class TrainerClass:
             start_time = time.time()
             if(epoch % 100 == 0):
                 n_samples = self.config["n_eval_samples"]
-                SDE_tracer, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, key, n_integration_steps = self.n_integration_steps, n_states = n_samples)
+                SDE_tracer, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, key, n_integration_steps = self.n_integration_steps, n_states = n_samples)
                 self.EnergyClass.plot_trajectories(np.array(SDE_tracer["ys"])[:,0:10,:])
                 self.EnergyClass.plot_histogram(np.array(SDE_tracer["y_final"]))
                 self.EnergyClass.plot_last_samples(np.array(SDE_tracer["y_final"]))
@@ -92,6 +92,7 @@ class TrainerClass:
             wandb.log({"X_statistics/mean": np.mean(out_dict["X_0"]), "X_statistics/sdt": np.std(np.mean(out_dict["X_0"], axis = -1))})
             pbar.set_description(f"mean_loss {mean_loss:.4f}, best energy: {Best_Energy_value_ever:.4f}")
             del self.aggregated_out_dict
+            print({key: np.exp(dict_val) for key, dict_val in self.SDE_LossClass.SDE_params.items()})
 
         return params
 

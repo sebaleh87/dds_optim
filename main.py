@@ -19,7 +19,8 @@ parser.add_argument("--n_integration_steps", type=int, default=10)
 parser.add_argument("--minib_time_steps", type=int, default=20)
 parser.add_argument("--batch_size", type=int, default=200)
 parser.add_argument("--lr", type=float, default=0.001)
-parser.add_argument("--sigma_lr", type=float, default=10**-4)
+parser.add_argument("--Energy_lr", type=float, default=10**-4)
+parser.add_argument("--SDE_lr", type=float, default=0.)
 parser.add_argument("--N_anneal", type=int, default=1000)
 parser.add_argument("--N_warmup", type=int, default=0)
 parser.add_argument("--steps_per_epoch", type=int, default=100)
@@ -54,7 +55,8 @@ if(__name__ == "__main__"):
     Optimizer_Config = {
         "name": "Adam",
         "lr": args.lr,
-        "sigma_lr": args.sigma_lr,
+        "Energy_lr": args.Energy_lr,
+        "SDE_lr": args.SDE_lr,
         "epochs": epochs,
         "steps_per_epoch": args.steps_per_epoch,
     }
