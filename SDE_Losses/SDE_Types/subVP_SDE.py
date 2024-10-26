@@ -15,9 +15,10 @@ class subVP_SDE_Class(Base_SDE_Class):
         super().__init__(SDE_Type_Config, Network_Config, Energy_Class)
         ### THIS code assumes that sigma of reference distribution is 1
 
-    def get_log_prior(self, x, log_sigma = 1.):
-        sigma = 1.
-        return jax.scipy.stats.norm.logpdf(x, loc=0, scale=sigma)
+    def get_log_prior(self, SDE_params, x):
+        sigma = jnp.exp(SDE_params["log_sigma"])
+        mean = SDE_params["mean"]
+        return jax.scipy.stats.norm.logpdf(x, loc=mean, scale=sigma)
 
     def compute_p_xt_g_x0_statistics(self, x0, xt, t):
         mean_xt = x0 * jnp.exp(-self.beta_int(t)) 
@@ -29,14 +30,14 @@ class subVP_SDE_Class(Base_SDE_Class):
         beta_delta = jnp.exp(SDE_params["log_beta_delta"])
         beta_min = jnp.exp(SDE_params["log_beta_min"])
         beta_max = beta_min + beta_delta
-        beta_int_value = 1/4*t**2*(sbeta_max-beta_min) + 0.5*t*beta_min
+        beta_int_value = 1/2*t**2*(beta_max-beta_min) + t*beta_min
         return beta_int_value
 
     def beta(self, SDE_params, t):
         beta_delta = jnp.exp(SDE_params["log_beta_delta"])
         beta_min = jnp.exp(SDE_params["log_beta_min"])
         beta_max = beta_min + beta_delta
-        return 0.5*(beta_min + t * (beta_max - beta_min))
+        return (beta_min + t * (beta_max - beta_min))
 
     def forward_sde(self, SDE_params, x, t, dt, key):
         drift = self.get_drift(SDE_params, x, t)
@@ -51,18 +52,18 @@ class subVP_SDE_Class(Base_SDE_Class):
     def get_drift(self, SDE_params, x, t):
         return - self.beta(SDE_params, t) * x
     
-    def get_diffusion(self, SDE_params, x, t, log_sigma):
-        sigma = jnp.exp(log_sigma)
-        diffusion = sigma*jnp.sqrt(2*self.beta(SDE_params, t)*(1-jnp.exp(- 4*self.beta_int(SDE_params, t))))
-        return diffusion
+    def get_diffusion(self, SDE_params, x, t):
+        sigma = jnp.exp(SDE_params["log_sigma"])
+        diffusion = sigma*jnp.sqrt(2*self.beta(SDE_params, t)*(1-jnp.exp(- 2*self.beta_int(SDE_params, t))))
+        return diffusion[None, :] 
     
-    def reverse_sde(self, SDE_params, score, log_sigma, x, t, dt, key):
+    def reverse_sde(self, SDE_params, score, x, t, dt, key):
         ### TODO implement hacks
         ### TODO also use gradet of target sto parameterize the score?
         # initialize to optial controls at t= 0 and t = 1
-        beta_t = self.beta(SDE_params, t)
+        beta_t = self.beta(SDE_params, t)[None, :] 
         forward_drift = self.get_drift(SDE_params, x, t)
-        diffusion = self.get_diffusion(SDE_params, x, t, log_sigma)
+        diffusion = self.get_diffusion(SDE_params, x, t)
 
         reverse_drift = diffusion**2*score - forward_drift #(forward_drift - beta_t * score)
 

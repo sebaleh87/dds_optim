@@ -15,12 +15,14 @@ parser.add_argument("--Energy_Config", type=str, default="WavePINN_latent", choi
 parser.add_argument("--T_start", type=float, default=1., help="Starting Temperature")
 parser.add_argument("--T_end", type=float, default=0., help="End Temperature")
 parser.add_argument("--n_integration_steps", type=int, default=10)
+parser.add_argument("--SDE_weightening", type=str, default="normal", choices=["normal", "weighted"], help="SDE weightening")
+parser.add_argument("--project_name", type=str, default="")
 
 parser.add_argument("--minib_time_steps", type=int, default=20)
 parser.add_argument("--batch_size", type=int, default=200)
 parser.add_argument("--lr", type=float, default=0.001)
 parser.add_argument("--Energy_lr", type=float, default=10**-4)
-parser.add_argument("--SDE_lr", type=float, default=0.)
+parser.add_argument("--SDE_lr", type=float, default=10**-5)
 parser.add_argument("--N_anneal", type=int, default=1000)
 parser.add_argument("--N_warmup", type=int, default=0)
 parser.add_argument("--steps_per_epoch", type=int, default=100)
@@ -31,7 +33,7 @@ parser.add_argument("--beta_max", type=float, default=10.)
 parser.add_argument('--temp_mode', action='store_true', default=True, help='only for discrete time model')
 parser.add_argument('--no-temp_mode', action='store_false', help='')
 
-parser.add_argument("--feature_dim", type=int, default=32)
+parser.add_argument("--feature_dim", type=int, default=64)
 parser.add_argument("--n_hidden", type=int, default=124)
 parser.add_argument("--n_layers", type=int, default=3)
 
@@ -74,6 +76,7 @@ if(__name__ == "__main__"):
             "name": "DiscreteTime_SDE", 
             "n_diff_steps": args.n_integration_steps,
             "temp_mode": args.temp_mode,
+            "n_integration_steps": args.n_integration_steps,
         }
         
         SDE_Loss_Config = {
@@ -89,6 +92,8 @@ if(__name__ == "__main__"):
             "beta_min": args.beta_min,
             "beta_max": args.beta_max,
             "use_interpol_gradient": args.use_interpol_gradient,
+            "n_integration_steps": args.n_integration_steps,
+            "SDE_weighteing": args.SDE_weightening,
         }
         
         SDE_Loss_Config = {
@@ -159,7 +164,8 @@ if(__name__ == "__main__"):
         "Network_Config": Network_Config,
 
         "num_epochs": epochs,
-        "n_eval_samples": n_eval_samples
+        "n_eval_samples": n_eval_samples,
+        "project_name": args.project_name
         
     }
 

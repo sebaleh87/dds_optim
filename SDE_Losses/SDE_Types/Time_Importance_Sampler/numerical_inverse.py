@@ -1,7 +1,6 @@
 import numpy as np
 from scipy import integrate, interpolate
 import matplotlib.pyplot as plt
-import torch
 # Define the functions a(t) and b(t)
 def a(t):
     return np.sin(2 * np.pi * t) + 1.5  # Ensures positive values
@@ -11,27 +10,37 @@ def b(t):
 
 class NumericalIntSampler():
 
-    def __init__(self, a , b, eps = 10**-4) -> None:
+    def __init__(self, a , b, eps = 10**-4, n_integration_steps = 50) -> None:
         self.a = a
         self.b = b
-        self.n_intervals = 1000
+        self.n_intervals = n_integration_steps
         self.eps = eps
         self.Z = self.calculate_Z(self.n_intervals)
 
+    def get_dt_values(self):
+        dt_prev = 1/self.n_intervals
+        t_values = self.get_t_values(self.n_intervals)
+        pdf_values = self.unnormalized_pdf(t_values)/self.Z
+        dt_values = pdf_values * dt_prev
+        return t_values, dt_values
+
     def calculate_Z(self, num_samples):
-        t_values, cdf_normalized, samples, inverse_cdf_func = self.numerical_inversion_sampling(num_samples=num_samples)
+        t_values = self.get_t_values(num_samples)
 
         # Compute the normalized PDF for comparison
         pdf_values = self.unnormalized_pdf(t_values)
         return integrate.trapz(pdf_values, t_values)
 
+    def get_t_values(self, num_points):
+        t_values = np.linspace(0, 1, num_points)
+        return t_values
+
     def unnormalized_pdf(self, t):
-        t = torch.tensor(t)
         return np.array(self.a(t) / self.b(t))
 
     # Compute and normalize the CDF
     def compute_normalized_cdf(self, t_min=0.0, t_max=1.0, num_points=1000):
-        t_values = np.linspace(t_min, t_max, num_points)
+        t_values = self.get_t_values(num_points)
         pdf_values = self.unnormalized_pdf(t_values)
         cdf_values = integrate.cumtrapz(pdf_values, t_values, initial=0)
         cdf_normalized = cdf_values / cdf_values[-1]
@@ -111,7 +120,7 @@ class NumericalIntSampler():
         plt.ylabel('Unnormalized Probability Density')
         plt.legend()
     
-        t_values = torch.linspace(0, 1, 1000)
+        t_values = np.linspace(0, 1, 1000)
         unnormalized_pdf =  self.b(t_values)
 
 
@@ -134,11 +143,3 @@ class NumericalIntSampler():
         plt.legend()
         plt.savefig("before_sampling.png")
 
-if(__name__ == "__main__"):
-    self.time_Sampler = NumericalIntSampler(self.SDE_integrator.return_beta_t, self.comute_lam, eps = self.eps)
-        #self.time_Sampler.visualize()
-    self.time_Z = self.time_Sampler.Z
-    _, _, t_batch, _ = self.time_Sampler.numerical_inversion_sampling(self.t_batch_size)
-    sampler = NumericalIntSampler(a, b)
-    sampler.visualize()
-    print(sampler.Z)

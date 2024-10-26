@@ -21,6 +21,7 @@ class EnergyModelClass:
         self.x_max = 5 + self.shift
         self.y_max = 5 + self.shift
         self.latent_dim = self.dim_x
+        self.levels = 100
         ### TODO define plot range here
 
     def init_EnergyParams(self):
@@ -89,14 +90,14 @@ class EnergyModelClass:
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
 
         # Energy landscape
-        energy_plot = ax1.contourf(X, Y, Z_energy, levels=100, cmap='viridis')
+        energy_plot = ax1.contourf(X, Y, Z_energy, levels=self.levels, cmap='viridis')
         fig.colorbar(energy_plot, ax=ax1)
         ax1.set_title("Energy Landscape")
         ax1.set_xlabel("x")
         ax1.set_ylabel("y")
 
         # Log probability landscape
-        log_probs_plot = ax2.contourf(X, Y, Z_log_probs, levels=100, cmap='plasma')
+        log_probs_plot = ax2.contourf(X, Y, Z_log_probs, levels=self.levels, cmap='plasma')
         fig.colorbar(log_probs_plot, ax=ax2)
         ax2.set_title("Log Probability Landscape")
         ax2.set_xlabel("x")
@@ -218,7 +219,7 @@ class EnergyModelClass:
 
         # Plot the energy landscape in the background
         plt.plot(Xs[:,0], Xs[:,1], "o", alpha=0.15)
-        energy_plot = plt.contourf(X, Y, Z_energy, levels=100, cmap='Reds', alpha=0.3)
+        energy_plot = plt.contourf(X, Y, Z_energy, levels=self.levels, cmap='Reds', alpha=0.3)
         plt.colorbar(energy_plot, label='Energy')
 
         plt.xlabel('X-axis')
@@ -280,7 +281,7 @@ class EnergyModelClass:
 
         # Plot the energy landscape in the background
         fig, ax = plt.subplots(figsize=(10, 8))
-        energy_plot = ax.contourf(X, Y, Z_energy, levels=100, cmap='Reds', alpha=0.6)
+        energy_plot = ax.contourf(X, Y, Z_energy, levels=self.levels, cmap='Reds', alpha=0.6)
         fig.colorbar(energy_plot, ax=ax, label='Energy')
         
         # Plot the zoomed-in heatmap

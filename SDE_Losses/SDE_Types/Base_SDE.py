@@ -4,6 +4,9 @@ import matplotlib.pyplot as plt
 import jax.numpy as jnp
 import flax.linen as nn
 
+from .Time_Importance_Sampler.numerical_inverse import NumericalIntSampler
+import wandb
+from matplotlib import pyplot as plt
 class Base_SDE_Class:
 
     def __init__(self, config, Network_Config, Energy_Class) -> None:
@@ -18,9 +21,34 @@ class Base_SDE_Class:
         else:
             self.network_has_hidden_state = False
 
+        if(self.config["SDE_weighteing"] == "weighted"):
+            self.NumericalIntSampler_Class = NumericalIntSampler(self.weightening, self.den_weighting, n_integration_steps = self.config["n_integration_steps"])
+            t_values, dt_values = self.NumericalIntSampler_Class.get_dt_values()
+
+            # plt.figure()
+            # plt.plot(t_values, dt_values)
+            # plt.plot(t_values, jax.lax.cumsum(dt_values))
+            # wandb.log({"figures/dt_values": wandb.Image(plt)})
+            # plt.close()
+            self.reversed_dt_values = jnp.flip(dt_values)
+        else:
+            self.reversed_dt_values = jnp.ones((self.config["n_integration_steps"],))*1./self.config["n_integration_steps"]
+
+    def weightening(self, t):
+        SDE_params = self.get_SDE_params()
+        weight = jnp.mean((1-jnp.exp(- 2*jax.vmap(self.beta_int, in_axes=(None, 0))(SDE_params, t))), axis = -1)
+        return weight
+    
+    def den_weighting(self, t):
+        SDE_params = self.get_SDE_params()
+        den_weight =  jnp.mean(2*jax.vmap(self.beta, in_axes=(None, 0))(SDE_params, t), axis = -1)
+        return den_weight
+
     def get_SDE_params(self):
 
-        SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"])* jnp.ones((self.dim_x,)), "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,))}
+        SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"])* jnp.ones((self.dim_x,)), 
+                      "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
+                      "log_sigma": jnp.log(1)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,))}
         return SDE_params
 
     def compute_p_xt_g_x0_statistics(self, x0, xt, t):
@@ -29,15 +57,15 @@ class Base_SDE_Class:
     def get_log_prior(self, x):
         raise NotImplementedError("get_diffusion method not implemented")
     
-    def vmap_prior_target_grad_interpolation(self, x, t, Energy_params, key):
+    def vmap_prior_target_grad_interpolation(self, x, t, Energy_params, SDE_params, key):
         key, subkey = random.split(key)
         batched_subkey = random.split(subkey, x.shape[0])
-        vmap_grad = jax.vmap(self.prior_target_grad_interpolation, in_axes=(0, None, None, 0))(x,t, Energy_params, batched_subkey)
+        vmap_grad = jax.vmap(self.prior_target_grad_interpolation, in_axes=(0, None, None, None, 0))(x,t, Energy_params, SDE_params, batched_subkey)
         return vmap_grad, key
     
-    def prior_target_grad_interpolation(self, x, t, Energy_params, key):
+    def prior_target_grad_interpolation(self, x, t, Energy_params, SDE_params, key):
         Energy_value, key = self.Energy_Class.calc_energy(x, Energy_params, key)
-        interpol = lambda x: (t)*jnp.sum(self.get_log_prior(x), axis = -1) + (1-t)*Energy_value
+        interpol = lambda x: (t)*jnp.sum(self.get_log_prior(SDE_params,x), axis = -1) + (1-t)*Energy_value
         return jax.grad(interpol)( x)
 
     def get_diffusion(self, t, x, log_sigma):
@@ -116,13 +144,13 @@ class Base_SDE_Class:
             t_arr = t*jnp.ones((x.shape[0], 1)) 
             if(self.use_interpol_gradient):
                 if(self.network_has_hidden_state):
-                    interpolated_grad, key = self.vmap_prior_target_grad_interpolation(x, t, Energy_params, key) 
+                    interpolated_grad, key = self.vmap_prior_target_grad_interpolation(x, t, Energy_params, SDE_params, key) 
                     in_dict = {"x": x, "t": t_arr, "grads": interpolated_grad, "hidden_state": carry_dict["hidden_state"]}
                     out_dict = model.apply(params, in_dict)
                     score = out_dict["score"]
                     carry_dict["hidden_state"] = out_dict["hidden_state"]
                 else:
-                    interpolated_grad, key = self.vmap_prior_target_grad_interpolation(x, t, Energy_params, key) 
+                    interpolated_grad, key = self.vmap_prior_target_grad_interpolation(x, t, Energy_params, SDE_params, key) 
                     in_dict = {"x": x, "t": t_arr, "grads": interpolated_grad}
                     out_dict = model.apply(params, in_dict)
                     score = out_dict["score"]
@@ -132,6 +160,7 @@ class Base_SDE_Class:
                 out_dict = model.apply(params, in_dict)
                 score = out_dict["score"]
 
+            dt = self.reversed_dt_values[step]
             reverse_out_dict, key = self.reverse_sde(SDE_params, score, x, t, dt, key)
 
             SDE_tracker_step = {
@@ -143,7 +172,7 @@ class Base_SDE_Class:
             "forward_drift": reverse_out_dict["forward_drift"],
             "reverse_drift": reverse_out_dict["reverse_drift"],
             "drift_ref": reverse_out_dict["drift_ref"],
-            "beta_t": reverse_out_dict["beta_t"]
+            "dts": dt
             }
 
             x = reverse_out_dict["x_next"]
@@ -151,7 +180,10 @@ class Base_SDE_Class:
             return (x, t, key, carry_dict), SDE_tracker_step
 
         key, subkey = random.split(key)
-        x_prior = random.normal(subkey, shape=(n_states, x_dim))
+        sigma = jnp.exp(SDE_params["log_sigma"])
+        mean = SDE_params["mean"]
+        x_prior = random.normal(subkey, shape=(n_states, x_dim))*sigma[None, :] + mean[None, :]
+        #print("x_prior", x_prior.shape, mean.shape, sigma.shape)
         t = 1.0
         dt = 1. / n_integration_steps
 
@@ -172,7 +204,7 @@ class Base_SDE_Class:
             "forward_drift": SDE_tracker_steps["forward_drift"],
             "reverse_drift": SDE_tracker_steps["reverse_drift"],
             "drift_ref": SDE_tracker_steps["drift_ref"],
-            "beta_t": SDE_tracker_steps["beta_t"],
+            "dts": SDE_tracker_steps["dts"],
             "x_final": x_final,
             "x_prior": x_prior
         }

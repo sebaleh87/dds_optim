@@ -23,10 +23,11 @@ class TrainerClass:
         SDE_Loss_Config = base_config["SDE_Loss_Config"]
         Network_Config = base_config["Network_Config"]
         self.Optimizer_Config = base_config["Optimizer_Config"]
-
         self.model = get_network(Network_Config, SDE_Loss_Config)
 
         self.EnergyClass = get_Energy_class(Energy_Config)
+
+        self._init_wandb()
         self.AnnealClass = get_AnnealSchedule_class(AnnealConfig)
         self.SDE_LossClass = get_SDE_Loss_class(SDE_Loss_Config, self.Optimizer_Config, self.EnergyClass, Network_Config, self.model)
 
@@ -39,11 +40,10 @@ class TrainerClass:
         in_dict = {"x": x_init, "t": jnp.ones((1,1)), "grads": x_init, "hidden_state": [(init_carry, init_carry) for i in range(Network_Config["n_layers"])]}
         self.params = self.model.init(random.PRNGKey(0), in_dict)
         self.opt_state = self.SDE_LossClass.optimizer.init(self.params)
-        self._init_wandb()
         #self.EnergyClass.plot_properties()
 
     def _init_wandb(self):
-        wandb.init(project=f"DDS_{self.EnergyClass.__class__.__name__}", config=self.config)
+        wandb.init(project=f"DDS_{self.EnergyClass.__class__.__name__}_{self.config['project_name']}", config=self.config)
 
     def train(self):
 
@@ -71,18 +71,26 @@ class TrainerClass:
             T_curr = self.AnnealClass.update_temp()
             loss_list = []
             for i in range(self.Optimizer_Config["steps_per_epoch"]):
+                start_grad_time = time.time()
                 params, self.opt_state, loss, out_dict = self.SDE_LossClass.update_step(params, self.opt_state, key, T_curr)
+                end_grad_time = time.time() 
                 key = out_dict["key"]	
                 #print(out_dict)
                 if not hasattr(self, 'aggregated_out_dict'):
                     self.aggregated_out_dict = {k: [] for k in out_dict.keys() if k != "key" and k != "X_0"}
+                    self.aggregated_out_dict["time/time_grad"] = []
+                    self.aggregated_out_dict["time/time_log"] = []
 
                 for k, v in out_dict.items():
                     if k != "key" and k != "X_0":
                         #print("k", k, np.mean(v), i)
                         self.aggregated_out_dict[k].append(np.array(v))
 
+
                 loss_list.append(float(loss))
+                end_log_time = time.time()
+                self.aggregated_out_dict["time/time_grad"].append(end_grad_time - start_grad_time)
+                self.aggregated_out_dict["time/time_log"].append(end_log_time - end_grad_time)
 
             epoch_time = time.time() - start_time
             mean_loss = np.mean(loss_list)
@@ -92,7 +100,7 @@ class TrainerClass:
             wandb.log({"X_statistics/mean": np.mean(out_dict["X_0"]), "X_statistics/sdt": np.std(np.mean(out_dict["X_0"], axis = -1))})
             pbar.set_description(f"mean_loss {mean_loss:.4f}, best energy: {Best_Energy_value_ever:.4f}")
             del self.aggregated_out_dict
-            print({key: np.exp(dict_val) for key, dict_val in self.SDE_LossClass.SDE_params.items()})
+            #print({key: np.exp(dict_val) for key, dict_val in self.SDE_LossClass.SDE_params.items()})
 
         return params
 
