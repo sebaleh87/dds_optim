@@ -36,8 +36,9 @@ class TrainerClass:
         self.num_epochs = base_config["num_epochs"]
         self.n_integration_steps = SDE_Loss_Config["n_integration_steps"]
         x_init = jnp.ones((1,self.dim_x))
+        grad_init = jnp.ones((1,self.dim_x+1))
         init_carry = jnp.zeros((1, Network_Config["n_hidden"]))
-        in_dict = {"x": x_init, "t": jnp.ones((1,1)), "grads": x_init, "hidden_state": [(init_carry, init_carry) for i in range(Network_Config["n_layers"])]}
+        in_dict = {"x": x_init, "t": jnp.ones((1,1)), "grads": grad_init, "hidden_state": [(init_carry, init_carry) for i in range(Network_Config["n_layers"])]}
         self.params = self.model.init(random.PRNGKey(0), in_dict)
         self.opt_state = self.SDE_LossClass.optimizer.init(self.params)
         #self.EnergyClass.plot_properties()

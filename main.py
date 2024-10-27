@@ -15,7 +15,7 @@ parser.add_argument("--Energy_Config", type=str, default="WavePINN_latent", choi
 parser.add_argument("--T_start", type=float, default=1., help="Starting Temperature")
 parser.add_argument("--T_end", type=float, default=0., help="End Temperature")
 parser.add_argument("--n_integration_steps", type=int, default=10)
-parser.add_argument("--SDE_weightening", type=str, default="normal", choices=["normal", "weighted"], help="SDE weightening")
+parser.add_argument("--SDE_weightening", type=str, default="weighted", choices=["normal", "weighted"], help="SDE weightening")
 parser.add_argument("--project_name", type=str, default="")
 
 parser.add_argument("--minib_time_steps", type=int, default=20)
@@ -77,6 +77,7 @@ if(__name__ == "__main__"):
             "n_diff_steps": args.n_integration_steps,
             "temp_mode": args.temp_mode,
             "n_integration_steps": args.n_integration_steps,
+            "SDE_weightening": args.SDE_weightening,
         }
         
         SDE_Loss_Config = {
@@ -93,7 +94,7 @@ if(__name__ == "__main__"):
             "beta_max": args.beta_max,
             "use_interpol_gradient": args.use_interpol_gradient,
             "n_integration_steps": args.n_integration_steps,
-            "SDE_weighteing": args.SDE_weightening,
+            "SDE_weightening": args.SDE_weightening,
         }
         
         SDE_Loss_Config = {

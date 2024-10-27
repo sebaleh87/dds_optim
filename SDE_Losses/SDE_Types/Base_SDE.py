@@ -21,7 +21,7 @@ class Base_SDE_Class:
         else:
             self.network_has_hidden_state = False
 
-        if(self.config["SDE_weighteing"] == "weighted"):
+        if(self.config["SDE_weightening"] != "normal"):
             self.NumericalIntSampler_Class = NumericalIntSampler(self.weightening, self.den_weighting, n_integration_steps = self.config["n_integration_steps"])
             t_values, dt_values = self.NumericalIntSampler_Class.get_dt_values()
 
@@ -60,13 +60,17 @@ class Base_SDE_Class:
     def vmap_prior_target_grad_interpolation(self, x, t, Energy_params, SDE_params, key):
         key, subkey = random.split(key)
         batched_subkey = random.split(subkey, x.shape[0])
-        vmap_grad = jax.vmap(self.prior_target_grad_interpolation, in_axes=(0, None, None, None, 0))(x,t, Energy_params, SDE_params, batched_subkey)
-        return vmap_grad, key
+        vmap_energy, vmap_grad = jax.vmap(self.prior_target_grad_interpolation, in_axes=(0, None, None, None, 0))(x,t, Energy_params, SDE_params, batched_subkey)
+        return vmap_energy, vmap_grad, key
     
     def prior_target_grad_interpolation(self, x, t, Energy_params, SDE_params, key):
-        Energy_value, key = self.Energy_Class.calc_energy(x, Energy_params, key)
-        interpol = lambda x: (t)*jnp.sum(self.get_log_prior(SDE_params,x), axis = -1) + (1-t)*Energy_value
-        return jax.grad(interpol)( x)
+
+        #Energy_value, key = self.Energy_Class.calc_energy(x, Energy_params, key)
+        #interpol = lambda x: (t)*jnp.sum(self.get_log_prior(SDE_params,x), axis = -1) + (1-t)*Energy_value
+        
+        interpol = lambda x: self.Energy_Class.calc_energy(x, Energy_params, key)
+        (Energy, key), (grad)  = jax.value_and_grad(interpol, has_aux=True)( x)
+        return Energy, grad
 
     def get_diffusion(self, t, x, log_sigma):
         """
@@ -144,19 +148,21 @@ class Base_SDE_Class:
             t_arr = t*jnp.ones((x.shape[0], 1)) 
             if(self.use_interpol_gradient):
                 if(self.network_has_hidden_state):
-                    interpolated_grad, key = self.vmap_prior_target_grad_interpolation(x, t, Energy_params, SDE_params, key) 
-                    in_dict = {"x": x, "t": t_arr, "grads": interpolated_grad, "hidden_state": carry_dict["hidden_state"]}
+                    Energy, grad, key = self.vmap_prior_target_grad_interpolation(x, t, Energy_params, SDE_params, key) 
+                    concat_values = jnp.concatenate([Energy[...,None], grad], axis = -1)
+                    in_dict = {"x": x, "t": t_arr, "grads": concat_values, "hidden_state": carry_dict["hidden_state"]}
                     out_dict = model.apply(params, in_dict)
                     score = out_dict["score"]
                     carry_dict["hidden_state"] = out_dict["hidden_state"]
                 else:
-                    interpolated_grad, key = self.vmap_prior_target_grad_interpolation(x, t, Energy_params, SDE_params, key) 
-                    in_dict = {"x": x, "t": t_arr, "grads": interpolated_grad}
+                    Energy, grad, key = self.vmap_prior_target_grad_interpolation(x, t, Energy_params, SDE_params, key) 
+                    concat_values = jnp.concatenate([Energy[...,None], grad], axis = -1)
+                    in_dict = {"x": x, "t": t_arr, "grads": concat_values}
                     out_dict = model.apply(params, in_dict)
                     score = out_dict["score"]
             else:
-                interpolated_grad = jnp.zeros_like(x)
-                in_dict = {"x": x, "t": t_arr, "grads": interpolated_grad}
+                concat_values = jnp.zeros((x.shape[0], x_dim+1))
+                in_dict = {"x": x, "t": t_arr, "grads": concat_values}
                 out_dict = model.apply(params, in_dict)
                 score = out_dict["score"]
 
@@ -164,7 +170,7 @@ class Base_SDE_Class:
             reverse_out_dict, key = self.reverse_sde(SDE_params, score, x, t, dt, key)
 
             SDE_tracker_step = {
-            "interpolated_grad": interpolated_grad,
+            "interpolated_grad": concat_values,
             "dW": reverse_out_dict["dW"],
             "xs": x,
             "ts": t,
