@@ -9,7 +9,8 @@ import numpy as np
 
 parser = argparse.ArgumentParser(description="Denoising Diffusion Sampler")
 parser.add_argument("--GPU", type=str, default="6", help="GPU id to use")
-parser.add_argument("--SDE_Loss", type=str, default="Reverse_KL_Loss", choices=["Reverse_KL_Loss","LogVariance_Loss", "LogVariance_Loss_MC", "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam"], help="GPU id to use")
+parser.add_argument("--SDE_Loss", type=str, default="Reverse_KL_Loss", choices=["Reverse_KL_Loss","LogVariance_Loss", "LogVariance_Loss_MC", "LogVariance_Loss_with_grad",
+                                                                                "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam"], help="select loss function")
 parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE"], help="GPU id to use")
 parser.add_argument("--Energy_Config", type=str, default="WavePINN_latent", choices=["GaussianMixture", "Rastrigin", "MexicanHat", "Pytheus", "WavePINN_latent", "WavePINN_hyperparam"], help="EnergyClass")
 parser.add_argument("--T_start", type=float, default=1., help="Starting Temperature")

@@ -3,12 +3,10 @@ import jax
 from jax import numpy as jnp
 from functools import partial
 
-class LogVariance_Loss_Class(Base_SDE_Loss_Class):
+class LogVariance_Loss_with_grad_Class(Base_SDE_Loss_Class):
 
     def __init__(self, SDE_config, Optimizer_Config,  EnergyClass, Network_Config, model):
         super().__init__(SDE_config, Optimizer_Config, EnergyClass, Network_Config, model)
-        self.SDE_type.stop_gradient = True
-        print("Gradient over expectation is supposed to be stopped from now on")
         self.vmap_diff_factor = jax.vmap(self.SDE_type.get_diffusion, in_axes=(None, None, 0))
         self.vmap_drift_divergence = jax.vmap(self.SDE_type.beta, in_axes = (None, 0))
         self.vmap_get_log_prior = jax.vmap(self.SDE_type.get_log_prior, in_axes = (None, 0))
@@ -41,7 +39,7 @@ class LogVariance_Loss_Class(Base_SDE_Loss_Class):
         drift_divergence = self.vmap_drift_divergence( SDE_params, ts)[:,None, :]
         #print("shapes", score.shape, diff_factor.shape, drift_divergence.shape)
         U = diff_factor*score
-        f = (jnp.sum( U * jax.lax.stop_gradient(U) - U**2/2, axis = -1) - jnp.sum(drift_divergence, axis = -1))
+        f = (jnp.sum( U**2/2, axis = -1) - jnp.sum(drift_divergence, axis = -1))
 
         S = jnp.sum(jnp.sum(U * dW, axis = -1), axis = 0)
 
