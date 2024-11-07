@@ -81,7 +81,7 @@ class TrainerClass:
                 for k, v in out_dict.items():
                     if k != "key" and k != "X_0":
                         #print("k", k, np.mean(v), i)
-                        self.aggregated_out_dict[k].append(numpy.array(v))
+                        self.aggregated_out_dict[k].append(np.array(v))
 
                 loss_list.append(float(loss))
             mean_loss = np.mean(loss_list)
@@ -91,6 +91,6 @@ class TrainerClass:
             wandb.log({"X_statistics/abs_mean": np.mean(np.sqrt(np.sum(out_dict["X_0"]**2, axis = -1))), "X_statistics/mean": np.mean(np.mean(out_dict["X_0"], axis = -1))})
             pbar.set_description(f"mean_loss {mean_loss:.4f}, best energy: {Best_Energy_value_ever:.4f}")
             del self.aggregated_out_dict
-            
+
         return params
 
