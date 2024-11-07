@@ -10,7 +10,7 @@ import os
 
 if(__name__ == '__main__'):
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   # see issue #152
-    os.environ["CUDA_VISIBLE_DEVICES"]=f"{5}"
+    os.environ["CUDA_VISIBLE_DEVICES"]=f"{str(args.GPU)}"
     challenges = [(4,4,2),(5,4,4),(6,4,6),(7,4,8),(8,4,10),(9,4,12)]
 
 
@@ -69,7 +69,7 @@ if(__name__ == '__main__'):
     graph_state = lambda edges: edges[PERFECT_MATCHINGS].prod(axis=-1).sum(axis=-1)
     normed_state = lambda state: state / (eps + jnp.sqrt(state @ state))
     fidelity = lambda state: (state @ TARGET_NORMED)**2
-    loss_fun = lambda x: - fidelity(normed_state(graph_state(x)))
+    loss_fun = lambda x: - fidelity(normed_state(graph_state(x))) + 1
     x0 = np.random.rand(len(all_edges))
     x0 = jnp.array(x0)
 
@@ -106,7 +106,7 @@ if(__name__ == '__main__'):
         
         return x, opt_state, loss
     
-    reps = 1000
+    reps = 10
     result_list = []
     for rep in range(reps):
         x0 = jnp.array(np.random.rand(len(all_edges)))

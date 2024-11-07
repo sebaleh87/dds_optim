@@ -41,7 +41,7 @@ class PytheusEnergyClass(EnergyModelClass):
         :param a: Position of the minima.
 
         """
-        print("Start initializing PytheusEnergyClass")
+        print(f'Start initializing PytheusEnergyClass with challange index {config["challenge_index"]}')
         challenge_index = config["challenge_index"]
         challenges = [(4,4,2),(5,4,4),(6,4,6),(7,4,8),(8,4,10),(9,4,12)] # color, nodes , anc
 

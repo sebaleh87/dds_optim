@@ -12,9 +12,9 @@ class DiscreteTime_SDE_Class(Base_SDE_Class):
         self.stop_gradient = False
         self.n_diff_steps = SDE_Type_Config["n_diff_steps"]
         self.temp_mode = SDE_Type_Config["temp_mode"]
+        self.config = SDE_Type_Config
         self._make_beta_list()
         SDE_Type_Config["use_interpol_gradient"] = False
-        self.config = SDE_Type_Config
         super().__init__(SDE_Type_Config, Network_Config, Energy_Class)
     
     def get_log_prior(self, x):
@@ -149,21 +149,22 @@ class DiscreteTime_SDE_Class(Base_SDE_Class):
         return jnp.clip(1 - alpha_hat_t / alpha_hat_t_prev, a_max=clip_value, a_min=1-clip_value)
 
     def _make_beta_list(self):
-        f_0 = self._cos_func(0, self.n_diff_steps)
+        # f_0 = self._cos_func(0, self.n_diff_steps)
 
-        alpha_0 = 1.
-        self.alpha_hat_t_list = [1.]
-        self.gamma_t_list = [self._calc_gamma(alpha_0, alpha_0)]
-        for i in range(self.n_diff_steps):
-            j = i + 1
-            alpha_hat_t = self._cos_func(j, self.n_diff_steps) / f_0
-            gamma_t = self._calc_gamma(alpha_hat_t, self.alpha_hat_t_list[-1])
+        # alpha_0 = 1.
+        # self.alpha_hat_t_list = [1.]
+        # self.gamma_t_list = [self._calc_gamma(alpha_0, alpha_0)]
+        # for i in range(self.n_diff_steps):
+        #     j = i + 1
+        #     alpha_hat_t = self._cos_func(j, self.n_diff_steps) / f_0
+        #     gamma_t = self._calc_gamma(alpha_hat_t, self.alpha_hat_t_list[-1])
 
-            self.alpha_hat_t_list.append(alpha_hat_t)
-            self.gamma_t_list.append(gamma_t)
+        #     self.alpha_hat_t_list.append(alpha_hat_t)
+        #     self.gamma_t_list.append(gamma_t)
 
-        self.gamma_t_arr = jnp.flip(jnp.array(self.gamma_t_list), axis = 0)
-        self.gamma_t_arr = jnp.array(np.linspace(1, 0.05, self.n_diff_steps, endpoint = True))
+        # self.gamma_t_arr = jnp.flip(jnp.array(self.gamma_t_list), axis = 0)
+        self.gamma_t_arr = jnp.array(np.linspace(self.config["beta_min"], self.config["beta_max"], self.n_diff_steps, endpoint = True))
+        #self.gamma_t_arr = jnp.array(np.linspace(0.05, 1e-6, self.n_diff_steps, endpoint = True))
         print("beta list is", self.gamma_t_arr)
 
 
