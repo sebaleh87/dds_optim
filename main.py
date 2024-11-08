@@ -51,7 +51,7 @@ if(__name__ == "__main__"):
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   # see issue #152
     os.environ["CUDA_VISIBLE_DEVICES"]=f"{str(args.GPU)}"
     #disable JIT compilation
-    jax.config.update("jax_disable_jit", True)
+    #jax.config.update("jax_disable_jit", True)
 
     N_anneal = args.N_anneal
     epochs = N_anneal + args.N_warmup
