@@ -5,14 +5,15 @@ import os
 from Trainer.train import TrainerClass
 import argparse
 import numpy as np
+import torch
 ### TODO make seperate run configs for discrete time and continuous time
 
 parser = argparse.ArgumentParser(description="Denoising Diffusion Sampler")
 parser.add_argument("--GPU", type=str, default="6", help="GPU id to use")
-parser.add_argument("--SDE_Loss", type=str, default="Reverse_KL_Loss", choices=["Reverse_KL_Loss","LogVariance_Loss", "LogVariance_Loss_MC", "LogVariance_Loss_with_grad",
+parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=["Reverse_KL_Loss","LogVariance_Loss", "LogVariance_Loss_MC", "LogVariance_Loss_with_grad",
                                                                                 "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam"], help="select loss function")
 parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE"], help="GPU id to use")
-parser.add_argument("--Energy_Config", type=str, default="WavePINN_latent", choices=["GaussianMixture", "Rastrigin", "MexicanHat", "Pytheus", "WavePINN_latent", "WavePINN_hyperparam"], help="EnergyClass")
+parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "Rastrigin", "MexicanHat", "Pytheus", "WavePINN_latent", "WavePINN_hyperparam"], help="EnergyClass")
 parser.add_argument("--T_start", type=float, default=1., help="Starting Temperature")
 parser.add_argument("--T_end", type=float, default=0., help="End Temperature")
 parser.add_argument("--n_integration_steps", type=int, default=10)
@@ -50,7 +51,7 @@ if(__name__ == "__main__"):
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   # see issue #152
     os.environ["CUDA_VISIBLE_DEVICES"]=f"{str(args.GPU)}"
     #disable JIT compilation
-    #jax.config.update("jax_disable_jit", True)
+    jax.config.update("jax_disable_jit", True)
 
     N_anneal = args.N_anneal
     epochs = N_anneal + args.N_warmup
@@ -108,16 +109,24 @@ if(__name__ == "__main__"):
 
     n_eval_samples = 10000
     if(args.Energy_Config == "GaussianMixture"):
-        np.random.seed(42)
+        torch.manual_seed(0)
+        #np.random.seed(42)
+        dim = 2
         num_gaussians = 40
         x_min = -40
         x_max = 40
-        rand_func = lambda x: np.random.uniform(x_min, x_max, 2)
+        loc_scaling = 40
+        log_var_scaling = 0.1
+
+        mean = (torch.rand((num_gaussians, dim)) - 0.5)*2 * loc_scaling
+        log_var = torch.ones((num_gaussians, dim)) * log_var_scaling
+
+        #rand_func = lambda x: np.random.uniform(x_min, x_max, 2)
         Energy_Config = {
             "name": "GaussianMixture",
             "dim_x": 2,
-            "means": [rand_func(i) for i in range(num_gaussians)],
-            "variances": [[1.10,1.10] for i in range(num_gaussians)],
+            "means": mean,
+            "variances": np.exp(log_var),
             "weights": [1/num_gaussians for i in range(num_gaussians)],
         }
     elif(args.Energy_Config == "Rastrigin"):

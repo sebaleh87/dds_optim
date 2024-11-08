@@ -17,27 +17,34 @@ class Reverse_KL_Loss_Class(Base_SDE_Loss_Class):
         SDE_tracer, key = self.SDE_type.simulate_reverse_sde_scan(self.model , params, Energy_params, SDE_params, key, n_integration_steps = n_integration_steps, n_states = n_states, x_dim = x_dim)
         score = SDE_tracer["scores"]
         ts = SDE_tracer["ts"]
+        dW = SDE_tracer["dW"]
         dts = SDE_tracer["dts"][...,None]
 
         x_prior = SDE_tracer["x_prior"]
         x_last = SDE_tracer["x_final"]
 
-        log_prior = self.vmap_get_log_prior(SDE_params, x_prior)
+        log_prior = jnp.sum(self.vmap_get_log_prior(SDE_params, x_prior), axis = -1)
         #print("log_prior", log_prior.shape, x_prior.shape)
-        mean_log_prior = jnp.mean(jnp.sum(log_prior, axis = -1))
+        mean_log_prior = jnp.mean(log_prior)
 
         Energy, key = self.EnergyClass.vmap_calc_energy(x_last, Energy_params, key)
         mean_Energy = jnp.mean(Energy)
         diff_factor = self.vmap_diff_factor(SDE_params, None, ts)
         drift_divergence = self.vmap_drift_divergence( SDE_params, ts)[:,None, :]
         #print("shapes", score.shape, diff_factor.shape, drift_divergence.shape)
-        f = (1/2*jnp.sum( ( diff_factor*score)**2, axis = -1) - jnp.sum(drift_divergence, axis = -1))
+        U = diff_factor*score
+        f = (1/2*jnp.sum( ( U)**2, axis = -1) - jnp.sum(drift_divergence, axis = -1))
+        
+        S = jnp.sum(jnp.sum(U * dW, axis = -1), axis = 0)
+        R_diff = jnp.sum(dts*f  , axis = 0)
+        mean_R_diff = jnp.mean(R_diff)
+        loss = temp*mean_R_diff + temp*mean_log_prior + mean_Energy
+        Entropy = -(mean_R_diff + mean_log_prior)
 
-        R_diff = jnp.mean(jnp.sum(dts*f  , axis = 0))
-        loss = temp*R_diff + temp*mean_log_prior + mean_Energy
-        Entropy = -(R_diff + mean_log_prior)
-        Free_Energy = R_diff + mean_log_prior + mean_Energy
+        log_Z, Free_Energy, n_eff, NLL = self.compute_partition_sum(R_diff, S, log_prior, Energy)
+
         return loss, {"mean_energy": mean_Energy, "Free_Energy_at_T=1": Free_Energy, "Entropy": Entropy, "R_diff": R_diff, "likelihood_ratio": jnp.mean(loss), 
                       "key": key, "X_0": x_last, "mean_X_prior": jnp.mean(x_prior), "std_X_prior": jnp.mean(jnp.std(x_prior, axis = 0)), 
                        "sigma": jnp.exp(SDE_params["log_sigma"]),
-                      "beta_min": jnp.exp(SDE_params["log_beta_min"]), "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": SDE_params["mean"]}
+                      "beta_min": jnp.exp(SDE_params["log_beta_min"]), "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": SDE_params["mean"]
+                      , "log_Z_at_T=1": log_Z, "n_eff": n_eff, "NLL": NLL}

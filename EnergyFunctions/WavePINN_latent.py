@@ -7,7 +7,7 @@ import wandb
 from matplotlib import pyplot as plt
 
 class FeedForwardNetwork(nn.Module):
-    n_layers: int = 2
+    n_layers: int = 3
     hidden_dim: int = 32
     n_out: int = 1
 
@@ -16,14 +16,9 @@ class FeedForwardNetwork(nn.Module):
     def __call__(self, x, z):
         x = jnp.concatenate([x, z], axis = -1)
         for _ in range(self.n_layers - 1):
-            x_skip = x
             x = nn.Dense(self.hidden_dim, kernel_init=nn.initializers.he_normal(),
                                  bias_init=nn.initializers.zeros)(x)
-            x = nn.relu(x)
-            if(_ != 0):
-                x = nn.LayerNorm()(x + x_skip)
-            else:
-                x = nn.LayerNorm()(x)
+            x = nn.tanh(x)
         
         x = nn.Dense(self.n_out, kernel_init=nn.initializers.he_normal(),
                                  bias_init=nn.initializers.zeros)(x)
@@ -38,12 +33,13 @@ class WavePINN_latent_Class(EnergyModelClass):
         :param a: Position of the minima.
         """
         self.lam = 1
-        self.pos_batch_size = 200
+        self.pos_batch_size = 1000
         super().__init__(config)
-        self.model = FeedForwardNetwork( n_layers = 3, hidden_dim = 64, n_out = 1)
+        self.model = FeedForwardNetwork( n_layers = 3, hidden_dim = 40, n_out = 1)
         self.pos_dim = 1
         self.max_val = 2*jnp.pi
-        self.min_val = -2*jnp.pi
+        self.min_val = 0
+
 
     def init_EnergyParams(self):
         params = self.model.init(jax.random.PRNGKey(0), jnp.ones((1, self.dim_x)), jnp.ones((1, self.pos_dim)))
@@ -89,14 +85,13 @@ class WavePINN_latent_Class(EnergyModelClass):
         f = Y[...,0]
         f_grad = Y[..., 1]
         f_grad_grad = Y[..., 2]
-        print("shapes f", f.shape, f_grad.shape, f_grad_grad.shape)
         # max_f = jnp.max(jnp.abs(f))
         # where_max = jnp.where(jnp.abs(f) == max_f*jnp.ones_like(f), f, jnp.ones_like(f))
         # area_under_curve = jnp.sum(jnp.abs(f))*1/Y.shape[0]
         # target_area = 1.0
-        constraint = (f_grad**2 + f**2 - 1)**2
-        penality = pen*constraint
-        loss = jnp.mean((self.lam**2*f + f_grad_grad)**2 + penality)
+        constraint = (jnp.sqrt(f_grad**2 + f**2) - 1)**2
+        penality = pen*jnp.mean(constraint)
+        loss = jnp.mean((f + f_grad_grad)**2) + penality
         return loss
 
 

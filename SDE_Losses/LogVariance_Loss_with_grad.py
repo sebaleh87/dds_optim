@@ -16,7 +16,6 @@ class LogVariance_Loss_with_grad_Class(Base_SDE_Loss_Class):
         SDE_tracer, key = self.SDE_type.simulate_reverse_sde_scan(self.model , params, Energy_params, SDE_params, key, n_integration_steps = n_integration_steps, n_states = n_states, x_dim = x_dim)
         score = SDE_tracer["scores"]
         dW = SDE_tracer["dW"]
-        xs = SDE_tracer["xs"]
         ts = SDE_tracer["ts"]
         dts = SDE_tracer["dts"][...,None]
 

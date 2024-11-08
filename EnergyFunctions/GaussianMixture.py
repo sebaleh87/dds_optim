@@ -23,7 +23,7 @@ class GaussianMixtureClass(EnergyModelClass):
         self.y_min = np.min(self.means) - np.max(self.variances) + self.shift - margin
         self.x_max = np.max(self.means) + np.max(self.variances) + self.shift + margin
         self.y_max = np.max(self.means) + np.max(self.variances) + self.shift + margin
-        self.levels = 30
+        self.levels = 50
 
     @partial(jax.jit, static_argnums=(0,))
     def energy_function(self, x):
