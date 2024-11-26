@@ -13,17 +13,18 @@ parser.add_argument("--GPU", type=str, default="6", help="GPU id to use")
 parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=["Reverse_KL_Loss","LogVariance_Loss", "LogVariance_Loss_MC", "LogVariance_Loss_with_grad",
                                                                                 "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam"], help="select loss function")
 parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE"], help="GPU id to use")
-parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "Rastrigin", "MexicanHat", "Pytheus", "WavePINN_latent", "WavePINN_hyperparam"], help="EnergyClass")
+parser.add_argument("--Energy_Config", type=str, default="LeonardJones", choices=["GaussianMixture", "Rastrigin", "LeonardJones", "DoubleWell_iter", "DoubleWell_Richter",
+                                                                                     "MexicanHat", "Pytheus", "WavePINN_latent", "WavePINN_hyperparam"], help="EnergyClass")
 parser.add_argument("--T_start", type=float, default=1., help="Starting Temperature")
 parser.add_argument("--T_end", type=float, default=0., help="End Temperature")
-parser.add_argument("--n_integration_steps", type=int, default=10)
+parser.add_argument("--n_integration_steps", type=int, default=100)
 parser.add_argument("--SDE_weightening", type=str, default="weighted", choices=["normal", "weighted"], help="SDE weightening")
 parser.add_argument("--project_name", type=str, default="")
 
 parser.add_argument("--minib_time_steps", type=int, default=20)
 parser.add_argument("--batch_size", type=int, default=200)
 parser.add_argument("--lr", type=float, default=0.001)
-parser.add_argument("--Energy_lr", type=float, default=10**-4)
+parser.add_argument("--Energy_lr", type=float, default=0.0)
 parser.add_argument("--SDE_lr", type=float, default=10**-5)
 parser.add_argument("--N_anneal", type=int, default=1000)
 parser.add_argument("--N_warmup", type=int, default=0)
@@ -39,8 +40,11 @@ parser.add_argument("--feature_dim", type=int, default=64)
 parser.add_argument("--n_hidden", type=int, default=124)
 parser.add_argument("--n_layers", type=int, default=3)
 
-parser.add_argument('--use_interpol_gradient', action='store_true', default=False, help='gradient of energy function is added to the score')
+parser.add_argument('--use_interpol_gradient', action='store_true', default=True, help='gradient of energy function is added to the score')
 parser.add_argument('--no-use_interpol_gradient', action='store_false', help='gradient of energy function is added not to the score')
+
+parser.add_argument('--use_normal', action='store_true', default=False, help='gradient of energy function is added to the score')
+parser.add_argument('--no-use_normal', action='store_false', help='gradient of energy function is not added to the score')
 
 
 parser.add_argument("--SDE_time_mode", type=str, default="Discrete_Time", choices=["Discrete_Time", "Continuous_Time"], help="SDE Time Mode")
@@ -80,6 +84,7 @@ if(__name__ == "__main__"):
             "temp_mode": args.temp_mode,
             "n_integration_steps": args.n_integration_steps,
             "SDE_weightening": args.SDE_weightening,
+            "use_normal": False
         }
         
         SDE_Loss_Config = {
@@ -87,7 +92,7 @@ if(__name__ == "__main__"):
             "SDE_Type_Config": SDE_Type_Config,
             "batch_size": args.batch_size,
             "n_integration_steps": args.n_integration_steps,
-            "minib_time_steps": args.minib_time_steps
+            "minib_time_steps": args.minib_time_steps,
         }
     else:
         SDE_Type_Config = {
@@ -97,6 +102,7 @@ if(__name__ == "__main__"):
             "use_interpol_gradient": args.use_interpol_gradient,
             "n_integration_steps": args.n_integration_steps,
             "SDE_weightening": args.SDE_weightening,
+            "use_normal": args.use_normal
         }
         
         SDE_Loss_Config = {
@@ -104,10 +110,12 @@ if(__name__ == "__main__"):
             "SDE_Type_Config": SDE_Type_Config,
             "batch_size": args.batch_size,
             "n_integration_steps": args.n_integration_steps,
-            "minib_time_steps": args.minib_time_steps
+            "minib_time_steps": args.minib_time_steps,
+            
         }
 
     n_eval_samples = 10000
+    ### TODO implement different scales
     if(args.Energy_Config == "GaussianMixture"):
         torch.manual_seed(0)
         #np.random.seed(42)
@@ -145,6 +153,29 @@ if(__name__ == "__main__"):
             "name": "Pytheus",
             "challenge_index": 1,
         }
+    elif("LeonardJones" in args.Energy_Config):
+        N = 13
+        Energy_Config = {
+            "name": args.Energy_Config,
+            "N": N,
+            "dim_x": N*3,
+        }
+    elif("DoubleWell_iter" in args.Energy_Config):
+        N = 4
+        Energy_Config = {
+            "name": args.Energy_Config,
+            "N": N,
+            "dim_x": N*2,
+        }
+    elif("DoubleWell_Richter" in args.Energy_Config):
+        N = 5
+        Energy_Config = {
+            "name": args.Energy_Config,
+            "d": N,
+            "m": N,
+            "dim_x": N + N,
+        }
+
     elif("WavePINN" in args.Energy_Config):
         Energy_Config = {
             "name": args.Energy_Config,

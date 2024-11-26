@@ -18,16 +18,32 @@ class BaseModel(nn.Module):
     def setup(self):
         self.SDE_mode = self.SDE_Loss_Config["SDE_Type_Config"]["name"]
         self.use_interpol_gradient = self.SDE_Loss_Config["SDE_Type_Config"]["use_interpol_gradient"]
-        self.encoding_network = EncodingNetwork(feature_dim=self.network_config["feature_dim"], max_time = self.SDE_Loss_Config["n_integration_steps"])
+        self.encoding_network = EncodingNetwork(feature_dim=self.network_config["feature_dim"], hidden_dim=self.network_config["n_hidden"], max_time = self.SDE_Loss_Config["n_integration_steps"])
         self.backbone = get_network(self.network_config, self.SDE_Loss_Config)
         self.time_backbone = get_network(self.network_config, self.SDE_Loss_Config)
-        self.use_normal = False
+        self.use_normal = self.SDE_Loss_Config["SDE_Type_Config"]["use_normal"]
         
     @nn.compact
-    def __call__(self, in_dict):
+    def __call__(self, in_dict, train = False):
         ### TODO compute embedding here?
-        in_dict["grads"] = jax.lax.stop_gradient(in_dict["grads"])
-        encoding = self.encoding_network(in_dict)
+        if(self.use_normal):
+            copy_grads = jax.lax.stop_gradient(in_dict["grads"])
+            in_dict["grads"] = jnp.zeros_like(in_dict["grads"])
+            in_dict["Energy_value"] = jax.lax.stop_gradient(jnp.zeros_like(in_dict["Energy_value"]))
+        else:
+            grad = in_dict["grads"]
+            Energy = jax.lax.stop_gradient(jnp.zeros_like(in_dict["Energy_value"]))
+            eps = 10**-10
+            Energy = jnp.log(jnp.abs(Energy) + eps)*jnp.sign(Energy)
+            p = 10
+            grad_2 = jnp.where(grad >= jnp.exp(-p), jnp.log(jnp.abs(grad) + eps)/p, jnp.exp(p)*grad)
+            grad_1 = jnp.where(grad <= -jnp.exp(-p), jnp.sign(grad), -1)
+            in_dict["grads"] = jax.lax.stop_gradient(jnp.concatenate([grad_1, grad_2], axis = -1))
+            in_dict["Energy_value"] = Energy
+            ### TODO clip grads here
+
+
+        encoding = self.encoding_network(in_dict, train = train)
         in_dict["encoding"] = encoding
 
         out_dict = self.backbone(in_dict)
@@ -44,17 +60,13 @@ class BaseModel(nn.Module):
             out_dict["log_var"] = log_var_x
             return out_dict
         elif(self.use_interpol_gradient and self.use_normal):
-            grads = in_dict["grads"]
-            t = in_dict["t"]
-            time_in_dict = {"t": t, "grads": t, "x": t} 
-            time_out_dict = self.time_backbone(time_in_dict)
-            time_embedding = time_out_dict["embedding"]
+            grads = copy_grads
+
             grad_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
-                                                bias_init=nn.initializers.zeros)(time_embedding)
+                                                bias_init=nn.initializers.zeros)(embedding)
             
             correction_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
                                                 bias_init=nn.initializers.zeros)(embedding)
-            
             
             grad_score = grad_drift * jnp.clip(grads, -10**2, 10**2) #* nn.softplus(interpolated_grad) 
             correction_grad_score = correction_drift + grad_score

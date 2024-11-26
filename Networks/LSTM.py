@@ -24,6 +24,7 @@ class LSTMNetwork(nn.Module):
         for i in range(self.n_layers):
             hidden_state = hidden_state_list[i]
             updated_hidden_state, embedding = nn.OptimizedLSTMCell(self.hidden_dim)(hidden_state, embedding)
+            #updated_hidden_state, embedding = nn.LSTMCell(self.hidden_dim)(hidden_state, embedding)
             updated_hidden_state_list.append(updated_hidden_state)
 
         out_dict = {"embedding": embedding, "hidden_state": updated_hidden_state_list}

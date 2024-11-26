@@ -37,11 +37,12 @@ class TrainerClass:
         #self.EnergyClass.plot_properties()
 
     def _init_Network(self):
-        x_init = jnp.ones((1,self.dim_x))
-        grad_init = jnp.ones((1,self.dim_x+1))
+        x_init = jnp.ones((1,self.dim_x ))
+        grad_init = jnp.ones((1,self.dim_x))
+        Energy_value = jnp.ones((1,1))
         init_carry = jnp.zeros((1, self.Network_Config["n_hidden"]))
-        in_dict = {"x": x_init, "t": jnp.ones((1,1)), "grads": grad_init, "hidden_state": [(init_carry, init_carry) for i in range(self.Network_Config["n_layers"])]}
-        self.params = self.model.init(random.PRNGKey(0), in_dict)
+        in_dict = {"x": x_init, "Energy_value": Energy_value,  "t": jnp.ones((1,1)), "grads": grad_init, "hidden_state": [(init_carry, init_carry) for i in range(self.Network_Config["n_layers"])]}
+        self.params = self.model.init(random.PRNGKey(0), in_dict, train = True)
         self.opt_state = self.SDE_LossClass.optimizer.init(self.params)
 
         num_params = sum(x.size for x in jax.tree_util.tree_leaves(self.params))
@@ -63,7 +64,9 @@ class TrainerClass:
             start_time = time.time()
             if(epoch % 100 == 0):
                 n_samples = self.config["n_eval_samples"]
-                SDE_tracer, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, key, n_integration_steps = self.n_integration_steps, n_states = n_samples)
+                SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, key, n_integration_steps = self.n_integration_steps, n_states = n_samples)
+                wandb.log({ f"eval_{key}": np.mean(out_dict[key]) for key in out_dict.keys()})
+
                 fig_traj = self.EnergyClass.plot_trajectories(np.array(SDE_tracer["ys"])[:,0:10,:])
                 fig_hist = self.EnergyClass.plot_histogram(np.array(SDE_tracer["y_final"]))
                 fig_last_samples = self.EnergyClass.plot_last_samples(np.array(SDE_tracer["y_final"]))

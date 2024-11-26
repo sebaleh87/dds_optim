@@ -12,9 +12,8 @@ class Reverse_KL_Loss_Class(Base_SDE_Loss_Class):
         self.vmap_drift_divergence = jax.vmap(self.SDE_type.beta, in_axes = (None, 0))
         self.vmap_get_log_prior = jax.vmap(self.SDE_type.get_log_prior, in_axes = (None, 0))
 
-    @partial(jax.jit, static_argnums=(0,), static_argnames=("n_integration_steps", "n_states", "x_dim"))  
-    def compute_loss(self, params, Energy_params, SDE_params, key, n_integration_steps = 100, n_states = 10, temp = 1.0, x_dim = 2):
-        SDE_tracer, key = self.SDE_type.simulate_reverse_sde_scan(self.model , params, Energy_params, SDE_params, key, n_integration_steps = n_integration_steps, n_states = n_states, x_dim = x_dim)
+    @partial(jax.jit, static_argnums=(0,))  
+    def evaluate_loss(self, Energy_params, SDE_params, SDE_tracer, key, temp = 1.0):
         score = SDE_tracer["scores"]
         ts = SDE_tracer["ts"]
         dW = SDE_tracer["dW"]
@@ -38,8 +37,11 @@ class Reverse_KL_Loss_Class(Base_SDE_Loss_Class):
         S = jnp.sum(jnp.sum(U * dW, axis = -1), axis = 0)
         R_diff = jnp.sum(dts*f  , axis = 0)
         mean_R_diff = jnp.mean(R_diff)
+
         loss = temp*mean_R_diff + temp*mean_log_prior + mean_Energy
         Entropy = -(mean_R_diff + mean_log_prior)
+
+        #print("RKL LOss", mean_R_diff, mean_log_prior, beta*mean_Energy)
 
         log_Z, Free_Energy, n_eff, NLL = self.compute_partition_sum(R_diff, S, log_prior, Energy)
 
@@ -48,3 +50,5 @@ class Reverse_KL_Loss_Class(Base_SDE_Loss_Class):
                        "sigma": jnp.exp(SDE_params["log_sigma"]),
                       "beta_min": jnp.exp(SDE_params["log_beta_min"]), "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": SDE_params["mean"]
                       , "log_Z_at_T=1": log_Z, "n_eff": n_eff, "NLL": NLL}
+
+

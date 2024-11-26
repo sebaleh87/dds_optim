@@ -13,9 +13,8 @@ class LogVariance_Loss_Class(Base_SDE_Loss_Class):
         self.vmap_drift_divergence = jax.vmap(self.SDE_type.beta, in_axes = (None, 0))
         self.vmap_get_log_prior = jax.vmap(self.SDE_type.get_log_prior, in_axes = (None, 0))
 
-    @partial(jax.jit, static_argnums=(0,), static_argnames=("n_integration_steps", "n_states", "x_dim"))  
-    def compute_loss(self, params, Energy_params, SDE_params, key, n_integration_steps = 100, n_states = 10, temp = 1.0, x_dim = 2):
-        SDE_tracer, key = self.SDE_type.simulate_reverse_sde_scan(self.model , params, Energy_params, SDE_params, key, n_integration_steps = n_integration_steps, n_states = n_states, x_dim = x_dim)
+    @partial(jax.jit, static_argnums=(0,))  
+    def evaluate_loss(self, Energy_params, SDE_params, SDE_tracer, key, temp = 1.0):
         score = SDE_tracer["scores"]
         dW = SDE_tracer["dW"]
         ts = SDE_tracer["ts"]
@@ -48,9 +47,11 @@ class LogVariance_Loss_Class(Base_SDE_Loss_Class):
         mean_R_diff = jnp.mean(R_diff)
         Entropy = -(mean_R_diff + mean_log_prior)
 
-        obs = temp*R_diff + temp*S+ temp*log_prior+ Energy
+        #obs = temp*R_diff + temp*S+ temp*log_prior+ Energy
+        obs = temp*(R_diff + S+ log_prior) + Energy
+
         log_Z = jnp.mean(-obs)
-        log_var_loss = jnp.mean((obs)**2) - jnp.mean(obs)**2
+        log_var_loss = jnp.var(obs)#jnp.mean((obs)**2) - jnp.mean(obs)**2
 
         log_Z, Free_Energy, n_eff, NLL = self.compute_partition_sum(R_diff, S, log_prior, Energy)
 

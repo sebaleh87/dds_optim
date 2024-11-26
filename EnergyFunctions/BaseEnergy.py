@@ -9,6 +9,7 @@ import wandb
 class EnergyModelClass:
 
     def __init__(self,EnergyConfig):
+        self.config = EnergyConfig
         self.dim_x = EnergyConfig["dim_x"]
 
         if("shift" in EnergyConfig.keys()):
@@ -36,6 +37,7 @@ class EnergyModelClass:
     
     def calc_energy(self, diff_samples, energy_params, key):
         y, key = self.scale_samples(diff_samples, energy_params, key)
+
         return self.energy_function(y), key
 
     def vmap_calc_energy(self, diff_samples, energy_params, key):
@@ -162,7 +164,8 @@ class EnergyModelClass:
         elif(self.dim_x == 1):
             pass
         else:
-            self.visualize_samples(Xs)
+            pass
+            #self.visualize_samples(Xs)
 
     def plot_histogram(self, Xs, panel = "fig"):
         if(self.dim_x == 2):
@@ -248,7 +251,7 @@ class EnergyModelClass:
         # Plot the energy landscape in the background
         plt.plot(Xs[:,0], Xs[:,1], "o", alpha=0.15)
         energy_plot = plt.contourf(X, Y, Z_energy, levels=self.levels, cmap='Reds', alpha=0.3)
-        plt.colorbar(energy_plot, label='Energy')
+        plt.colorbar(energy_plot, label='log probs')
 
         plt.xlabel('X-axis')
         plt.ylabel('Y-axis')
@@ -314,7 +317,7 @@ class EnergyModelClass:
         # Plot the energy landscape in the background
         fig, ax = plt.subplots(figsize=(10, 8))
         energy_plot = ax.contourf(X, Y, Z_energy, levels=self.levels, cmap='Reds', alpha=0.6)
-        fig.colorbar(energy_plot, ax=ax, label='Energy')
+        fig.colorbar(energy_plot, ax=ax, label='log probs')
         
         # Plot the zoomed-in heatmap
         hist2d = ax.hist2d(x_samples, y_samples, bins=n_bins, cmap='Blues', alpha=0.7)

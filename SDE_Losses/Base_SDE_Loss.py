@@ -63,8 +63,9 @@ class Base_SDE_Loss_Class:
         updates, opt_state = self.optimizer.update(grads, opt_state)
         params = optax.apply_updates(params, updates)
 
-        Energy_params_updates, Energy_params_state = self.Energy_params_optimizer.update(Energy_params_grad, Energy_params_state)
-        Energy_params = optax.apply_updates( Energy_params, Energy_params_updates)
+        if(self.Energy_lr != 0.):
+            Energy_params_updates, Energy_params_state = self.Energy_params_optimizer.update(Energy_params_grad, Energy_params_state)
+            Energy_params = optax.apply_updates( Energy_params, Energy_params_updates)
 
         SDE_params_updates, SDE_params_state = self.SDE_params_optimizer.update(SDE_params_grad, SDE_params_state)
         SDE_params = optax.apply_updates(SDE_params, SDE_params_updates)
@@ -121,7 +122,7 @@ class Base_SDE_Loss_Class:
 
         self.SDE_schedule = lambda epoch: learning_rate_schedule(epoch, l_max, l_start, lr_min, overall_steps, warmup_steps)
         #optimizer = optax.radam(l_max)
-        optimizer = optax.chain(optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.SDE_schedule(epoch)))
+        optimizer = optax.chain(optax.clip_by_global_norm(1.0), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.SDE_schedule(epoch)))
         return optimizer
     
     def shift_samples(self, X_samples, SDE_params, energy_key):
@@ -131,12 +132,12 @@ class Base_SDE_Loss_Class:
     @partial(jax.jit, static_argnums=(0,), static_argnames=("n_integration_steps", "n_states"))
     def simulate_reverse_sde_scan(self, params, Energy_params, SDE_params, key, n_states = 100, n_integration_steps = 1000):
         SDE_tracer, key = self.SDE_type.simulate_reverse_sde_scan(self.model, params, Energy_params, SDE_params, key, n_states = n_states, x_dim = self.EnergyClass.dim_x, n_integration_steps = n_integration_steps)
-        
+        loss, out_dict = self.evaluate_loss(Energy_params, SDE_params, SDE_tracer, key)
         key, subkey = jax.random.split(key)
         batched_key = jax.random.split(subkey, n_states)
         SDE_tracer["ys"] = jax.vmap(jax.vmap(self.shift_samples, in_axes=(0, None,0)), in_axes=(0, None, None))(SDE_tracer["xs"], Energy_params, batched_key)
         SDE_tracer["y_final"] = jax.vmap(self.shift_samples, in_axes=(0,None, 0))(SDE_tracer["x_final"], Energy_params, batched_key)
-        return SDE_tracer, key
+        return SDE_tracer, out_dict, key
     
     @partial(jax.jit, static_argnums=(0,), static_argnames=("n_integration_steps", "n_states"))
     def evaluate_model(self, params, Energy_params, SDE_params, key, n_states = 100, n_integration_steps = 1000):
@@ -148,19 +149,20 @@ class Base_SDE_Loss_Class:
         Z_estim = R_diff + S + log_prior + Energy
         log_Z = jnp.mean(-Z_estim)
         Free_Energy = -log_Z
-        n_eff = jnp.mean(jax.nn.softmax(-Z_estim, axis = 0))
+        log_weights = -Z_estim
+        normed_weights = jax.nn.softmax(log_weights, axis = 0)
+
+        n_eff = 1/(jnp.sum(normed_weights**2)*Z_estim.shape[0])
+
         NLL = -jnp.mean(R_diff + S + log_prior) 
         return log_Z, Free_Energy, n_eff, NLL
 
-    def compute_loss(self,*args, **kwargs):
-        """
-        Calculate the loss between predictions and targets.
+    @partial(jax.jit, static_argnums=(0,), static_argnames=("n_integration_steps", "n_states", "x_dim"))  
+    def compute_loss(self, params, Energy_params, SDE_params, key, n_integration_steps = 100, n_states = 10, temp = 1.0, x_dim = 2):
+        SDE_tracer, key = self.SDE_type.simulate_reverse_sde_scan(self.model , params, Energy_params, SDE_params, key, n_integration_steps = n_integration_steps, n_states = n_states, x_dim = x_dim)
+        loss, out_dict = self.evaluate_loss(Energy_params, SDE_params, SDE_tracer, key, temp = temp)
 
-        :param predictions: The predicted values.
-        :param targets: The ground truth values.
-        :return: The calculated loss.
-        """
-        raise NotImplementedError("get_loss method not implemented")
+        return loss, out_dict
     
     def get_param_dict(self, params):
         return {"model_params": params, "Energy_params": self.Energy_params, "SDE_params": self.SDE_params}
