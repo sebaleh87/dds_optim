@@ -65,7 +65,11 @@ class TrainerClass:
             if(epoch % 100 == 0):
                 n_samples = self.config["n_eval_samples"]
                 SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, key, n_integration_steps = self.n_integration_steps, n_states = n_samples)
-                wandb.log({ f"eval_{key}": np.mean(out_dict[key]) for key in out_dict.keys()})
+                wandb.log({ f"eval/{key}": np.mean(out_dict[key]) for key in out_dict.keys()})
+
+                if(self.EnergyClass.config["name"] == "DoubleMoon"):
+                    n_samples = 5
+                    self.EnergyClass.visualize_models(out_dict["X_0"][0:n_samples])
 
                 fig_traj = self.EnergyClass.plot_trajectories(np.array(SDE_tracer["ys"])[:,0:10,:])
                 fig_hist = self.EnergyClass.plot_histogram(np.array(SDE_tracer["y_final"]))

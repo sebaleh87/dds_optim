@@ -14,7 +14,7 @@ parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=
                                                                                 "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam"], help="select loss function")
 parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE"], help="GPU id to use")
 parser.add_argument("--Energy_Config", type=str, default="LeonardJones", choices=["GaussianMixture", "Rastrigin", "LeonardJones", "DoubleWell_iter", "DoubleWell_Richter",
-                                                                                     "MexicanHat", "Pytheus", "WavePINN_latent", "WavePINN_hyperparam"], help="EnergyClass")
+                                                                                     "MexicanHat", "Pytheus", "WavePINN_latent", "WavePINN_hyperparam", "DoubleMoon"], help="EnergyClass")
 parser.add_argument("--T_start", type=float, default=1., help="Starting Temperature")
 parser.add_argument("--T_end", type=float, default=0., help="End Temperature")
 parser.add_argument("--n_integration_steps", type=int, default=100)
@@ -186,6 +186,16 @@ if(__name__ == "__main__"):
             "d_out": 1,
         }
         n_eval_samples = 10
+    elif("DoubleMoon" in args.Energy_Config):
+        Energy_Config = {
+            "name": args.Energy_Config,
+            "d_in": 1,
+            "l1_d": 64,
+            "l2_d": 64,
+            "d_out": 1,
+        }
+        n_eval_samples = 10
+    
     else:
         raise ValueError("Energy Config not found")
 
