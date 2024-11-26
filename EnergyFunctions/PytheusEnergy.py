@@ -2,7 +2,7 @@ from .BaseEnergy import EnergyModelClass
 import jax
 import jax.numpy as jnp
 from functools import partial
-
+import pickle
 from scipy.optimize import minimize
 from scipy.spatial.distance import cosine as cos_dist
 from pytheus import theseus as th
@@ -52,21 +52,31 @@ class PytheusEnergyClass(EnergyModelClass):
         dimensions = [dim]*n_ph+[1]*anc 
         all_edges = th.buildAllEdges(dimensions) # list of tuples (n1, n2, c1, c2)
 
-        mathings_catalog = th.allPerfectMatchings(dimensions)
-        SPACE_BASIS = list(mathings_catalog.keys())
+        if challenge_index != 3:
+            matchings_catalog = th.allPerfectMatchings(dimensions)
+            SPACE_BASIS = list(matchings_catalog.keys())
 
-        PERFECT_MATCHINGS = {} 
-        for ket, pm_list in mathings_catalog.items():
-            PERFECT_MATCHINGS[ket] = [[all_edges.index(edge) for edge in pm] for pm in pm_list]
-        PERFECT_MATCHINGS = np.array(list(PERFECT_MATCHINGS.values()))
+            PERFECT_MATCHINGS = {} 
+            for ket, pm_list in matchings_catalog.items():
+                PERFECT_MATCHINGS[ket] = [[all_edges.index(edge) for edge in pm] for pm in pm_list]
+            PERFECT_MATCHINGS = np.array(list(PERFECT_MATCHINGS.values()))
 
-        target_unnormed = np.array([(key in target_state.kets)*1.0 for key in SPACE_BASIS])
-        TARGET_NORMED = target_unnormed / np.sqrt(target_unnormed@target_unnormed)
+            target_unnormed = np.array([(key in target_state.kets)*1.0 for key in SPACE_BASIS])
+            TARGET_NORMED = target_unnormed / np.sqrt(target_unnormed@target_unnormed)
 
-        PERFECT_MATCHINGS = jnp.array(PERFECT_MATCHINGS)
+            PERFECT_MATCHINGS = jnp.array(PERFECT_MATCHINGS)
+            TARGET_NORMED = jnp.array(TARGET_NORMED)
+
+        else:
+            with open("matchings_3.pkl", "rb") as f:
+                PERFECT_MATCHINGS = pickle.load(f)
+
+            with open("target_normed_3.pkl", "rb") as f:
+                TARGET_NORMED = pickle.load(f)
+            
+        
         self.PERFECT_MATCHINGS = PERFECT_MATCHINGS
-
-        self.TARGET_NORMED = jnp.array(TARGET_NORMED)
+        self.TARGET_NORMED = TARGET_NORMED
 
         self.eps = 1e-20
         graph_state = lambda edges: edges[PERFECT_MATCHINGS].prod(axis=-1).sum(axis=-1) # use logsumexp?!
