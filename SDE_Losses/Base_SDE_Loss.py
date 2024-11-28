@@ -150,7 +150,7 @@ class Base_SDE_Loss_Class:
         log_Z = jnp.mean(-Z_estim)
         Free_Energy = -log_Z
         log_weights = -Z_estim
-        normed_weights = jax.nn.softmax(log_weights, axis = 0)
+        normed_weights = jax.nn.softmax(log_weights, axis = -1)
 
         n_eff = 1/(jnp.sum(normed_weights**2)*Z_estim.shape[0])
 
