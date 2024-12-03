@@ -77,7 +77,7 @@ class TrainerClass:
                 figs = {"figs/best_trajectories": fig_traj, "figs/best_histogram": fig_hist, "figs/best_last_samples": fig_last_samples}
                 Energy_values = self.SDE_LossClass.vmap_Energy_function(SDE_tracer["y_final"])
 
-                self.check_improvement(params, Best_Energy_value_ever, np.min(Energy_values), "Energy", epoch=epoch)
+                self.check_improvement(params, Best_Energy_value_ever, np.min(Energy_values), "Energy", epoch=epoch+1)
 
 
 
