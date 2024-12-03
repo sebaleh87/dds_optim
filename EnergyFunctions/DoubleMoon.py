@@ -8,7 +8,7 @@ import wandb
 
 class FeedForwardNetwork(nn.Module):
     n_layers: int = 3
-    hidden_dim: int = 64
+    hidden_dim: int = 32
     n_out: int = 2
 
     @nn.compact
@@ -101,7 +101,7 @@ class DoubleMoonClass(EnergyModelClass):
 
         overall_params = diff_samples # self.flat_init_params  + self.diff_param_scale *diff_samples
         param_energy = -jnp.sum(jax.scipy.stats.norm.logpdf(overall_params, loc=0, scale=1) ) 
-        overall_energy = data_energy #+ param_energy
+        overall_energy = data_energy + param_energy
         return overall_energy, key
     
     def scale_samples(self, diff_samples, energy_params, key):

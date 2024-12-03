@@ -50,10 +50,11 @@ class LogVariance_Loss_Class(Base_SDE_Loss_Class):
         #obs = temp*R_diff + temp*S+ temp*log_prior+ Energy
         obs = temp*(R_diff + S+ log_prior) + Energy
 
-        log_Z = jnp.mean(-obs)
         log_var_loss = jnp.var(obs)#jnp.mean((obs)**2) - jnp.mean(obs)**2
 
-        log_Z, Free_Energy, n_eff, NLL = self.compute_partition_sum(R_diff, S, log_prior, Energy)
+        res_dict = self.compute_partition_sum(R_diff, S, log_prior, Energy)
+        log_Z = res_dict["log_Z"]
+        Free_Energy, n_eff, NLL = res_dict["Free_Energy"], res_dict["n_eff"], res_dict["NLL"]
 
         return log_var_loss, {"mean_energy": mean_Energy, "Free_Energy_at_T=1": Free_Energy, "Entropy": Entropy, "R_diff": R_diff, 
                       "key": key, "X_0": x_last, "mean_X_prior": jnp.mean(x_prior), "std_X_prior": jnp.mean(jnp.std(x_prior, axis = 0)), 

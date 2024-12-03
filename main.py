@@ -10,7 +10,7 @@ import torch
 
 parser = argparse.ArgumentParser(description="Denoising Diffusion Sampler")
 parser.add_argument("--GPU", type=str, default="6", help="GPU id to use")
-parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=["Reverse_KL_Loss","LogVariance_Loss", "LogVariance_Loss_MC", "LogVariance_Loss_with_grad",
+parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=["Reverse_KL_Loss","LogVariance_Loss", "LogVariance_Loss_MC", "LogVariance_Loss_with_grad", "LogVariance_Loss_weighted",
                                                                                 "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam"], help="select loss function")
 parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE"], help="GPU id to use")
 parser.add_argument("--Energy_Config", type=str, default="LeonardJones", choices=["GaussianMixture", "Rastrigin", "LeonardJones", "DoubleWell_iter", "DoubleWell_Richter",
@@ -18,7 +18,7 @@ parser.add_argument("--Energy_Config", type=str, default="LeonardJones", choices
 parser.add_argument("--T_start", type=float, default=1., help="Starting Temperature")
 parser.add_argument("--T_end", type=float, default=0., help="End Temperature")
 parser.add_argument("--n_integration_steps", type=int, default=100)
-parser.add_argument("--SDE_weightening", type=str, default="weighted", choices=["normal", "weighted"], help="SDE weightening")
+parser.add_argument("--SDE_weightening", type=str, default="normal", choices=["normal", "weighted"], help="SDE weightening")
 parser.add_argument("--project_name", type=str, default="")
 
 parser.add_argument("--minib_time_steps", type=int, default=20)
@@ -30,21 +30,21 @@ parser.add_argument("--N_anneal", type=int, default=1000)
 parser.add_argument("--N_warmup", type=int, default=0)
 parser.add_argument("--steps_per_epoch", type=int, default=100)
 
-
+parser.add_argument("--update_params_mode", type=str, choices = ["all_in_one", "L2"], default="L2")
 parser.add_argument("--beta_min", type=float, default=0.05)
-parser.add_argument("--beta_max", type=float, default=10.)
+parser.add_argument("--beta_max", type=float, default=5.)
 parser.add_argument('--temp_mode', action='store_true', default=True, help='only for discrete time model')
-parser.add_argument('--no-temp_mode', action='store_false', help='')
+parser.add_argument('--no-temp_mode', action='store_false', dest='temp_mode', help='')
 
 parser.add_argument("--feature_dim", type=int, default=64)
 parser.add_argument("--n_hidden", type=int, default=124)
 parser.add_argument("--n_layers", type=int, default=3)
 
 parser.add_argument('--use_interpol_gradient', action='store_true', default=True, help='gradient of energy function is added to the score')
-parser.add_argument('--no-use_interpol_gradient', action='store_false', help='gradient of energy function is added not to the score')
+parser.add_argument('--no-use_interpol_gradient', dest='use_interpol_gradient', action='store_false', help='gradient of energy function is added not to the score')
 
 parser.add_argument('--use_normal', action='store_true', default=False, help='gradient of energy function is added to the score')
-parser.add_argument('--no-use_normal', action='store_false', help='gradient of energy function is not added to the score')
+parser.add_argument('--no-use_normal', dest='use_normal', action='store_false', help='gradient of energy function is not added to the score')
 
 
 parser.add_argument("--SDE_time_mode", type=str, default="Discrete_Time", choices=["Discrete_Time", "Continuous_Time"], help="SDE Time Mode")
@@ -111,6 +111,7 @@ if(__name__ == "__main__"):
             "batch_size": args.batch_size,
             "n_integration_steps": args.n_integration_steps,
             "minib_time_steps": args.minib_time_steps,
+            "update_params_mode": args.update_params_mode
             
         }
 
@@ -149,6 +150,7 @@ if(__name__ == "__main__"):
             "dim_x": 2,
         }
     elif(args.Energy_Config == "Pytheus"):
+        n_eval_samples = 100
         Energy_Config = {
             "name": "Pytheus",
             "challenge_index": 1,

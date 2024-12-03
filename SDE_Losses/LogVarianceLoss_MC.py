@@ -15,6 +15,7 @@ class LogVarianceLoss_MC_Class(Base_SDE_Loss_Class):
         self.SDE_type.stop_gradient = True
         print("Gradient over expectation is supposed to be stopped from now on")
         self._init_index_arrays()
+        raise NotImplementedError("This class is not up to date")
         ### TODO find out why this is so slow!
 
     def _init_index_arrays(self):

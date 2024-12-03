@@ -28,6 +28,7 @@ class VP_SDE_Class(Base_SDE_Class):
         return statistics_dict
     
     def beta_int(self, SDE_params, t):
+        ### TODO check if t is correct here!
         beta_delta = jnp.exp(SDE_params["log_beta_delta"])
         beta_min = jnp.exp(SDE_params["log_beta_min"])
         beta_max = beta_min + beta_delta
