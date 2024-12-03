@@ -31,6 +31,9 @@ parser.add_argument("--N_warmup", type=int, default=0)
 parser.add_argument("--steps_per_epoch", type=int, default=100)
 
 parser.add_argument("--update_params_mode", type=str, choices = ["all_in_one", "L2"], default="L2")
+parser.add_argument("--epochs_per_eval", type=int, default=100)
+
+
 parser.add_argument("--beta_min", type=float, default=0.05)
 parser.add_argument("--beta_max", type=float, default=5.)
 parser.add_argument('--temp_mode', action='store_true', default=True, help='only for discrete time model')
@@ -47,13 +50,16 @@ parser.add_argument('--use_normal', action='store_true', default=False, help='gr
 parser.add_argument('--no-use_normal', dest='use_normal', action='store_false', help='gradient of energy function is not added to the score')
 
 
+
 parser.add_argument("--SDE_time_mode", type=str, default="Discrete_Time", choices=["Discrete_Time", "Continuous_Time"], help="SDE Time Mode")
 parser.add_argument("--Network_Type", type=str, default="FeedForward", choices=["FourierNetwork", "FeedForward", "LSTMNetwork"], help="SDE Time Mode")
+parser.add_argument("--Pytheus_challenge", type=int, default=1, choices=[0,1,2,3,4,5], help="Pyhteus Chellange Index")
 args = parser.parse_args()
 
 if(__name__ == "__main__"):
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   # see issue #152
-    os.environ["CUDA_VISIBLE_DEVICES"]=f"{str(args.GPU)}"
+    if args.GPU !=-1:                              # GPU -1 means select GPU via env var in command line
+        os.environ["CUDA_VISIBLE_DEVICES"]=f"{str(args.GPU)}"
     #disable JIT compilation
     #jax.config.update("jax_disable_jit", True)
 
@@ -67,6 +73,7 @@ if(__name__ == "__main__"):
         "SDE_lr": args.SDE_lr,
         "epochs": epochs,
         "steps_per_epoch": args.steps_per_epoch,
+        "epochs_per_eval": args.epochs_per_eval,
     }
 
     Network_Config = {
@@ -153,8 +160,10 @@ if(__name__ == "__main__"):
         n_eval_samples = 100
         Energy_Config = {
             "name": "Pytheus",
-            "challenge_index": 1,
+            "challenge_index": args.Pytheus_challenge,
         }
+        n_eval_samples = 100
+
     elif("LeonardJones" in args.Energy_Config):
         N = 13
         Energy_Config = {

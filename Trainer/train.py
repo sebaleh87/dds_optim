@@ -62,10 +62,10 @@ class TrainerClass:
         pbar = trange(self.num_epochs)
         for epoch in pbar:
             start_time = time.time()
-            if(epoch % 100 == 0):
+            if(epoch % self.Optimizer_Config["epochs_per_eval"] == 0 and epoch):
                 n_samples = self.config["n_eval_samples"]
                 SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, key, n_integration_steps = self.n_integration_steps, n_states = n_samples)
-                wandb.log({ f"eval/{key}": np.mean(out_dict[key]) for key in out_dict.keys()})
+                wandb.log({ f"eval/{key}": np.mean(out_dict[key]) for key in out_dict.keys()}, step=epoch+1)
 
                 if(self.EnergyClass.config["name"] == "DoubleMoon"):
                     n_samples = 5
@@ -77,7 +77,7 @@ class TrainerClass:
                 figs = {"figs/best_trajectories": fig_traj, "figs/best_histogram": fig_hist, "figs/best_last_samples": fig_last_samples}
                 Energy_values = self.SDE_LossClass.vmap_Energy_function(SDE_tracer["y_final"])
 
-                self.check_improvement(params, Best_Energy_value_ever, np.min(Energy_values), "Energy")
+                self.check_improvement(params, Best_Energy_value_ever, np.min(Energy_values), "Energy", epoch=epoch)
 
 
 
@@ -111,10 +111,11 @@ class TrainerClass:
             wandb.log({"loss": mean_loss, "schedules/temp": T_curr, "schedules/lr": lr, "time/epoch": epoch_time, "epoch": epoch})
             wandb.log({dict_key: np.mean(self.aggregated_out_dict[dict_key]) for dict_key in self.aggregated_out_dict})
             wandb.log({"X_statistics/mean": np.mean(out_dict["X_0"]), "X_statistics/sdt": np.mean(np.std(out_dict["X_0"], axis = 0))})
+
             pbar.set_description(f"mean_loss {mean_loss:.4f}, best energy: {Best_Energy_value_ever:.4f}")
 
             Free_Energy_values = np.mean(self.aggregated_out_dict["Free_Energy_at_T=1"])
-            self.check_improvement(params, Best_Free_Energy_value_ever, Free_Energy_values, "Free_Energy_at_T=1", figs = None)
+            self.check_improvement(params, Best_Free_Energy_value_ever, Free_Energy_values, "Free_Energy_at_T=1", epoch, figs = None)
 
             del self.aggregated_out_dict
             #print({key: np.exp(dict_val) for key, dict_val in self.SDE_LossClass.SDE_params.items()})
@@ -125,7 +126,7 @@ class TrainerClass:
         self.SDE_LossClass.SDE_params = param_dict["SDE_params"]
 
         n_samples = self.config["n_eval_samples"]
-        SDE_tracer, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, key, n_integration_steps = self.n_integration_steps, n_states = n_samples)
+        SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, key, n_integration_steps = self.n_integration_steps, n_states = n_samples)
         fig_traj = self.EnergyClass.plot_trajectories(np.array(SDE_tracer["ys"])[:,0:10,:], panel = "best_figs")
         fig_hist = self.EnergyClass.plot_histogram(np.array(SDE_tracer["y_final"]), panel = "best_figs")
         fig_last_samples = self.EnergyClass.plot_last_samples(np.array(SDE_tracer["y_final"]), panel = "best_figs")
@@ -133,7 +134,7 @@ class TrainerClass:
 
         return params
     
-    def check_improvement(self, params, best_metric_ever, metric, metric_name, figs = None):
+    def check_improvement(self, params, best_metric_ever, metric, metric_name, epoch,figs = None):
         best_metric_value = metric
         if(best_metric_value < best_metric_ever):
             best_metric_ever = best_metric_value
@@ -141,9 +142,9 @@ class TrainerClass:
             param_dict = self.SDE_LossClass.get_param_dict(params)
             self.save_params_and_config(param_dict, self.config, filename=f"best_{metric_name}_checkpoint.pkl")
             if(figs != None):
-                wandb.log(figs)
+                wandb.log(figs, step=epoch+1)
 
-            wandb.log({f"Best_{metric_name}": best_metric_ever})
+            wandb.log({f"Best_{metric_name}": best_metric_ever},step=epoch+1)
 
     def load_params_and_config(self, filename="params_and_config.pkl"):
         script_dir = os.path.dirname(os.path.abspath(__file__)) + "Checkpoints/" + self.wandb_id + "/"
