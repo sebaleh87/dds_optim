@@ -63,8 +63,8 @@ if(__name__ == "__main__"):
         os.environ["CUDA_VISIBLE_DEVICES"]=f"{str(args.GPU)}"
     #disable JIT compilation
     #jax.config.update("jax_disable_jit", True)
-    if(args.lr/args.SDE_lr  > 0.2):
-        print("Warning: args.lr/args.SDE_lr  > 0.2, emperically this ratio is too high")
+    if(args.lr/args.SDE_lr  < 5):
+        print("Warning: args.lr/args.SDE_lr  < 5, emperically this ratio is too high")
 
     N_anneal = args.N_anneal
     epochs = N_anneal + args.N_warmup
