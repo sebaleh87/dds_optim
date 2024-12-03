@@ -202,7 +202,8 @@ class Base_SDE_Class:
         sigma = jnp.exp(SDE_params["log_sigma"])
         mean = SDE_params["mean"]
         x_prior = random.normal(subkey, shape=(n_states, x_dim))*sigma[None, :] + mean[None, :]
-        #print("x_prior", x_prior.shape, mean.shape, sigma.shape)
+        # print("x_prior", x_prior.shape, mean.shape, sigma.shape)
+        # print(jnp.mean(x_prior), jnp.mean(mean))
         t = 1.0
         dt = 1. / n_integration_steps
 

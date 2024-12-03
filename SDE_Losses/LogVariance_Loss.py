@@ -30,7 +30,7 @@ class LogVariance_Loss_Class(Base_SDE_Loss_Class):
 
         
         log_prior = jnp.sum(self.vmap_get_log_prior(SDE_params, x_prior), axis = -1)
-        #print("log_prior", log_prior.shape, x_prior.shape)
+        print("log_prior", log_prior.shape, x_prior.shape)
         mean_log_prior = jnp.mean(log_prior)
 
         Energy, key = self.EnergyClass.vmap_calc_energy(x_last, Energy_params, key)
