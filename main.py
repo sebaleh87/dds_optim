@@ -30,7 +30,7 @@ parser.add_argument("--N_anneal", type=int, default=1000)
 parser.add_argument("--N_warmup", type=int, default=0)
 parser.add_argument("--steps_per_epoch", type=int, default=100)
 
-parser.add_argument("--update_params_mode", type=str, choices = ["all_in_one", "L2"], default="L2")
+parser.add_argument("--update_params_mode", type=str, choices = ["all_in_one", "L2"], default="all_in_one")
 parser.add_argument("--epochs_per_eval", type=int, default=100)
 
 
