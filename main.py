@@ -54,7 +54,7 @@ parser.add_argument('--no-use_normal', dest='use_normal', action='store_false', 
 parser.add_argument("--SDE_time_mode", type=str, default="Discrete_Time", choices=["Discrete_Time", "Continuous_Time"], help="SDE Time Mode")
 parser.add_argument("--Network_Type", type=str, default="FeedForward", choices=["FourierNetwork", "FeedForward", "LSTMNetwork"], help="SDE Time Mode")
 parser.add_argument("--Pytheus_challenge", type=int, default=1, choices=[0,1,2,3,4,5], help="Pyhteus Chellange Index")
-parser.add_argument("--model_seed", type=int, default=1, help="Seed used for model init")
+parser.add_argument("--model_seed", type=int, default=0, help="Seed used for model init")
 args = parser.parse_args()
 
 if(__name__ == "__main__"):
