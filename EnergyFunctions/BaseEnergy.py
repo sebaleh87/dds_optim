@@ -23,6 +23,7 @@ class EnergyModelClass:
         self.y_max = 5 + self.shift
         self.latent_dim = self.dim_x
         self.levels = 100
+        self.invariance = False
         ### TODO define plot range here
 
     def init_EnergyParams(self):

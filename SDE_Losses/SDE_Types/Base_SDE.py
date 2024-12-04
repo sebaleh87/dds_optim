@@ -34,6 +34,9 @@ class Base_SDE_Class:
         else:
             self.reversed_dt_values = jnp.ones((self.config["n_integration_steps"],))*1./self.config["n_integration_steps"]
 
+
+        self.invariance = self.Energy_Class.invariance
+
     def weightening(self, t):
         SDE_params = self.get_SDE_params()
         weight = jnp.mean((1-jnp.exp(- 2*jax.vmap(self.beta_int, in_axes=(None, 0))(SDE_params, t))), axis = -1)
@@ -202,6 +205,9 @@ class Base_SDE_Class:
         sigma = jnp.exp(SDE_params["log_sigma"])
         mean = SDE_params["mean"]
         x_prior = random.normal(subkey, shape=(n_states, x_dim))*sigma[None, :] + mean[None, :]
+
+        if(self.invariance == True):
+            raise NotImplementedError("Invariance not implemented")
         # print("x_prior", x_prior.shape, mean.shape, sigma.shape)
         # print(jnp.mean(x_prior), jnp.mean(mean))
         t = 1.0

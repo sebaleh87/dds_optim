@@ -36,7 +36,9 @@ class DoubleWellClass(EnergyModelClass):
             self.c = 0.5
             self.dim_x = self.d + self.m
             self.chosen_energy_function = self.energy_function_richter
+            self.invariance = False
         else:
+            self.invariance = True
             raise ValueError("Energy Config not found")
 
     @partial(jax.jit, static_argnums=(0,))
