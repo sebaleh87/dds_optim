@@ -71,8 +71,10 @@ class BaseModel(nn.Module):
             grad_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
                                                 bias_init=nn.initializers.zeros)(embedding)
             
+            time_out_dict = self.time_backbone(in_dict)
+            time_embedding = time_out_dict["embedding"]
             correction_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
-                                                bias_init=nn.initializers.zeros)(embedding)
+                                                bias_init=nn.initializers.zeros)(time_embedding)
             
             grad_score = grad_drift * jnp.clip(grads, -10**2, 10**2) #* nn.softplus(interpolated_grad) 
             correction_grad_score = correction_drift + grad_score

@@ -30,7 +30,6 @@ class LogVariance_Loss_Class(Base_SDE_Loss_Class):
 
         
         log_prior = jnp.sum(self.vmap_get_log_prior(SDE_params, x_prior), axis = -1)
-        print("log_prior", log_prior.shape, x_prior.shape)
         mean_log_prior = jnp.mean(log_prior)
 
         Energy, key = self.EnergyClass.vmap_calc_energy(x_last, Energy_params, key)
@@ -42,7 +41,6 @@ class LogVariance_Loss_Class(Base_SDE_Loss_Class):
         f = (jnp.sum( U * jax.lax.stop_gradient(U) - U**2/2, axis = -1) - jnp.sum(drift_divergence, axis = -1))
 
         S = jnp.sum(jnp.sum(U * dW, axis = -1), axis = 0)
-
         R_diff = jnp.sum(dts*f  , axis = 0)
         mean_R_diff = jnp.mean(R_diff)
         Entropy = -(mean_R_diff + mean_log_prior)
