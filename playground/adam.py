@@ -76,8 +76,10 @@ if(__name__ == "__main__"):
         plt.colorbar(contour)
 
         # Plot the trajectory
-        plt.plot(last_samples[:,  0], last_samples[:,  1], 'x', color = "green", label='Newton\'s Method Trajectory')
+        plt.plot(last_samples[:,  0], last_samples[:,  1], 'x', color = "red", label='Newton\'s Method Trajectory')
         # Add labels and title
+        plt.xlim(-range_ , range_+ shift)
+        plt.ylim(-range_ , range_+ shift)
         plt.xlabel('x')
         plt.ylabel('y')
         plt.title(f'Contour plot of my_function with Newton\'s Method Trajectory, average minima')

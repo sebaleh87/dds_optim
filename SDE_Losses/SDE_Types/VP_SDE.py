@@ -15,8 +15,11 @@ class VP_SDE_Class(Base_SDE_Class):
         super().__init__(SDE_Type_Config, Network_Config, Energy_Class)
         ### THIS code assumes that sigma of reference distribution is 1
 
-    def get_log_prior(self, x):
-        return jax.scipy.stats.norm.logpdf(x, loc=0, scale= 1)
+    def get_log_prior(self, SDE_params, x):
+        sigma = jnp.exp(SDE_params["log_sigma"])
+        mean = SDE_params["mean"]
+        #print("VP_SDE", x.shape, mean.shape, sigma.shape)
+        return jax.scipy.stats.norm.logpdf(x, loc=mean, scale=sigma)
 
     def compute_p_xt_g_x0_statistics(self, x0, xt, t):
         mean_xt = x0 * jnp.exp(-self.beta_int(t)) 
@@ -24,14 +27,19 @@ class VP_SDE_Class(Base_SDE_Class):
         statistics_dict = {"mean": mean_xt, "std": std_xt}
         return statistics_dict
     
-    def beta_int(self, t):
-        beta_max = self.beta_max 
-        beta_int_value = 1/4*t**2*(beta_max-self.beta_min) + 0.5*t*self.beta_min
+    def beta_int(self, SDE_params, t):
+        ### TODO check if t is correct here!
+        beta_delta = jnp.exp(SDE_params["log_beta_delta"])
+        beta_min = jnp.exp(SDE_params["log_beta_min"])
+        beta_max = beta_min + beta_delta
+        beta_int_value = 0.5*t**2*(beta_max-beta_min) + t*beta_min
         return beta_int_value
 
-    def beta(self, t):
-        beta_max = self.beta_max
-        return 0.5*(self.beta_min + t * (beta_max - self.beta_min))
+    def beta(self, SDE_params, t):
+        beta_delta = jnp.exp(SDE_params["log_beta_delta"])
+        beta_min = jnp.exp(SDE_params["log_beta_min"])
+        beta_max = beta_min + beta_delta
+        return (beta_min + t * (beta_max - beta_min)) ### TODO chekc this factor 0.5
 
     def forward_sde(self, x, t, dt, key):
         drift = self.get_drift(x, t)
@@ -43,23 +51,22 @@ class VP_SDE_Class(Base_SDE_Class):
         return x_next, t + dt, key
 
     ### THIs implements drift and diffusion as in vargas papers
-    def get_drift(self, x, t):
-        return - self.beta(t) * x
+    def get_drift(self, SDE_params, x, t):
+        return - self.beta(SDE_params, t)[None, :] * x
     
-    def get_diffusion(self, x, t):
-        diffusion = jnp.sqrt(2*self.beta(t))
-        return diffusion
+    def get_diffusion(self, SDE_params, x, t):
+        sigma = jnp.exp(SDE_params["log_sigma"])
+        diffusion = sigma*jnp.sqrt(2*self.beta(SDE_params, t))
+        return diffusion[None, :] 
     
-    def reverse_sde(self, score, x, t, dt, key):
+    def reverse_sde(self, SDE_params, score, x, t, dt, key):
         ### TODO implement hacks
         ### TODO also use gradet of target sto parameterize the score?
         # initialize to optial controls at t= 0 and t = 1
-        beta_t = self.beta(t)
-        forward_drift = self.get_drift(x, t)
-        diffusion = self.get_diffusion(x, t)
+        forward_drift = self.get_drift(SDE_params, x, t)
+        diffusion = self.get_diffusion(SDE_params, x, t)
 
         reverse_drift = diffusion**2*score - forward_drift #TODO check is this power of two correct? I think yes because U = diffusion*score
-
 
         key, subkey = random.split(key)
         noise = random.normal(subkey, shape=x.shape)
@@ -71,7 +78,7 @@ class VP_SDE_Class(Base_SDE_Class):
             x_next = x + reverse_drift  * dt  + diffusion * dW
 
         ### TODO check at which x drift ref should be evaluated?
-        reverse_out_dict = {"x_next": x_next, "t_next": t - dt, "drift_ref": x, "beta_t": beta_t, "forward_drift": forward_drift, "reverse_drift": reverse_drift, "dW": dW}
+        reverse_out_dict = {"x_next": x_next, "t_next": t - dt, "drift_ref": x, "forward_drift": forward_drift, "reverse_drift": reverse_drift, "dW": dW}
         return reverse_out_dict, key
 
     def sample(self, shape, key):

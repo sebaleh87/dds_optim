@@ -1,3 +1,7 @@
+Ideas before vaccation
+does mode covering property happen because time steps with small beta play such a small role?
+finer integration at steps where beta is small, or use importance sampling?
+
 ### TODO
 - learn sigma
 - add gradients to score?

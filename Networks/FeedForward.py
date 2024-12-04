@@ -51,21 +51,27 @@ class FeedForwardNetwork(nn.Module):
 
 class EncodingNetwork(nn.Module):
     feature_dim: int = 32
+    hidden_dim: int = 32
     max_time: float = 1.
 
     @nn.compact
     #@partial(flax.linen.jit, static_argnums=(0,))
-    def __call__(self, in_dict):
-        x_in = jnp.concatenate([in_dict["x"], in_dict["grads"]], axis=-1)
+    def __call__(self, in_dict, train = False):
+        x_in = jnp.concatenate([in_dict["x"], in_dict["Energy_value"], in_dict["grads"]], axis=-1)
         t = in_dict["t"]
         t = self.max_time * t
         t_encodings = get_sinusoidal_positional_encoding(t, self.feature_dim, self.max_time)
 
         x_encode = nn.Dense(self.feature_dim, kernel_init=nn.initializers.he_normal(),
                                  bias_init=nn.initializers.zeros)(x_in)
-
+        x = nn.LayerNorm()(x_encode)
+        x_encode = nn.relu(x_encode)
         x = jnp.concatenate([ x_encode, t, t_encodings], axis=-1)
 
+        x = nn.Dense(self.hidden_dim, kernel_init=nn.initializers.he_normal(),
+                                 bias_init=nn.initializers.zeros)(x)
+        x = nn.LayerNorm()(x)
+        x = nn.relu(x)
 
         return x
 
