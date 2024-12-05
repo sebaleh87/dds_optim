@@ -29,6 +29,9 @@ class DoubleWellClass(EnergyModelClass):
             self.n = config["N"]
             self.dim_x = self.d*self.n
             self.chosen_energy_function = self.energy_function_iter
+            self.invariance = True
+            self.n_particles = self.n
+            self.particle_dim = self.d
         elif(self.config["name"] == "DoubleWell_Richter"):
             self.d = self.config["d"]
             self.m = self.config["m"]
@@ -38,7 +41,6 @@ class DoubleWellClass(EnergyModelClass):
             self.chosen_energy_function = self.energy_function_richter
             self.invariance = False
         else:
-            self.invariance = True
             raise ValueError("Energy Config not found")
 
     @partial(jax.jit, static_argnums=(0,))

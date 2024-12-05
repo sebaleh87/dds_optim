@@ -27,6 +27,8 @@ class LeonardJonesClass(EnergyModelClass):
         self.n = config["N"]
         self.dim_x = self.d*self.n
         self.invariance = True
+        self.n_particles = self.n
+        self.particle_dim = self.d
     
     @partial(jax.jit, static_argnums=(0,))
     def energy_function(self, x):

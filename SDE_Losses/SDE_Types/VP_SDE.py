@@ -52,7 +52,7 @@ class VP_SDE_Class(Base_SDE_Class):
 
     ### THIs implements drift and diffusion as in vargas papers
     def get_drift(self, SDE_params, x, t):
-        return - self.beta(SDE_params, t)[None, :] * x
+        return - self.beta(SDE_params, t)[None, :] * (x-SDE_params["mean"][None, :])
     
     def get_diffusion(self, SDE_params, x, t):
         sigma = jnp.exp(SDE_params["log_sigma"])
