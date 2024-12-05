@@ -3,7 +3,7 @@ from flax import linen as nn
 from functools import partial
 import jax.numpy as jnp
 import jax
-from .BaseModelClass import get_network
+from .model_registry import get_network
 
 
 class VanillaBaseModelClass(nn.Module):

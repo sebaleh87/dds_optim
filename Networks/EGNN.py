@@ -1,16 +1,39 @@
 
-
+import flax
+from flax import linen as nn
+from functools import partial
+import jax.numpy as jnp
+import jax
 
 
 
 class EGNNLayer(nn.Module):
+    n_layers: int = 2
+    hidden_dim: int = 32
+    feature_dim: int = 32
+    n_particles: int = 1
 
-    def setup(self):
+    def __call__(self, in_dict):
         
-        pass
+        x_0 = in_dict["x"]
+        h = in_dict["h"]
+        x = x_0
 
-    def __call__(self, x_prev, h_prev, ):
-        pass
+        orig_x_shapes = x.shape
+        orig_h_shapes = h.shape
+        x = x.reshape(self.n_paricles, -1)
+        h = h.reshape(self.n_paricles, -1)
+
+        x = x_0
+        for i in range(n_layers):
+            x, h = EGNNLayer(n_layers = self.n_layers, hidden_dim = self.hidden_dim, out_dim = self.feature_dim, n_particles = self.n_particles)(x, h)
+
+        x = x.reshape(orig_x_shapes)
+        h = h.reshape(orig_h_shapes)
+        out_dict = {"x": x - x_0, "h": h}
+        return out_dict
+
+        
 
 
 class EGNNLayer(nn.Module):
@@ -21,7 +44,7 @@ class EGNNLayer(nn.Module):
 
     def setup(self):
 
-        self.net_m = nn.sequential(
+        self.net_m = nn.Sequential(
             nn.Dense(self.hidden_dim, kernel_init=nn.initializers.he_normal(),
                                  bias_init=nn.initializers.zeros),
             nn.silu,
@@ -30,7 +53,7 @@ class EGNNLayer(nn.Module):
             nn.silu
         )
 
-        self.net_e = nn.sequential(
+        self.net_e = nn.Sequential(
             nn.Dense(self.hidden_dim, kernel_init=nn.initializers.he_normal(),
                                  bias_init=nn.initializers.zeros),
             nn.silu,
@@ -39,7 +62,7 @@ class EGNNLayer(nn.Module):
             nn.silu
         )
 
-        self.net_d = nn.sequential(
+        self.net_d = nn.Sequential(
             nn.Dense(self.hidden_dim, kernel_init=nn.initializers.he_normal(),
                                  bias_init=nn.initializers.zeros),
             nn.silu,
@@ -48,7 +71,7 @@ class EGNNLayer(nn.Module):
             nn.silu
         )
 
-        self.net_h = nn.sequential(
+        self.net_h = nn.Sequential(
             nn.Dense(self.hidden_dim, kernel_init=nn.initializers.he_normal(),
                                  bias_init=nn.initializers.zeros),
             nn.silu
@@ -63,10 +86,9 @@ class EGNNLayer(nn.Module):
         flattened_mask = mask.reshape(-1)
         x = x_prev
         h = h_prev
-        x = x.reshape(self.n_paricles, -1)
-        h = h.reshape(self.n_paricles, -1)
+
         dist_squared = mask*np.sum((x[None, :, : ] - x[:, None, :])**2, axis = -1)
-        flattened_dist_squared = dist_squared.reshape(self.n_particles**2, -1)
+        #flattened_dist_squared = dist_squared.reshape(self.n_particles**2, -1)
 
         h1 = mask[...,None]*jnp.repeat(h[None, ...], self.n_particles, axis = 0)
         h2 = mask[...,None]*jnp.repeat(h[:, None, :], self.n_particles, axis = 1)

@@ -3,7 +3,7 @@ from flax import linen as nn
 from functools import partial
 import jax.numpy as jnp
 import jax
-from .BaseModelClass import get_network
+from .EGNN import EGNNLayer
 
 
 class EGNNBaseClass(nn.Module):
@@ -14,8 +14,8 @@ class EGNNBaseClass(nn.Module):
         self.SDE_mode = self.SDE_Loss_Config["SDE_Type_Config"]["name"]
         self.use_interpol_gradient = self.SDE_Loss_Config["SDE_Type_Config"]["use_interpol_gradient"]
         self.encoding_network = TimeEncodingNetwork(feature_dim=self.network_config["feature_dim"], hidden_dim=self.network_config["n_hidden"], max_time = self.SDE_Loss_Config["n_integration_steps"])
-        self.backbone = get_network(self.network_config, self.SDE_Loss_Config)
-        self.use_normal = self.SDE_Loss_Config["SDE_Type_Config"]["use_normal"]
+        self.backbone = EGNNLayer(self.network_config["n_layers"], self.network_config["n_hidden"], self.network_config["feature_dim"], self.network_config["n_particles"])
+        self.use_normal = True#self.SDE_Loss_Config["SDE_Type_Config"]["use_normal"]
         
     @nn.compact
     def __call__(self, in_dict, train = False):
@@ -40,37 +40,26 @@ class EGNNBaseClass(nn.Module):
 
         ### TODO only encode time here
         encoding = self.encoding_network(in_dict, train = train)
-        in_dict["encoding"] = encoding
+        in_dict["h"] = encoding
 
         out_dict = self.backbone(in_dict)
-        embedding = out_dict["embedding"]
+        embedding = out_dict["x"]
 
         x_dim = in_dict["x"].shape[-1]
-        if(self.use_interpol_gradient and self.use_normal):
-            grads = copy_grads
+        
+        grads = copy_grads
 
-            grad_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
-                                                bias_init=nn.initializers.zeros)(embedding)
-            
-            correction_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
-                                                bias_init=nn.initializers.zeros)(embedding)
-            
-            grad_score = grad_drift * jnp.clip(grads, -10**2, 10**2) #* nn.softplus(interpolated_grad) 
-            correction_grad_score = correction_drift + grad_score
-            score = jnp.clip(correction_grad_score, -10**4, 10**4 )
+        grad_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
+                                            bias_init=nn.initializers.zeros)(embedding)
+        
+        correction_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
+                                            bias_init=nn.initializers.zeros)(embedding)
+        
+        grad_score = grad_drift * jnp.clip(grads, -10**2, 10**2) #* nn.softplus(interpolated_grad) 
+        correction_grad_score = correction_drift + grad_score
+        score = jnp.clip(correction_grad_score, -10**4, 10**4 )
 
-            out_dict["score"] = score
-            return out_dict
-        elif(self.use_interpol_gradient and not self.use_normal):
-            #print(jnp.mean(grad), jnp.mean(in_dict["grads"]))
-            correction_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
-                                                bias_init=nn.initializers.zeros)(embedding)
-            
-            correction_grad_score = correction_drift 
-            score = jnp.clip(correction_grad_score, -10**4, 10**4 )
-            out_dict["score"] = score
+        out_dict["score"] = score
+        return out_dict
 
-            return out_dict
-        else:
-            raise NotImplementedError("Not implemented yet")
 

@@ -165,7 +165,6 @@ class Base_SDE_Class:
                     score = out_dict["score"]
                     carry_dict["hidden_state"] = out_dict["hidden_state"]
                 else:
-                    Energy, grad, key = self.vmap_prior_target_grad_interpolation(x, t, Energy_params, SDE_params, key) 
                     Energy_value = jnp.zeros((x.shape[0], 1))# Energy[...,None] 
                     in_dict = {"x": x, "Energy_value": Energy_value,  "t": t_arr, "grads": grad}
                     out_dict = model.apply(params, in_dict, train = True)
@@ -207,7 +206,12 @@ class Base_SDE_Class:
         x_prior = random.normal(subkey, shape=(n_states, x_dim))*sigma[None, :] + mean[None, :]
 
         if(self.invariance == True):
-            raise NotImplementedError("Invariance not implemented")
+            resh_x_prior = x_prior.reshape((n_states, self.Energy_Class.n_particles, self.Energy_Class.particle_dim))
+            shifted_x_prior = resh_x_prior - jnp.mean(resh_x_prior, axis = 1, keepdims=True)
+            x_prior = shifted_x_prior.reshape(x_prior.shape)
+
+        if(self.stop_gradient):
+            x_prior = jax.lax.stop_gradient(x_prior)
         # print("x_prior", x_prior.shape, mean.shape, sigma.shape)
         # print(jnp.mean(x_prior), jnp.mean(mean))
         t = 1.0

@@ -80,6 +80,7 @@ if(__name__ == "__main__"):
     }
 
     Network_Config = {
+        "base_name": "Vanilla",
         "name": args.Network_Type,
         "feature_dim": args.feature_dim,
         "n_hidden": args.n_hidden,
@@ -169,14 +170,18 @@ if(__name__ == "__main__"):
         n_eval_samples = 10000
 
     elif("LeonardJones" in args.Energy_Config):
+        Network_Config["base_name"] = "EGNN"
         N = 13
+        Network_Config["n_particles"] = N
         Energy_Config = {
             "name": args.Energy_Config,
             "N": N,
             "dim_x": N*3,
         }
     elif("DoubleWell_iter" in args.Energy_Config):
+        Network_Config["base_name"] = "EGNN"
         N = 4
+        Network_Config["n_particles"] = N
         Energy_Config = {
             "name": args.Energy_Config,
             "N": N,

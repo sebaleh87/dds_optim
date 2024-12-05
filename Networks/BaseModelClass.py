@@ -1,21 +1,7 @@
-from .FeedForward import FeedForwardNetwork
-from .EncodingNetworks import FourierNetwork, EncodingNetwork
-from .LSTM import LSTMNetwork
+
 from flax import linen as nn
-from functools import partial
-import jax.numpy as jnp
-import jax
-from .VanillaBaseModel import VanillaBaseModelClass
-from .EquivariantBaseModel import EGNNBaseClass
+from .base_model_registry import select_base_network
 
-NetworkRegistry = {"FeedForward": FeedForwardNetwork, "FourierNetwork": FourierNetwork, "LSTMNetwork": LSTMNetwork}
-BaseModelRegistry = {"Vanilla": VanillaBaseModelClass, "EGNN": EGNNBaseClass}
-
-def get_network(network_config, SDE_Loss_Config):
-    return NetworkRegistry[network_config["name"]](n_layers=network_config["n_layers"], hidden_dim=network_config["n_hidden"])
-
-def select_base_network(network_config, SDE_Loss_Config):
-    return BaseModelRegistry[network_config["name"]](network_config, SDE_Loss_Config)
 
 class BaseModel(nn.Module):
     network_config: dict
@@ -26,5 +12,6 @@ class BaseModel(nn.Module):
         
     @nn.compact
     def __call__(self, in_dict, train = False):
+        print(in_dict)
         return self.model.__call__(in_dict, train = train)
         

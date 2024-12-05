@@ -40,8 +40,8 @@ class TimeEncodingNetwork(nn.Module):
         t_encodings = get_sinusoidal_positional_encoding(t, self.feature_dim, self.max_time)
 
         x_encode = nn.Dense(self.feature_dim, kernel_init=nn.initializers.he_normal(),
-                                 bias_init=nn.initializers.zeros)(x_in)
-        x = nn.LayerNorm()(x_encode)
+                                 bias_init=nn.initializers.zeros)(t_encodings)
+        x_encode = nn.LayerNorm()(x_encode)
         x_encode = nn.relu(x_encode)
 
         return x_encode

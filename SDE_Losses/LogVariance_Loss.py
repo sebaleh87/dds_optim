@@ -23,8 +23,8 @@ class LogVariance_Loss_Class(Base_SDE_Loss_Class):
         # tbs = jnp.repeat(ts[:,None, None], self.batch_size, axis = 1)
         # score2 = self.vmap_model(params, xs, tbs)
         # print("diff", score - score2)
-        x_prior = SDE_tracer["x_prior"]
-        x_last = SDE_tracer["x_final"]
+        x_prior = jax.lax.stop_gradient(SDE_tracer["x_prior"])
+        x_last = jax.lax.stop_gradient(SDE_tracer["x_final"])
         x_dim = x_last.shape[-1]
 
 
