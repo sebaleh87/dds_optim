@@ -159,13 +159,14 @@ class Base_SDE_Class:
             if(self.use_interpol_gradient):
                 if(self.network_has_hidden_state):
                     Energy, grad, key = self.vmap_prior_target_grad_interpolation(x, t, Energy_params, SDE_params, key) 
-                    Energy_value = jnp.zeros((x.shape[0], 1)) #Energy[...,None]
+                    Energy_value = jnp.zeros((x.shape[0], 1))# Energy #Energy[...,None]
                     in_dict = {"x": x, "Energy_value": Energy_value, "t": t_arr, "grads": grad, "hidden_state": carry_dict["hidden_state"]}
                     out_dict = model.apply(params, in_dict, train = True)
                     score = out_dict["score"]
                     carry_dict["hidden_state"] = out_dict["hidden_state"]
                 else:
-                    Energy_value = jnp.zeros((x.shape[0], 1))# Energy[...,None] 
+                    Energy, grad, key = self.vmap_prior_target_grad_interpolation(x, t, Energy_params, SDE_params, key) 
+                    Energy_value = jnp.zeros((x.shape[0], 1))#Energy
                     in_dict = {"x": x, "Energy_value": Energy_value,  "t": t_arr, "grads": grad}
                     out_dict = model.apply(params, in_dict, train = True)
                     score = out_dict["score"]
