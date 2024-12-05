@@ -44,13 +44,14 @@ class EGNNBaseClass(nn.Module):
 
         out_dict = self.backbone(in_dict)
         embedding = out_dict["x"]
+        time_embedding = out_dict["h"]
 
         x_dim = in_dict["x"].shape[-1]
         
         grads = copy_grads
 
         grad_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
-                                            bias_init=nn.initializers.zeros)(embedding)
+                                            bias_init=nn.initializers.zeros)(time_embedding)
         
         correction_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
                                             bias_init=nn.initializers.zeros)(embedding)
