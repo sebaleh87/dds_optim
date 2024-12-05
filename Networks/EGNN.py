@@ -6,7 +6,7 @@
 class EGNNLayer(nn.Module):
 
     def setup(self):
-
+        
         pass
 
     def __call__(self, x_prev, h_prev, ):
