@@ -172,20 +172,24 @@ if(__name__ == "__main__"):
     elif("LeonardJones" in args.Energy_Config):
         Network_Config["base_name"] = "EGNN"
         N = 13
+        out_dim = 3
         Network_Config["n_particles"] = N
+        Network_Config["out_dim"] = out_dim 
         Energy_Config = {
             "name": args.Energy_Config,
             "N": N,
-            "dim_x": N*3,
+            "dim_x": N*out_dim,
         }
     elif("DoubleWell_iter" in args.Energy_Config):
         Network_Config["base_name"] = "EGNN"
         N = 4
+        out_dim = 2
         Network_Config["n_particles"] = N
+        Network_Config["out_dim"] = out_dim 
         Energy_Config = {
             "name": args.Energy_Config,
             "N": N,
-            "dim_x": N*2,
+            "dim_x": N*out_dim,
         }
     elif("DoubleWell_Richter" in args.Energy_Config):
         N = 5
