@@ -40,8 +40,8 @@ class Base_SDE_Loss_Class:
 
         if(SDE_config["update_params_mode"] == "all_in_one"):
             self.update_params = self.update_params_all_in_one
-        elif(SDE_config["update_params_mode"] == "L2"):
-            self.update_params = self.update_params_L2
+        elif(SDE_config["update_params_mode"] == "DKL"):
+            self.update_params = self.update_params_DKL
         else:
             raise ValueError("Unknown update mode")
 
@@ -65,13 +65,13 @@ class Base_SDE_Loss_Class:
         return params, opt_state, loss_value, out_dict
 
     @partial(jax.jit, static_argnums=(0,))
-    def update_params_L2(self, params, Energy_params, SDE_params, opt_state, Energy_params_state, SDE_params_state, key, T_curr):
+    def update_params_DKL(self, params, Energy_params, SDE_params, opt_state, Energy_params_state, SDE_params_state, key, T_curr):
         #(loss_value, out_dict), (grads, SDE_params_grad) = jax.value_and_grad(self.loss_fn, argnums=(0, 2), has_aux = True)(params, Energy_params, SDE_params, T_curr, key)
         (loss_value, out_dict), (grads) = jax.value_and_grad(self.loss_fn, argnums=(0), has_aux = True)(params, Energy_params, SDE_params, T_curr, key)
         updates, opt_state = self.optimizer.update(grads, opt_state)
         params = optax.apply_updates(params, updates)
         
-        (loss_value, out_dict), (SDE_params_grad) = jax.value_and_grad(self.compute_covar_loss, argnums=(0), has_aux = True)( SDE_params, out_dict)
+        (loss_value, out_dict), (SDE_params_grad) = jax.value_and_grad(self.compute_DKL_loss, argnums=(0), has_aux = True)( SDE_params, out_dict)
         
         SDE_params_updates, SDE_params_state = self.SDE_params_optimizer.update(SDE_params_grad, SDE_params_state)
         SDE_params = optax.apply_updates(SDE_params, SDE_params_updates)
@@ -87,9 +87,12 @@ class Base_SDE_Loss_Class:
         SDE_params_updates, SDE_params_state = self.SDE_params_optimizer.update(SDE_params_grad, SDE_params_state)
         SDE_params = optax.apply_updates(SDE_params, SDE_params_updates)
 
-        # SDE_params["log_beta_min"] = jnp.log(self.SDE_type.config["beta_min"])*jnp.ones_like(SDE_params["log_beta_min"])
-        # SDE_params["log_beta_delta"] = jnp.log(self.SDE_type.config["beta_max"])*jnp.ones_like(SDE_params["log_beta_delta"])
+        SDE_params["log_beta_min"] = jnp.log(self.SDE_type.config["beta_min"])*jnp.ones_like(SDE_params["log_beta_min"])
+        SDE_params["log_beta_delta"] = jnp.log(self.SDE_type.config["beta_max"])*jnp.ones_like(SDE_params["log_beta_delta"])
         # SDE_params["mean"] = jnp.zeros_like(SDE_params["mean"])
+        
+        # check_nan_in_key(SDE_params_grad, "SDE_params_grad")
+        # check_nan_in_key(grads, "grads")
         
         return params, Energy_params, SDE_params, opt_state, Energy_params_state, SDE_params_state, loss_value, out_dict
 
@@ -202,6 +205,34 @@ class Base_SDE_Loss_Class:
         out_dict["losses/overall_loss"] = overall_loss
         return overall_loss, out_dict
     
+    @partial(jax.jit, static_argnums=(0,))
+    def compute_DKL_loss(self, SDE_params, out_dict):
+        X_0 = out_dict["x_final"]
+        log_sigma = SDE_params["log_sigma"]
+        var = jnp.exp(2*log_sigma)
+        mean_SDE = SDE_params["mean"]
+        alpha = self.SDE_type.beta_int(SDE_params, 1.)
+        k = mean_SDE.shape[0]
+        
+        sigma_q = var
+        diag_sigma_q = jnp.diag(sigma_q)
+        cov_X_0 = jnp.cov(X_0, rowvar = False)
+        sigma_p = jnp.exp(-alpha)[:,None]*jnp.exp(-alpha)[None, :]*(cov_X_0 - diag_sigma_q) + diag_sigma_q
+        mean_p = jnp.exp(-alpha)*jnp.mean(X_0, axis = 0) + mean_SDE*(1- jnp.exp(-alpha))
+        # DKL(p||q) = 0.5 * (tr(sigma_q^-1 sigma_p) + (mu_q - mu_p)^T sigma_q^-1 (mu_q - mu_p) - k + log(det(sigma_q) / det(sigma_p)))
+        # where q is N(mean_SDE, sigma)
+
+        first_term = jnp.trace(jnp.diag(1/sigma_q) @ sigma_p)  -k
+        second_term = (mean_SDE - mean_p).transpose() @ jnp.diag(1/sigma_q) @ (mean_SDE - mean_p)
+        third_term = jnp.sum(jnp.log(sigma_q)) - jnp.log(jnp.linalg.det(sigma_p))
+
+        print("first_term", first_term, "second_term", second_term, "third_term", third_term)
+        overall_loss = 0.5*(first_term + second_term + third_term)
+
+
+        out_dict["losses/overall_loss"] = overall_loss
+        return overall_loss, out_dict
+    
     def get_param_dict(self, params):
         return {"model_params": params, "Energy_params": self.Energy_params, "SDE_params": self.SDE_params}
 
@@ -217,3 +248,52 @@ def exp_learning_rate_schedule(step, l_max = 1e-4, l_start = 1e-5, lr_min = 1e-4
     cosine_decay = lambda step: (l_max- lr_min)*jnp.exp(- 5*(step-warmup_steps)/(overall_steps-warmup_steps)) + lr_min
 
     return jnp.where(step < warmup_steps, l_start + (l_max - l_start) * (step / warmup_steps), cosine_decay(step - warmup_steps))
+
+
+
+def check_nan_in_params(params, s):
+    def contains_nan(x):
+        return jnp.any(jnp.isnan(x))
+
+    # Map the function across the PyTree
+    nan_trees = jax.tree_util.tree_map(contains_nan, params)
+
+    # Combine results to check if any NaNs are present
+    has_nan = jax.tree_util.tree_reduce(lambda x, y: x or y, nan_trees)
+
+    print("Does the parameter tree contain NaNs?", s, has_nan)
+    print(nan_trees)
+
+
+# Get the paths where NaNs appeared
+def check_nan_in_key(params, s):
+    # Get the paths where NaNs appeared
+    nan_paths = check_nans(params)
+
+    # Print the results
+    if nan_paths:
+        print("NaNs found in the following locations:")
+        for path in nan_paths:
+            print(path)
+    else:
+        print("No NaNs found in the parameter tree.")
+
+def check_nans(tree, path=""):
+    nan_paths = []
+
+    if isinstance(tree, dict):
+        # If the current node is a dictionary, recurse into its values
+        for key, value in tree.items():
+            new_path = f"{path}/{key}" if path else key
+            nan_paths.extend(check_nans(value, new_path))
+    elif isinstance(tree, (list, tuple)):
+        # If the current node is a list or tuple, recurse into its elements
+        for idx, value in enumerate(tree):
+            new_path = f"{path}[{idx}]"
+            nan_paths.extend(check_nans(value, new_path))
+    else:
+        # Leaf node: check if it contains NaNs
+        if jnp.any(jnp.isnan(tree)):
+            nan_paths.append(path)
+
+    return nan_paths
