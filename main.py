@@ -30,7 +30,7 @@ parser.add_argument("--N_anneal", type=int, default=1000)
 parser.add_argument("--N_warmup", type=int, default=0)
 parser.add_argument("--steps_per_epoch", type=int, default=100)
 
-parser.add_argument("--update_params_mode", type=str, choices = ["all_in_one", "L2"], default="all_in_one")
+parser.add_argument("--update_params_mode", type=str, choices = ["all_in_one", "DKL"], default="all_in_one")
 parser.add_argument("--epochs_per_eval", type=int, default=100)
 
 
@@ -63,6 +63,7 @@ if(__name__ == "__main__"):
         os.environ["CUDA_VISIBLE_DEVICES"]=f"{str(args.GPU)}"
     #disable JIT compilation
     #jax.config.update("jax_disable_jit", True)
+    #jax.config.update("jax_debug_nans", True)
     if(args.lr/args.SDE_lr  < 5):
         print("Warning: args.lr/args.SDE_lr  < 5, emperically this ratio is too high")
 

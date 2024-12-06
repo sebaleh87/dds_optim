@@ -51,6 +51,7 @@ class EGNNLayer(nn.Module):
         self.net_m = nn.Sequential([
             nn.Dense(self.hidden_dim, kernel_init=nn.initializers.he_normal(),
                                  bias_init=nn.initializers.zeros),
+            nn.LayerNorm(),
             nn.silu,
             nn.Dense(self.out_dim, kernel_init=nn.initializers.he_normal(),
                                  bias_init=nn.initializers.zeros),
@@ -61,6 +62,7 @@ class EGNNLayer(nn.Module):
         self.net_e = nn.Sequential([
             nn.Dense(self.hidden_dim, kernel_init=nn.initializers.he_normal(),
                                  bias_init=nn.initializers.zeros),
+            nn.LayerNorm(),
             nn.silu,
             nn.Dense(self.out_dim, kernel_init=nn.initializers.he_normal(),
                                  bias_init=nn.initializers.zeros),
@@ -71,6 +73,7 @@ class EGNNLayer(nn.Module):
         self.net_d = nn.Sequential([
             nn.Dense(self.hidden_dim, kernel_init=nn.initializers.he_normal(),
                                  bias_init=nn.initializers.zeros),
+            nn.LayerNorm(),
             nn.silu,
             nn.Dense(self.out_dim, kernel_init=nn.initializers.he_normal(),
                                  bias_init=nn.initializers.zeros),
@@ -80,6 +83,7 @@ class EGNNLayer(nn.Module):
         self.net_h = nn.Sequential([
             nn.Dense(self.feature_dim, kernel_init=nn.initializers.he_normal(),
                                  bias_init=nn.initializers.zeros),
+            nn.LayerNorm(),
             nn.silu        ]
         )
         
@@ -108,7 +112,8 @@ class EGNNLayer(nn.Module):
         m_transformed_i = jnp.sum(m_transformed_ij_resh, axis = -2)
 
         h_next = self.net_h(jnp.concatenate([h, m_transformed_i], axis = -1)) ### concatenate
-        x_next = x + jnp.sum( mask[...,None]*(x[:, None, : ] - x[None, :, :])/(jnp.sqrt(dist_squared[..., None])+1)*self.net_d(flattened_mass_mat).reshape(self.n_particles, self.n_particles, -1), axis = 1)
+        x_next = x + jnp.sum( mask[...,None]*(x[:, None, : ] - x[None, :, :])/(jnp.sqrt(dist_squared[..., None] + 10**-3)+1)*self.net_d(flattened_mass_mat).reshape(self.n_particles, self.n_particles, -1), axis = 1)
 
-
+        # print("x_next", jax.lax.stop_gradient(jnp.mean(x_next)))
+        # print("h_next", jax.lax.stop_gradient(jnp.mean(h_next)))
         return x_next, h_next

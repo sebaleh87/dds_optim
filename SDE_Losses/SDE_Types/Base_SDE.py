@@ -64,6 +64,7 @@ class Base_SDE_Class:
         key, subkey = random.split(key)
         batched_subkey = random.split(subkey, x.shape[0])
         vmap_energy, vmap_grad = jax.vmap(self.prior_target_grad_interpolation, in_axes=(0, None, None, None, 0))(x,t, Energy_params, SDE_params, batched_subkey)
+        #print("vmap_grad", jnp.mean(jax.lax.stop_gradient(vmap_grad)))
         vmap_grad = jnp.where(jnp.isfinite(vmap_grad), vmap_grad, 0)
         return vmap_energy, vmap_grad, key
     
@@ -206,13 +207,15 @@ class Base_SDE_Class:
         mean = SDE_params["mean"]
         x_prior = random.normal(subkey, shape=(n_states, x_dim))*sigma[None, :] + mean[None, :]
 
+        if(self.stop_gradient):
+            x_prior = jax.lax.stop_gradient(x_prior)
+        x_prior_sampled = x_prior
+
         if(self.invariance == True):
             resh_x_prior = x_prior.reshape((n_states, self.Energy_Class.n_particles, self.Energy_Class.particle_dim))
             shifted_x_prior = resh_x_prior - jnp.mean(resh_x_prior, axis = 1, keepdims=True)
             x_prior = shifted_x_prior.reshape(x_prior.shape)
 
-        if(self.stop_gradient):
-            x_prior = jax.lax.stop_gradient(x_prior)
         # print("x_prior", x_prior.shape, mean.shape, sigma.shape)
         # print(jnp.mean(x_prior), jnp.mean(mean))
         t = 1.0
@@ -237,7 +240,7 @@ class Base_SDE_Class:
             "drift_ref": SDE_tracker_steps["drift_ref"],
             "dts": SDE_tracker_steps["dts"],
             "x_final": x_final,
-            "x_prior": x_prior
+            "x_prior": x_prior_sampled
         }
         # tbs = jnp.repeat(SDE_tracker_steps["ts"][:,None, None], SDE_tracker_steps["xs"].shape[1], axis = 1)
         # score2 = jax.vmap(model.apply, in_axes=(None, 0,0))(params, SDE_tracker_steps["xs"][:,0:10], tbs[:,0:10])

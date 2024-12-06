@@ -26,8 +26,6 @@ class LogVariance_Loss_Class(Base_SDE_Loss_Class):
         x_prior = jax.lax.stop_gradient(SDE_tracer["x_prior"])
         x_last = jax.lax.stop_gradient(SDE_tracer["x_final"])
         x_dim = x_last.shape[-1]
-
-
         
         log_prior = jnp.sum(self.vmap_get_log_prior(SDE_params, x_prior), axis = -1)
         mean_log_prior = jnp.mean(log_prior)
@@ -48,11 +46,16 @@ class LogVariance_Loss_Class(Base_SDE_Loss_Class):
         #obs = temp*R_diff + temp*S+ temp*log_prior+ Energy
         obs = temp*(R_diff + S+ log_prior) + Energy
 
-        log_var_loss = jnp.var(obs)#jnp.mean((obs)**2) - jnp.mean(obs)**2
+        log_var_loss = jnp.mean((obs)**2) - jnp.mean(obs)**2#jnp.var(obs)#jnp.mean((obs)**2) - jnp.mean(obs)**2
 
         res_dict = self.compute_partition_sum(R_diff, S, log_prior, Energy)
         log_Z = res_dict["log_Z"]
         Free_Energy, n_eff, NLL = res_dict["Free_Energy"], res_dict["n_eff"], res_dict["NLL"]
+
+        # print("X-last", x_last.mean())
+        # print("score", jax.lax.stop_gradient(score).mean())
+        # print("Energy", jax.lax.stop_gradient(Energy).mean())
+        # print("log_var_loss", jax.lax.stop_gradient(log_var_loss).mean())
 
         return log_var_loss, {"mean_energy": mean_Energy, "Free_Energy_at_T=1": Free_Energy, "Entropy": Entropy, "R_diff": R_diff, 
                       "key": key, "X_0": x_last, "mean_X_prior": jnp.mean(x_prior), "std_X_prior": jnp.mean(jnp.std(x_prior, axis = 0)), 
