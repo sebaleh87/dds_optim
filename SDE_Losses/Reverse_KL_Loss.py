@@ -9,7 +9,7 @@ class Reverse_KL_Loss_Class(Base_SDE_Loss_Class):
     def __init__(self, SDE_config, Optimizer_Config, EnergyClass, Network_Config, model):
         super().__init__(SDE_config, Optimizer_Config, EnergyClass, Network_Config, model)
         self.vmap_diff_factor = jax.vmap(self.SDE_type.get_diffusion, in_axes=(None, None, 0))
-        self.vmap_drift_divergence = jax.vmap(self.SDE_type.beta, in_axes = (None, 0))
+        self.vmap_drift_divergence = jax.vmap(self.SDE_type.get_div_drift, in_axes = (None, 0))
         self.vmap_get_log_prior = jax.vmap(self.SDE_type.get_log_prior, in_axes = (None, 0))
 
     @partial(jax.jit, static_argnums=(0,))  
@@ -29,6 +29,7 @@ class Reverse_KL_Loss_Class(Base_SDE_Loss_Class):
         Energy, key = self.EnergyClass.vmap_calc_energy(x_last, Energy_params, key)
         mean_Energy = jnp.mean(Energy)
         diff_factor = self.vmap_diff_factor(SDE_params, None, ts)
+        #print("adas", self.vmap_drift_divergence( SDE_params, ts).shape)
         drift_divergence = self.vmap_drift_divergence( SDE_params, ts)[:,None, :]
         #print("shapes", score.shape, diff_factor.shape, drift_divergence.shape)
         U = diff_factor*score

@@ -12,7 +12,7 @@ parser = argparse.ArgumentParser(description="Denoising Diffusion Sampler")
 parser.add_argument("--GPU", type=int, default=6, help="GPU id to use")
 parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=["Reverse_KL_Loss","LogVariance_Loss", "LogVariance_Loss_MC", "LogVariance_Loss_with_grad", "LogVariance_Loss_weighted",
                                                                                 "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam"], help="select loss function")
-parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE"], help="GPU id to use")
+parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE", "VE_SDE"], help="GPU id to use")
 parser.add_argument("--Energy_Config", type=str, default="LeonardJones", choices=["GaussianMixture", "Rastrigin", "LeonardJones", "DoubleWell_iter", "DoubleWell_Richter",
                                                                                      "MexicanHat", "Pytheus", "WavePINN_latent", "WavePINN_hyperparam", "DoubleMoon"], help="EnergyClass")
 parser.add_argument("--T_start", type=float, default=1., help="Starting Temperature")
@@ -109,7 +109,7 @@ if(__name__ == "__main__"):
         }
     else:
         SDE_Type_Config = {
-            "name": "VP_SDE", 
+            "name": args.SDE_Type,
             "beta_min": args.beta_min,
             "beta_max": args.beta_max,
             "use_interpol_gradient": args.use_interpol_gradient,

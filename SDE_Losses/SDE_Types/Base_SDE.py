@@ -69,14 +69,9 @@ class Base_SDE_Class:
         return vmap_energy, vmap_grad, key
     
     def prior_target_grad_interpolation(self, x, t, Energy_params, SDE_params, key):
-
-        def interpol_func(x, SDE_params, Energy_params, key):
-            Energy_value, key = self.Energy_Class.calc_energy(x, Energy_params, key)
-            interpol = (t)*jnp.sum(self.get_log_prior(SDE_params,x), axis = -1) + (1-t)*Energy_value
-            return interpol, key
         
         #interpol = lambda x: self.Energy_Class.calc_energy(x, Energy_params, key)
-        (Energy, key), (grad)  = jax.value_and_grad(interpol_func, has_aux=True)( x, SDE_params, Energy_params, key)
+        (Energy, key), (grad)  = jax.value_and_grad(self.interpol_func, has_aux=True)( x,t, SDE_params, Energy_params, key)
         #grad = jnp.clip(grad, -10**2, 10**2)
         return jnp.expand_dims(Energy, axis = -1), grad
 
@@ -150,6 +145,37 @@ class Base_SDE_Class:
 
         return SDE_tracker, key
     
+    def subtract_COM(self, x):
+        resh_x = x.reshape((x.shape[0], self.Energy_Class.n_particles, self.Energy_Class.particle_dim))
+        shifted_x = resh_x - jnp.mean(resh_x, axis = 1, keepdims=True)
+        x_cernered = shifted_x.reshape(x.shape)
+        return x_cernered
+    
+    def reverse_sde(self, SDE_params, score, x, t, dt, key):
+        forward_drift = self.get_drift(SDE_params, x, t)
+        diffusion = self.get_diffusion(SDE_params, x, t)
+
+        reverse_drift = diffusion**2*score - forward_drift #TODO check is this power of two correct? I think yes because U = diffusion*score
+
+        key, subkey = random.split(key)
+        noise = random.normal(subkey, shape=x.shape)
+        dW = jnp.sqrt(dt) * noise
+        dW_sampled = dW
+
+        if(self.invariance == True):
+            dW = self.subtract_COM(dW)
+            #reverse_drift = self.subtract_COM(reverse_drift)
+
+        if(self.stop_gradient):
+            x_next = jax.lax.stop_gradient(x + reverse_drift  * dt  + diffusion * dW)
+        else:
+            x_next = x + reverse_drift  * dt  + diffusion * dW
+
+        ### TODO check at which x drift ref should be evaluated?
+        reverse_out_dict = {"x_next": x_next, "t_next": t - dt, "drift_ref": x, "forward_drift": forward_drift, "reverse_drift": reverse_drift, "dW": dW_sampled}
+        return reverse_out_dict, key
+
+    
     def simulate_reverse_sde_scan(self, model, params, Energy_params, SDE_params, key, n_states = 100, x_dim = 2, n_integration_steps = 1000):
         def scan_fn(carry, step):
             x, t, key, carry_dict = carry
@@ -212,9 +238,7 @@ class Base_SDE_Class:
         x_prior_sampled = x_prior
 
         if(self.invariance == True):
-            resh_x_prior = x_prior.reshape((n_states, self.Energy_Class.n_particles, self.Energy_Class.particle_dim))
-            shifted_x_prior = resh_x_prior - jnp.mean(resh_x_prior, axis = 1, keepdims=True)
-            x_prior = shifted_x_prior.reshape(x_prior.shape)
+            x_prior = self.subtract_COM(x_prior)
 
         # print("x_prior", x_prior.shape, mean.shape, sigma.shape)
         # print(jnp.mean(x_prior), jnp.mean(mean))
@@ -242,43 +266,6 @@ class Base_SDE_Class:
             "x_final": x_final,
             "x_prior": x_prior_sampled
         }
-        # tbs = jnp.repeat(SDE_tracker_steps["ts"][:,None, None], SDE_tracker_steps["xs"].shape[1], axis = 1)
-        # score2 = jax.vmap(model.apply, in_axes=(None, 0,0))(params, SDE_tracker_steps["xs"][:,0:10], tbs[:,0:10])
-        # print("diff", SDE_tracker_steps["scores"][:,0:10] - score2)
 
-        # tbs = jnp.repeat(SDE_tracker_steps["ts"][:,None, None], SDE_tracker_steps["xs"].shape[1], axis = 1)
-        # score2 = model.apply(params, SDE_tracker_steps["xs"][0,0:10], tbs[0,0:10])
-        # print("diff", SDE_tracker_steps["scores"][0,0:10] - score2)
-
-        # tbs = SDE_tracker_steps["ts"][0]*jnp.ones_like(SDE_tracker_steps["xs"][0,0:10])
-        # score2 = model.apply(params, SDE_tracker_steps["xs"][0,0:10], tbs)
-        # print("diff", SDE_tracker_steps["scores"][0,0:10] - score2)
         return SDE_tracker, key
 
-    # def simulate_reverse_sde(self, model, params, key, n_states = 100, x_dim = 2, n_integration_steps = 1000):
-    #     key, subkey = random.split(key)
-    #     x0 = random.normal(subkey, shape=(n_states,x_dim))
-    #     x = x0
-    #     t = 1.0
-    #     dt = 1./n_integration_steps
-
-    #     SDE_tracker = {"xs": [x0], "ts": [t], "scores": [], "forward_drift": [], "reverse_drift": [], "drift_ref":[], "beta_t": []}
-    #     for step in range(n_integration_steps):
-    #         t_arr = jnp.ones((x.shape[0],1))*t
-    #         score = model.apply(params, x, t_arr)
-
-    #         if(self.stop_gradient):
-    #             x = jax.lax.stop_gradient(x)
-
-    #         reverse_out_dict, key = self.reverse_sde(score,x, t, dt, key)
-
-    #         SDE_tracker["xs"].append(reverse_out_dict["x_next"])
-    #         SDE_tracker["ts"].append(reverse_out_dict["t_next"]) 
-    #         SDE_tracker["scores"].append(score)
-    #         SDE_tracker["drift_ref"].append(reverse_out_dict["drift_ref"])
-    #         SDE_tracker["beta_t"].append(reverse_out_dict["beta_t"])
-    #         SDE_tracker["forward_drift"].append(reverse_out_dict["forward_drift"])
-    #         x = reverse_out_dict["x_next"]
-    #         t = reverse_out_dict["t_next"]
-
-    #     return SDE_tracker, key

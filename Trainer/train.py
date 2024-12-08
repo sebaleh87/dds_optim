@@ -48,6 +48,8 @@ class TrainerClass:
         num_params = sum(x.size for x in jax.tree_util.tree_leaves(self.params))
         wandb.log({"Network/num_params": num_params})
 
+        ### TODO write code that checks equivariance here!
+
     def _init_wandb(self):
         wandb.init(project=f"DDS_{self.EnergyClass.__class__.__name__}_{self.config['project_name']}", config=self.config)
         self.wandb_id = wandb.run.name

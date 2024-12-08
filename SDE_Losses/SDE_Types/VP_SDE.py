@@ -19,7 +19,8 @@ class VP_SDE_Class(Base_SDE_Class):
         sigma = jnp.exp(SDE_params["log_sigma"])
         mean = SDE_params["mean"]
         #print("VP_SDE", x.shape, mean.shape, sigma.shape)
-        return jax.scipy.stats.norm.logpdf(x, loc=mean, scale=sigma)
+        
+        return jax.scipy.stats.norm.logpdf(x, loc=mean, scale=sigma) 
 
     def compute_p_xt_g_x0_statistics(self, x0, xt, t):
         mean_xt = x0 * jnp.exp(-self.beta_int(t)) 
@@ -50,37 +51,23 @@ class VP_SDE_Class(Base_SDE_Class):
         x_next = x + drift * dt + diffusion * jnp.sqrt(dt) * noise
         return x_next, t + dt, key
 
+    def interpol_func(self, x, t, SDE_params, Energy_params, key):
+        Energy_value, key = self.Energy_Class.calc_energy(x, Energy_params, key)
+        interpol = (t)*jnp.sum(self.get_log_prior(SDE_params,x), axis = -1) + (1-t)*Energy_value
+        return interpol, key
+
     ### THIs implements drift and diffusion as in vargas papers
     def get_drift(self, SDE_params, x, t):
         return - self.beta(SDE_params, t)[None, :] * (x-SDE_params["mean"][None, :])
+    
+    def get_div_drift(self, SDE_params, t):
+        return - self.beta(SDE_params, t)
     
     def get_diffusion(self, SDE_params, x, t):
         sigma = jnp.exp(SDE_params["log_sigma"])
         diffusion = sigma*jnp.sqrt(2*self.beta(SDE_params, t))
         return diffusion[None, :] 
     
-    def reverse_sde(self, SDE_params, score, x, t, dt, key):
-        ### TODO implement hacks
-        ### TODO also use gradet of target sto parameterize the score?
-        # initialize to optial controls at t= 0 and t = 1
-        forward_drift = self.get_drift(SDE_params, x, t)
-        diffusion = self.get_diffusion(SDE_params, x, t)
-
-        reverse_drift = diffusion**2*score - forward_drift #TODO check is this power of two correct? I think yes because U = diffusion*score
-
-        key, subkey = random.split(key)
-        noise = random.normal(subkey, shape=x.shape)
-        dW = jnp.sqrt(dt) * noise
-
-        if(self.stop_gradient):
-            x_next = jax.lax.stop_gradient(x + reverse_drift  * dt  + diffusion * dW)
-        else:
-            x_next = x + reverse_drift  * dt  + diffusion * dW
-
-        ### TODO check at which x drift ref should be evaluated?
-        reverse_out_dict = {"x_next": x_next, "t_next": t - dt, "drift_ref": x, "forward_drift": forward_drift, "reverse_drift": reverse_drift, "dW": dW}
-        return reverse_out_dict, key
-
     def sample(self, shape, key):
         return random.normal(key, shape)
     

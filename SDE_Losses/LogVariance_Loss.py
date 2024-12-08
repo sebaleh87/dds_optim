@@ -10,13 +10,13 @@ class LogVariance_Loss_Class(Base_SDE_Loss_Class):
         self.SDE_type.stop_gradient = True
         print("Gradient over expectation is supposed to be stopped from now on")
         self.vmap_diff_factor = jax.vmap(self.SDE_type.get_diffusion, in_axes=(None, None, 0))
-        self.vmap_drift_divergence = jax.vmap(self.SDE_type.beta, in_axes = (None, 0))
+        self.vmap_drift_divergence = jax.vmap(self.SDE_type.get_div_drift, in_axes = (None, 0))
         self.vmap_get_log_prior = jax.vmap(self.SDE_type.get_log_prior, in_axes = (None, 0))
 
     @partial(jax.jit, static_argnums=(0,))  
     def evaluate_loss(self, Energy_params, SDE_params, SDE_tracer, key, temp = 1.0):
         score = SDE_tracer["scores"]
-        dW = SDE_tracer["dW"]
+        dW = jax.lax.stop_gradient(SDE_tracer["dW"])
         ts = SDE_tracer["ts"]
         dts = SDE_tracer["dts"][...,None]
 

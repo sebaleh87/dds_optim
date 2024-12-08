@@ -33,7 +33,7 @@ class EGNNNetwork(nn.Module):
         x = x.reshape(orig_x_shapes)
         x_hidden = nn.Dense(self.out_dim, kernel_init=nn.initializers.he_normal())(h)
         x_hidden = x_hidden.reshape(orig_x_shapes)
-        out_dict = {"x": x - x_0,  "x_hidden": x_hidden}
+        out_dict = {"x": x-x_0,  "x_hidden": x_hidden}
         return out_dict
 
         
