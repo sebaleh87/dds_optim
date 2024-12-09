@@ -97,23 +97,25 @@ class EGNNLayer(nn.Module):
         x = x_prev
         h = h_prev
 
-        dist_squared = mask*jnp.sum((x[None, :, : ] - x[:, None, :])**2, axis = -1)
+        dist_squared = mask*jnp.sum((x[:, None, : ] - x[ None,:, :])**2, axis = -1)
         #flattened_dist_squared = dist_squared.reshape(self.n_particles**2, -1)
 
-        h1 = mask[...,None]*jnp.repeat(h[None, ...], self.n_particles, axis = 0)
-        h2 = mask[...,None]*jnp.repeat(h[:, None, :], self.n_particles, axis = 1)
+        h1 = mask[...,None]*jnp.repeat(h[:, None, ...], self.n_particles, axis = 1)
+        h2 = mask[...,None]*jnp.repeat(h[None, :, :], self.n_particles, axis = 0)
 
         mass_mat = mask[...,None]*self.net_e(jnp.concatenate([h1, h2 ,dist_squared[...,None]], axis = -1))  ### concatenate and flatten and unflatten
         flattened_mass_mat  = mass_mat.reshape(self.n_particles**2, -1)
 
 
-        m_transformed_ij = flattened_mask[...,None]*self.net_m(flattened_mass_mat)*flattened_mass_mat ### TODO flatten and unflatten
+        #m_transformed_ij = flattened_mask[...,None]*self.net_m(flattened_mass_mat)*flattened_mass_mat ### old version
+        m_transformed_ij = flattened_mask[...,None]*self.net_m(flattened_mass_mat)
         m_transformed_ij_resh = m_transformed_ij.reshape(self.n_particles, self.n_particles, -1)
         m_transformed_i = jnp.sum(m_transformed_ij_resh, axis = -2)
 
+        d_net_out = self.net_d(flattened_mass_mat).reshape(self.n_particles, self.n_particles, -1)
         h_next = self.net_h(jnp.concatenate([h, m_transformed_i], axis = -1)) ### concatenate
-        x_next = x + jnp.sum( mask[...,None]*(x[:, None, : ] - x[None, :, :])/(jnp.sqrt(dist_squared[..., None] + 10**-3)+1)*self.net_d(flattened_mass_mat).reshape(self.n_particles, self.n_particles, -1), axis = 1)
-
+        #x_next = x + jnp.sum( mask[...,None]*(x[:, None, : ] - x[None, :, :])/(jnp.sqrt(dist_squared[..., None] + 10**-3)+1)*d_net_out, axis = 1)
+        x_next = x + jnp.sum( mask[...,None]*(x[:, None, : ] - x[None, :, :])*d_net_out, axis = 1)
         # print("x_next", jax.lax.stop_gradient(jnp.mean(x_next)))
         # print("h_next", jax.lax.stop_gradient(jnp.mean(h_next)))
         return x_next, h_next

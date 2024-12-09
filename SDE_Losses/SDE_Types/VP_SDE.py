@@ -16,11 +16,40 @@ class VP_SDE_Class(Base_SDE_Class):
         ### THIS code assumes that sigma of reference distribution is 1
 
     def get_log_prior(self, SDE_params, x):
-        sigma = jnp.exp(SDE_params["log_sigma"])
-        mean = SDE_params["mean"]
+        sigma = self.get_SDE_sigma(SDE_params)
+        mean = self.get_SDE_mean(SDE_params)
         #print("VP_SDE", x.shape, mean.shape, sigma.shape)
-        
-        return jax.scipy.stats.norm.logpdf(x, loc=mean, scale=sigma) 
+        if(self.invariance):
+            return jax.scipy.stats.norm.logpdf(x, loc=mean, scale=sigma) + 0.5*jnp.log(2 * jnp.pi * sigma[0])*self.Energy_Class.particle_dim
+        else:
+            return jax.scipy.stats.norm.logpdf(x, loc=mean, scale=sigma) 
+
+    def sample_prior(self, SDE_params, key, n_states):
+        key, subkey = random.split(key)
+        sigma = self.get_SDE_sigma(SDE_params)
+        mean = self.get_SDE_mean(SDE_params)
+        x_prior = random.normal(subkey, shape=(n_states, self.dim_x))*sigma[None, :] + mean[None, :]
+        return x_prior, key
+
+    def get_SDE_params(self):
+        SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"])* jnp.ones((self.dim_x,)), 
+                      "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
+                      "log_sigma": jnp.log(1)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,))}
+        return SDE_params
+    
+    def get_SDE_mean(self, SDE_params):
+        if(self.invariance):
+            mean = jnp.zeros((self.dim_x,))
+        else:
+            mean = SDE_params["mean"]
+        return mean
+
+    def get_SDE_sigma(self, SDE_params):
+        if(self.invariance):
+            sigma = jnp.exp(SDE_params["log_sigma"])*jnp.ones((self.dim_x,))
+        else:
+            sigma = SDE_params["sigma"]
+        return sigma
 
     def compute_p_xt_g_x0_statistics(self, x0, xt, t):
         mean_xt = x0 * jnp.exp(-self.beta_int(t)) 
@@ -64,18 +93,13 @@ class VP_SDE_Class(Base_SDE_Class):
         return - self.beta(SDE_params, t)
     
     def get_diffusion(self, SDE_params, x, t):
-        sigma = jnp.exp(SDE_params["log_sigma"])
+        sigma = self.get_SDE_sigma(SDE_params)
         diffusion = sigma*jnp.sqrt(2*self.beta(SDE_params, t))
         return diffusion[None, :] 
     
     def sample(self, shape, key):
         return random.normal(key, shape)
     
-    
-    def init_p_ref(self,x_dim):
-        sigma_ref = 1.*jnp.ones((x_dim,))
-        mean_ref = 0.*jnp.ones((x_dim,)) 
-        return {"sigma_ref_param": sigma_ref, "mean_ref": mean_ref}
     
 
 
