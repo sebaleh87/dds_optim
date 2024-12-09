@@ -71,7 +71,7 @@ class DoubleWellClass(EnergyModelClass):
         """
         d_0 = 4.0
         x = x.reshape(-1, self.d)
-        d_ij = jnp.sqrt(jnp.sum((x[:, None, :] - x[None, :, :]) ** 2, axis=-1))
+        d_ij = jnp.sqrt(jnp.sum((x[:, None, :] - x[None, :, :]) ** 2 , axis=-1) + 10**-8)
         mask = jnp.eye(d_ij.shape[0])
 
         energy_per_particle = self.a* (d_ij -d_0) + self.b *(d_ij - d_0)**2 + self.c*(d_ij - d_0)**4
