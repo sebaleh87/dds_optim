@@ -46,18 +46,25 @@ class Base_SDE_Class:
         SDE_params = self.get_SDE_params()
         den_weight =  jnp.mean(2*jax.vmap(self.beta, in_axes=(None, 0))(SDE_params, t), axis = -1)
         return den_weight
-
+    
     def get_SDE_params(self):
+        raise NotImplementedError("get_diffusion method not implemented")
 
-        SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"])* jnp.ones((self.dim_x,)), 
-                      "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
-                      "log_sigma": jnp.log(1)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,))}
-        return SDE_params
+
+    def get_SDE_mean(self, SDE_params):
+        raise NotImplementedError("get_diffusion method not implemented")
+
+    def get_SDE_sigma(self, SDE_params):
+        raise NotImplementedError("get_diffusion method not implemented")
+
 
     def compute_p_xt_g_x0_statistics(self, x0, xt, t):
         raise NotImplementedError("get_diffusion method not implemented")
 
     def get_log_prior(self, x):
+        raise NotImplementedError("get_diffusion method not implemented")
+    
+    def sample_prior(self, SDE_params, key, n_states):
         raise NotImplementedError("get_diffusion method not implemented")
     
     def vmap_prior_target_grad_interpolation(self, x, t, Energy_params, SDE_params, key):
@@ -160,7 +167,6 @@ class Base_SDE_Class:
         key, subkey = random.split(key)
         noise = random.normal(subkey, shape=x.shape)
         dW = jnp.sqrt(dt) * noise
-        dW_sampled = dW
 
         if(self.invariance == True):
             dW = self.subtract_COM(dW)
@@ -172,9 +178,8 @@ class Base_SDE_Class:
             x_next = x + reverse_drift  * dt  + diffusion * dW
 
         ### TODO check at which x drift ref should be evaluated?
-        reverse_out_dict = {"x_next": x_next, "t_next": t - dt, "drift_ref": x, "forward_drift": forward_drift, "reverse_drift": reverse_drift, "dW": dW_sampled}
+        reverse_out_dict = {"x_next": x_next, "t_next": t - dt, "drift_ref": x, "forward_drift": forward_drift, "reverse_drift": reverse_drift, "dW": dW}
         return reverse_out_dict, key
-
     
     def simulate_reverse_sde_scan(self, model, params, Energy_params, SDE_params, key, n_states = 100, x_dim = 2, n_integration_steps = 1000):
         def scan_fn(carry, step):
@@ -228,14 +233,10 @@ class Base_SDE_Class:
             t = reverse_out_dict["t_next"]
             return (x, t, key, carry_dict), SDE_tracker_step
 
-        key, subkey = random.split(key)
-        sigma = jnp.exp(SDE_params["log_sigma"])
-        mean = SDE_params["mean"]
-        x_prior = random.normal(subkey, shape=(n_states, x_dim))*sigma[None, :] + mean[None, :]
+        x_prior, key = self.sample_prior(SDE_params, key, n_states)
 
         if(self.stop_gradient):
             x_prior = jax.lax.stop_gradient(x_prior)
-        x_prior_sampled = x_prior
 
         if(self.invariance == True):
             x_prior = self.subtract_COM(x_prior)
@@ -264,7 +265,7 @@ class Base_SDE_Class:
             "drift_ref": SDE_tracker_steps["drift_ref"],
             "dts": SDE_tracker_steps["dts"],
             "x_final": x_final,
-            "x_prior": x_prior_sampled
+            "x_prior": x_prior
         }
 
         return SDE_tracker, key
