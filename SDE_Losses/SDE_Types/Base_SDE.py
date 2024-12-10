@@ -209,7 +209,7 @@ class Base_SDE_Class:
                 
             else:
                 ### TODO x dim should be increased by 1
-                grad = jnp.zeros((x.shape[0], x_dim))
+                grad = jnp.zeros((x.shape[0], self.dim_x))
                 in_dict = {"x": x, "t": t_arr, "Energy_value": jnp.zeros((x.shape[0], 1)),  "grads": grad}
                 out_dict = model.apply(params, in_dict, train = True)
                 score = out_dict["score"]
@@ -298,7 +298,7 @@ class Base_SDE_Class:
                 
             else:
                 ### TODO x dim should be increased by 1
-                grad = jnp.zeros((x.shape[0], x_dim))
+                grad = jnp.zeros((x.shape[0], self.dim_x))
                 in_dict = {"x": x, "t": t_arr, "Energy_value": jnp.zeros((x.shape[0], 1)),  "grads": grad}
                 out_dict = model.apply(params, in_dict, train = True)
                 score = out_dict["score"]
@@ -323,17 +323,22 @@ class Base_SDE_Class:
             t = reverse_out_dict["t_next"]
             return (x, t, key, carry_dict), SDE_tracker_step
 
+        if(self.invariance == True):
+            x = self.subtract_COM(x)
+
         t = 1.0
         dt = 1. / n_integration_steps
         ### this function is primarily so that i can test the equivaraicne of the sde
         init_carry = jnp.zeros((x.shape[0], self.Network_Config["n_hidden"]))
         carry_dict = {"hidden_state": [(init_carry, init_carry)  for i in range(self.Network_Config["n_layers"])]}
+        print("key",key)
         (x_final, t_final, key, carry_dict), SDE_tracker_steps = jax.lax.scan(
             scan_fn,
             (x, t, key, carry_dict),
             jnp.arange(n_integration_steps)
         )
-        return x_final
+
+        return x_final, SDE_tracker_steps
     
 
 

@@ -67,6 +67,7 @@ class TrainerClass:
         rotated_scores = []
         unrotated_scores = []
         unrotated_final_samples = []
+        xs_list = []
 
         for rot in rotations:
             x_centered_rot = jax.vmap(jax.vmap(rotate_vector, in_axes=(0, None)), in_axes=(0, None))(x_centered_resh, rot)
@@ -85,11 +86,38 @@ class TrainerClass:
             unrotated_scores.append(unrotated_score)
 
 
-            x_final = self.SDE_LossClass.SDE_type.simulated_SDE_from_x(self.model, self.params, self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, x_centered_resh_rot, key, n_integration_steps = self.n_integration_steps)
+            x_final, SDE_tracker_steps = self.SDE_LossClass.SDE_type.simulated_SDE_from_x(self.model, self.params, self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, x_centered_resh_rot, key, n_integration_steps = self.n_integration_steps)
+            xs = SDE_tracker_steps["xs"]
+            print("xs",xs.shape)
+
+            xs_resh = xs.reshape((self.n_integration_steps, self.EnergyClass.n_particles, self.EnergyClass.particle_dim))
+            unrotated_resh_xs_resh = jax.vmap(jax.vmap(rotate_vector, in_axes=(0, None)), in_axes=(0, None))(xs_resh, -rot)
+            xs_list.append(unrotated_resh_xs_resh)
+            
             resh_x_final = x_final.reshape((batch_size, self.EnergyClass.n_particles, self.EnergyClass.particle_dim))
             unrotated_resh_x_final = jax.vmap(jax.vmap(rotate_vector, in_axes=(0, None)), in_axes=(0, None))(resh_x_final, -rot)
             unrotated_final_samples.append(unrotated_resh_x_final)
 
+        import matplotlib.pyplot as plt
+
+        # Assuming `xs_list` is a list of data arrays and `rot` is predefined
+        fig, axs = plt.subplots(len(xs_list), 1, figsize=(8, 4 * len(xs_list)))  # Create subplots
+
+        if len(xs_list) == 1:
+            axs = [axs]  # Handle the case when there's only one subplot
+
+        for idx, xs in enumerate(xs_list):
+            ax = axs[idx]  # Get the subplot axis
+            for i in range(xs.shape[1]):  # Assuming `xs` has a shape of `[n, m, 2]`
+                ax.plot(xs[:, i, 0], xs[:, i, 1], label=f'Particle {i}')
+            ax.set_title(f'Trajectory of Particles {rot} (Dataset {idx})')  # Use `rot` and `idx`
+            ax.set_xlabel('X')
+            ax.set_ylabel('Y')
+            ax.legend()
+
+        fig.tight_layout()  # Adjust layout to avoid overlap
+        wandb.log({f"fig/Trajectory Plot {rot}": wandb.Image(fig)})  # Log the single figure with subplots to Weights & Biases
+        plt.close(fig)  # Close the figure after logging
 
         print("Rotated scores", rotated_scores)
         for el in rotated_scores:
