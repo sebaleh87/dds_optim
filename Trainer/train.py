@@ -11,6 +11,7 @@ from tqdm.auto import trange
 import time
 import pickle
 import os
+from utils.rotate_vector import rotate_vector
 
 class TrainerClass:
     def __init__(self, base_config):
@@ -34,6 +35,7 @@ class TrainerClass:
         self.num_epochs = base_config["num_epochs"]
         self.n_integration_steps = SDE_Loss_Config["n_integration_steps"]
         self._init_Network()
+        self._test_invariance()
         #self.EnergyClass.plot_properties()
 
     def _init_Network(self):
@@ -52,24 +54,38 @@ class TrainerClass:
 
     def _test_invariance(self):
         key = jax.random.PRNGKey(0)
-        batch_size = 10
-        x_init = jnp.random.normal((batch_size,self.dim_x ))
+        batch_size = 1
+        x_init = jax.random.normal(key, (batch_size,self.dim_x ))
         
         x_init_resh = x_init.reshape((batch_size, self.EnergyClass.n_particles, self.EnergyClass.particle_dim))
         x_COM = jnp.mean(x_init_resh, axis = 1, keepdims=True)
         x_centered_resh = x_init_resh - x_COM
 
+        rotations = [np.pi, np.pi/2, np.pi/4]
+        rotated_scores = []
+        unrotated_scores = []
+        for rot in rotations:
+            x_centered_resh_rot = jax.vmap(jax.vmap(rotate_vector, in_axes=(0, None)), in_axes=(0, None))(x_centered_resh, rot)
+            x_centered_resh_rot =  x_centered_resh_rot.reshape((batch_size, self.dim_x)) 
 
-        x_centered =  x_centered_resh.reshape((batch_size, self.dim_x)) 
+            grad_init = jnp.ones((batch_size,self.dim_x,))
+            Energy_value = jnp.ones((batch_size,1))
+            init_carry = jnp.zeros(( batch_size, self.Network_Config["n_hidden"],))
+            in_dict = {"x": x_centered_resh_rot, "Energy_value": Energy_value,  "t": jnp.ones((batch_size, 1,)), "grads": grad_init, "hidden_state": [(init_carry, init_carry) for i in range(self.Network_Config["n_layers"])]}
+            out_dict = self.model.apply(self.params, in_dict, train = True)
+            score = out_dict["score"]
+            rotated_scores.append(score)
 
-        grad_init = jnp.ones((1,self.dim_x,))
-        Energy_value = jnp.ones((1,1,))
-        init_carry = jnp.zeros(( 1, self.Network_Config["n_hidden"],))
-        in_dict = {"x": x_centered, "Energy_value": Energy_value,  "t": jnp.ones((1, 1,)), "grads": grad_init, "hidden_state": [(init_carry, init_carry) for i in range(self.Network_Config["n_layers"])]}
-        self.params = self.model.init(random.PRNGKey(self.Network_Config["model_seed"]), in_dict, train = True)
+            resh_scores = score.reshape((batch_size, self.EnergyClass.n_particles, self.EnergyClass.particle_dim))
+            unrotated_score = jax.vmap(jax.vmap(rotate_vector, in_axes=(0, None)), in_axes=(0, None))(resh_scores, -rot)
+            unrotated_scores.append(unrotated_score)
 
+        print("Rotated scores", rotated_scores)
+        print("Unrotated scores")
+        for el in unrotated_scores:
+            print(el)
+        raise ValueError("Check if scores are invariant to rotations")
 
-        pass
 
     def _init_wandb(self):
         wandb.init(project=f"DDS_{self.EnergyClass.__class__.__name__}_{self.config['project_name']}", config=self.config)

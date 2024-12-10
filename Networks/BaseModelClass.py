@@ -12,6 +12,5 @@ class BaseModel(nn.Module):
         
     @nn.compact
     def __call__(self, in_dict, train = False):
-        print(in_dict.keys())
         return self.model.__call__(in_dict, train = train)
         

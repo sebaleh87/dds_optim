@@ -26,7 +26,7 @@ class VE_SDE_Class(Base_SDE_Class):
             SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"])* jnp.ones((self.dim_x,)), 
                         "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
                         "log_sigma": jnp.log(1)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)), 
-                        "B": jnp.ones((self.dim_x,self.dim_x))}
+                        "B": -10*jnp.ones((self.dim_x,self.dim_x))}
         return SDE_params
 
     def get_SDE_mean(self, SDE_params):
@@ -58,7 +58,7 @@ class VE_SDE_Class(Base_SDE_Class):
             return jnp.sum(log_pdf_vec, axis = -1)
         else:
             overall_covar = self.return_prior_covar(SDE_params)
-            log_pdf = jax.scipy.stats.multivariate_normal.pdf(x, mean, overall_covar)
+            log_pdf = jax.scipy.stats.multivariate_normal.logpdf(x, mean, overall_covar)
             return log_pdf
     
 
@@ -77,12 +77,14 @@ class VE_SDE_Class(Base_SDE_Class):
     def return_prior_covar(self, SDE_params):
         if(self.invariance):
             sigma, sigma_t = self.get_SDE_sigma(SDE_params)
-            overall_sigma = jnp.sqrt(2*sigma**2*self.beta_int(SDE_params, 1) + sigma_t**2)
+            alpha = self.beta_int(SDE_params, 1)
+            overall_sigma = jnp.sqrt(2*sigma**2*alpha + sigma_t**2)
             return overall_sigma
         else:
             sigma, covar = self.get_SDE_sigma(SDE_params)
             alpha = self.beta_int(SDE_params, 1)
-            overall_covar = jnp.diag(2*sigma**2*alpha) + covar
+            factor = alpha[:, None] + alpha[None, :]
+            overall_covar = factor*jnp.diag(sigma**2) + covar
             return overall_covar
 
     def beta_int(self, SDE_params, t):
