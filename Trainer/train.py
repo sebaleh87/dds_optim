@@ -35,7 +35,7 @@ class TrainerClass:
         self.num_epochs = base_config["num_epochs"]
         self.n_integration_steps = SDE_Loss_Config["n_integration_steps"]
         self._init_Network()
-        self._test_invariance()
+        #self._test_invariance()
         #self.EnergyClass.plot_properties()
 
     def _init_Network(self):
