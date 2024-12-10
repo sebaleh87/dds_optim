@@ -16,7 +16,7 @@ class VP_SDE_Class(Base_SDE_Class):
         ### THIS code assumes that sigma of reference distribution is 1
 
     def get_log_prior(self, SDE_params, x):
-        mean = self.get_SDE_mean(SDE_params)
+        mean = self.get_mean_prior(SDE_params)
         #print("VP_SDE", x.shape, mean.shape, sigma.shape)
         if(self.invariance):
             overall_sigma = self.return_prior_covar(SDE_params)
@@ -49,7 +49,7 @@ class VP_SDE_Class(Base_SDE_Class):
             sigma, covar = self.get_SDE_sigma(SDE_params)
             alpha = self.beta_int(SDE_params, 1)
             factor = jnp.exp(-alpha)[:,None]*jnp.exp(-alpha)[None, :]
-            overall_covar = factor*(covar - jnp.diag(sigma)**2) + jnp.diag(sigma)**2
+            overall_covar = covar#factor*(covar - jnp.diag(sigma)**2) + jnp.diag(sigma)**2
 
             # print("B", jax.lax.stop_gradient(jnp.exp(SDE_params["B"])))
             # print("covar", jax.lax.stop_gradient(covar))
@@ -63,7 +63,7 @@ class VP_SDE_Class(Base_SDE_Class):
             SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"])* jnp.ones((self.dim_x,)), 
             "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
             "log_sigma": jnp.log(1), "mean": jnp.zeros((self.dim_x,)), "mean_target": jnp.zeros((self.dim_x,)),
-            "log_sigma_t": jnp.log(-10)}
+            "log_sigma_t": jnp.log(1.)}
 
         else:
             SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"])* jnp.ones((self.dim_x,)), 
@@ -88,7 +88,7 @@ class VP_SDE_Class(Base_SDE_Class):
             mean = SDE_params["mean"]
             mean_target = SDE_params["mean_target"]
         alpha = self.beta_int(SDE_params, 1)
-        overall_mean = (1- jnp.exp(- alpha))*mean + jnp.exp(- alpha)*mean_target
+        overall_mean = mean_target #(1- jnp.exp(- alpha))*mean + jnp.exp(- alpha)*mean_target
         return overall_mean
 
     def get_SDE_sigma(self, SDE_params):

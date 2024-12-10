@@ -17,10 +17,11 @@ class VE_SDE_Class(Base_SDE_Class):
 
     def get_SDE_params(self):
         if(self.invariance):
+            ### if beta is learnable this also ahs to be dim(1)
             SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"])* jnp.ones((self.dim_x,)), 
             "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
             "log_sigma": jnp.log(1), "mean": jnp.zeros((self.dim_x,)), 
-            "log_sigma_t": jnp.log(-10)}
+            "log_sigma_t": jnp.log(1.)}
 
         else:
             SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"])* jnp.ones((self.dim_x,)), 
@@ -28,6 +29,15 @@ class VE_SDE_Class(Base_SDE_Class):
                         "log_sigma": jnp.log(1)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)), 
                          "B": -10*jnp.ones((self.dim_x,self.dim_x)) + jnp.diag((jnp.log(1.)+10.)*jnp.ones((self.dim_x,)))}
         return SDE_params
+
+    def get_mean_prior(self, SDE_params):
+        if(self.invariance):
+            mean = jnp.zeros((self.dim_x,))
+            mean_target = jnp.zeros((self.dim_x,))
+        else:
+            mean = SDE_params["mean"]
+        overall_mean = mean 
+        return overall_mean
 
     def get_SDE_mean(self, SDE_params):
         if(self.invariance):
@@ -50,7 +60,7 @@ class VE_SDE_Class(Base_SDE_Class):
             return sigma, covar
 
     def get_log_prior(self, SDE_params, x):
-        mean = self.get_SDE_mean(SDE_params)
+        mean = self.get_mean_prior(SDE_params)
         #print("VP_SDE", x.shape, mean.shape, sigma.shape)
         if(self.invariance):
             overall_sigma = self.return_prior_covar(SDE_params)
@@ -64,7 +74,7 @@ class VE_SDE_Class(Base_SDE_Class):
 
     def sample_prior(self, SDE_params, key, n_states):
         key, subkey = random.split(key)
-        mean = self.get_SDE_mean(SDE_params)
+        mean = self.get_mean_prior(SDE_params)
         if(self.invariance):
             overall_sigma = self.return_prior_covar(SDE_params)
             mean = self.get_SDE_mean(SDE_params)
@@ -84,7 +94,7 @@ class VE_SDE_Class(Base_SDE_Class):
             sigma, covar = self.get_SDE_sigma(SDE_params)
             alpha = self.beta_int(SDE_params, 1)
             factor = alpha[:, None] + alpha[None, :]
-            overall_covar = factor*jnp.diag(sigma**2) + covar
+            overall_covar = covar#factor*jnp.diag(sigma**2) + covar
             # print("B", jax.lax.stop_gradient(jnp.exp(SDE_params["B"])))
             # print("covar", jax.lax.stop_gradient(covar))
             # print("overall_covar", jax.lax.stop_gradient(overall_covar), jax.lax.stop_gradient(sigma), jax.lax.stop_gradient(factor), jax.lax.stop_gradient(alpha))
