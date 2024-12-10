@@ -26,13 +26,14 @@ parser.add_argument("--batch_size", type=int, default=200)
 parser.add_argument("--lr", type=float, default=0.001)
 parser.add_argument("--Energy_lr", type=float, default=0.0)
 parser.add_argument("--SDE_lr", type=float, default=10**-5)
+parser.add_argument("--learn_beta_min_max", type=bool, default=False, help="learn beta min and max, lin interp in-between")
+
 parser.add_argument("--N_anneal", type=int, default=1000)
 parser.add_argument("--N_warmup", type=int, default=0)
 parser.add_argument("--steps_per_epoch", type=int, default=100)
 
 parser.add_argument("--update_params_mode", type=str, choices = ["all_in_one", "DKL"], default="all_in_one")
 parser.add_argument("--epochs_per_eval", type=int, default=100)
-
 
 parser.add_argument("--beta_min", type=float, default=0.05)
 parser.add_argument("--beta_max", type=float, default=5.)
@@ -49,12 +50,14 @@ parser.add_argument('--no-use_interpol_gradient', dest='use_interpol_gradient', 
 parser.add_argument('--use_normal', action='store_true', default=False, help='gradient of energy function is added to the score')
 parser.add_argument('--no-use_normal', dest='use_normal', action='store_false', help='gradient of energy function is not added to the score')
 
-
-
 parser.add_argument("--SDE_time_mode", type=str, default="Discrete_Time", choices=["Discrete_Time", "Continuous_Time"], help="SDE Time Mode")
 parser.add_argument("--Network_Type", type=str, default="FeedForward", choices=["FourierNetwork", "FeedForward", "LSTMNetwork"], help="SDE Time Mode")
-parser.add_argument("--Pytheus_challenge", type=int, default=1, choices=[0,1,2,3,4,5], help="Pyhteus Chellange Index")
 parser.add_argument("--model_seed", type=int, default=0, help="Seed used for model init")
+
+#energy function specific args
+parser.add_argument("--Pytheus_challenge", type=int, default=1, choices=[0,1,2,3,4,5], help="Pyhteus Chellange Index")
+parser.add_argument("--Scaling_factor", type=int, default=1, choices=[0,1,2,3,4,5], help="Pyhteus Chellange Index")
+
 args = parser.parse_args()
 
 if(__name__ == "__main__"):
@@ -63,9 +66,8 @@ if(__name__ == "__main__"):
         os.environ["CUDA_VISIBLE_DEVICES"]=f"{str(args.GPU)}"
     #disable JIT compilation
     #jax.config.update("jax_disable_jit", True)
-    #jax.config.update("jax_debug_nans", True)
-    if(args.lr/args.SDE_lr  < 5):
-        print("Warning: args.lr/args.SDE_lr  < 5, emperically this ratio is too high")
+    # if(args.lr/args.SDE_lr  < 5):
+    #     print("Warning: args.lr/args.SDE_lr  < 5, emperically this ratio is too high")
 
     N_anneal = args.N_anneal
     epochs = N_anneal + args.N_warmup
@@ -75,6 +77,7 @@ if(__name__ == "__main__"):
         "lr": args.lr,
         "Energy_lr": args.Energy_lr,
         "SDE_lr": args.SDE_lr,
+        "learn_beta_min_max": args.learn_beta_min_max,
         "epochs": epochs,
         "steps_per_epoch": args.steps_per_epoch,
         "epochs_per_eval": args.epochs_per_eval,
@@ -150,6 +153,7 @@ if(__name__ == "__main__"):
             "means": mean,
             "variances": np.exp(log_var),
             "weights": [1/num_gaussians for i in range(num_gaussians)],
+            
         }
     elif(args.Energy_Config == "Rastrigin"):
         Energy_Config = {

@@ -7,10 +7,11 @@ import jax.numpy as jnp
 import jax
 import optax
 import os
+import pickle
 
 if(__name__ == '__main__'):
-    os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   # see issue #152
-    os.environ["CUDA_VISIBLE_DEVICES"]=f"{5}"
+    # os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   # see issue #152
+    # os.environ["CUDA_VISIBLE_DEVICES"]=f"{5}"
 
     # def gaussian(x, mean, variance):
     #     return -jnp.exp(jnp.sum(-0.5 * ((x[None,:] - mean) ** 2 / variance) - 0.5*jnp.log(2 * jnp.pi * variance), axis = -1))
@@ -24,42 +25,55 @@ if(__name__ == '__main__'):
     #     print(x, value)
     # raise ValueError("")
 
-    challenges = [(4,4,2),(5,4,4),(6,4,6),(7,4,8),(8,4,10),(9,4,12)]
-
+    # challenges = [(4,4,2),(5,4,4),(6,4,6),(7,4,8),(8,4,10),(9,4,12)]
+    challenges = [(4,4,0),(5,4,2),(6,4,4),(7,4,8),(8,4,10),(9,4,12)] # color, nodes , anc
+    challenge_index = 2
 
     test_arr = jnp.arange(0,100)
 
     cumsum = jax.lax.cumsum(test_arr, axis=0)
 
-    dim, n_ph, anc = challenges[1]
+    dim, n_ph, anc = challenges[challenge_index]
+    print(f"working on index {challenge_index} with dim, n_ph, anc = {dim, n_ph, anc}")
     halo_state = [str(ii)*n_ph+'0'*anc for ii in range(dim)]
     target_state = State(halo_state)
     target_state
 
     dimensions = [dim]*n_ph+[1]*anc
     all_edges = th.buildAllEdges(dimensions)
-    len(all_edges)
 
-    mathings_catalog = th.allPerfectMatchings(dimensions)
-    SPACE_BASIS = list(mathings_catalog.keys())
+    if challenge_index != 3:
+        matchings_catalog = th.allPerfectMatchings(dimensions)
+        SPACE_BASIS = list(matchings_catalog.keys())
 
-    PERFECT_MATCHINGS = {} 
-    for ket, pm_list in mathings_catalog.items():
-        PERFECT_MATCHINGS[ket] = [[all_edges.index(edge) for edge in pm] for pm in pm_list]
-    PERFECT_MATCHINGS = np.array(list(PERFECT_MATCHINGS.values()))
+        PERFECT_MATCHINGS = {} 
+        for ket, pm_list in matchings_catalog.items():
+            PERFECT_MATCHINGS[ket] = [[all_edges.index(edge) for edge in pm] for pm in pm_list]
+        PERFECT_MATCHINGS = np.array(list(PERFECT_MATCHINGS.values()))
 
-    target_unnormed = np.array([(key in target_state.kets)*1.0 for key in SPACE_BASIS])
-    TARGET_NORMED = target_unnormed / np.sqrt(target_unnormed@target_unnormed)
+        target_unnormed = np.array([(key in target_state.kets)*1.0 for key in SPACE_BASIS])
+        TARGET_NORMED = target_unnormed / np.sqrt(target_unnormed@target_unnormed)
 
-    PERFECT_MATCHINGS = np.array(PERFECT_MATCHINGS)
-    TARGET_NORMED = np.array(TARGET_NORMED)
+        PERFECT_MATCHINGS = jnp.array(PERFECT_MATCHINGS)
+        TARGET_NORMED = jnp.array(TARGET_NORMED)
 
-    eps = 1e-24
-    graph_state = lambda edges: edges[PERFECT_MATCHINGS].prod(axis=-1).sum(axis=-1)
-    normed_state = lambda state: state / (eps + np.sqrt(state @ state))
-    #normed_state = lambda state: state / max([eps,  np.sqrt(state @ state)])
-    fidelity = lambda state: (state @ TARGET_NORMED)**2
-    loss_fun = lambda x: - fidelity(normed_state(graph_state(x)))
+    else:
+        print("loading pytheus files for challenge 3")
+        with open("/system/user/slehner/pytheus_files/matchings_3.pkl", "rb") as f:
+            PERFECT_MATCHINGS = pickle.load(f)
+
+        with open("/system/user/slehner/pytheus_files/target_normed_3.pkl", "rb") as f:
+            TARGET_NORMED = pickle.load(f)
+
+    # PERFECT_MATCHINGS = np.array(PERFECT_MATCHINGS)
+    # TARGET_NORMED = np.array(TARGET_NORMED)
+
+    # eps = 1e-24
+    # graph_state = lambda edges: edges[PERFECT_MATCHINGS].prod(axis=-1).sum(axis=-1)
+    # normed_state = lambda state: state / (eps + np.sqrt(state @ state))
+    # #normed_state = lambda state: state / max([eps,  np.sqrt(state @ state)])
+    # fidelity = lambda state: (state @ TARGET_NORMED)**2
+    # loss_fun = lambda x: - fidelity(normed_state(graph_state(x)))
 
 
     # boundaries = [(-1,1)] * len(all_edges)
@@ -78,7 +92,7 @@ if(__name__ == '__main__'):
 
     TARGET_NORMED = jnp.array(TARGET_NORMED)
 
-    eps = 1e-10
+    eps = 1e-4
     graph_state = lambda edges: edges[PERFECT_MATCHINGS].prod(axis=-1).sum(axis=-1)
     normed_state = lambda state: state / (eps + jnp.sqrt(state @ state))
     fidelity = lambda state: (state @ TARGET_NORMED)**2
@@ -100,12 +114,12 @@ if(__name__ == '__main__'):
 
     loss_fun(x0)
 
-    x0 = jnp.array(np.random.rand(len(all_edges)))
+    # x0 = jnp.array(np.random.rand(len(all_edges)))
 
-    optimizer = optax.adam(learning_rate=0.1)
+    # optimizer = optax.adam(learning_rate=0.01)
 
-    x = jnp.array(x0)  # Initial value of x
-    opt_state = optimizer.init(x)
+    # x = jnp.array(x0)  # Initial value of x
+    # opt_state = optimizer.init(x)
 
     def update_step(x, opt_state):
         # Compute the gradient of the objective function w.r.t. x
@@ -119,23 +133,28 @@ if(__name__ == '__main__'):
         
         return x, opt_state, loss
     
-    reps = 1000
+    reps = 100
     result_list = []
+    best_loss_ever = 5
     for rep in range(reps):
         x0 = jnp.array(np.random.rand(len(all_edges)))
         
-        optimizer = optax.adam(learning_rate=0.1)
+        optimizer = optax.adam(learning_rate=0.01)
         x = jnp.array(x0)  # Initial value of x
         opt_state = optimizer.init(x)
 
         num_steps = 1000
         for step in range(num_steps):
             x, opt_state, loss = update_step(x, opt_state)
-            result_list.append(np.array(loss))
-            if step % 10 == 0:
-                print(f"Step {step}: loss = {loss}.")#, x = {x}")
-        print("Best value is", min(result_list))
-        print(jnp.min(jnp.abs(x)), jnp.max(jnp.abs(x)))
+            # result_list.append(np.array(loss))
+            if loss < best_loss_ever:
+                best_loss_ever = loss
+            # if step % 100 == 0 and rep%10 == 0:
+            #     print(f'current best: {best_loss_ever}')
+            #     print(f"Rep {rep} Step {step}: loss = {loss}.")#, x = {x}")
+        print(f"Final value in rep {rep} is {best_loss_ever}")
 
-    print(f"Final optimized x, with loss {loss},\n{x}")
+    print(f"Best loss ever: {best_loss_ever}")
+    # print(jnp.min(jnp.abs(x)), jnp.max(jnp.abs(x)))
+    # print(f"Final optimized x, with loss {loss},\n{x}")
 
