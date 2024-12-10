@@ -19,6 +19,7 @@ parser.add_argument("--T_start", type=float, default=1., help="Starting Temperat
 parser.add_argument("--T_end", type=float, default=0., help="End Temperature")
 parser.add_argument("--n_integration_steps", type=int, default=100)
 parser.add_argument("--SDE_weightening", type=str, default="normal", choices=["normal", "weighted"], help="SDE weightening")
+parser.add_argument("--AnnealSchedule", type=str, default="Linear", choices=["Linear", "Exp"], help="type of anneal schedule")
 parser.add_argument("--project_name", type=str, default="")
 
 parser.add_argument("--minib_time_steps", type=int, default=20)
@@ -229,7 +230,7 @@ if(__name__ == "__main__"):
         raise ValueError("Energy Config not found")
 
     Anneal_Config = {
-        "name": "Linear",
+        "name": args.AnnealSchedule,
         "T_start": args.T_start,
         "T_end": args.T_end,
         "N_anneal": args.N_anneal,

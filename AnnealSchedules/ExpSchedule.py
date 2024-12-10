@@ -1,4 +1,4 @@
-
+import jax.numpy as jnp
 from .BaseSchedule import BaseScheduleClass
 
 class ExpScheduleClass(BaseScheduleClass):

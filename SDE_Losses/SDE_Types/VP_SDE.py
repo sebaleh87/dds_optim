@@ -20,8 +20,9 @@ class VP_SDE_Class(Base_SDE_Class):
         #print("VP_SDE", x.shape, mean.shape, sigma.shape)
         if(self.invariance):
             overall_sigma = self.return_prior_covar(SDE_params)
-            log_pdf_vec = jax.scipy.stats.norm.logpdf(x, loc=mean, scale=overall_sigma) + 0.5*jnp.log(2 * jnp.pi * overall_sigma)/sigma.shape[0]*self.Energy_Class.particle_dim
+            log_pdf_vec = jax.scipy.stats.norm.logpdf(x, loc=mean, scale=overall_sigma) + 0.5*jnp.log(2 * jnp.pi * overall_sigma)/overall_sigma.shape[0]*self.Energy_Class.particle_dim
             log_pdf_vec = jnp.sum(log_pdf_vec, axis = -1)
+            return log_pdf_vec
         else:
             overall_covar = self.return_prior_covar(SDE_params)
             #return jax.random.multivariate_normal(random.PRNGKey(0), mean, jnp.diag(overall_sigma**2), x.shape[0])
