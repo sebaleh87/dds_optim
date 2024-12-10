@@ -132,7 +132,7 @@ class TrainerClass:
         for el in unrotated_final_samples:
             print(el)
 
-        raise ValueError("Check if scores are invariant to rotations")
+        #raise ValueError("Check if scores are invariant to rotations")
 
 
     def _init_wandb(self):
