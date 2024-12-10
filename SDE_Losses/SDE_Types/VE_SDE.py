@@ -20,13 +20,13 @@ class VE_SDE_Class(Base_SDE_Class):
             SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"])* jnp.ones((self.dim_x,)), 
             "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
             "log_sigma": jnp.log(1), "mean": jnp.zeros((self.dim_x,)), 
-            "log_sigma_t": jnp.log(1)}
+            "log_sigma_t": jnp.log(-10)}
 
         else:
             SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"])* jnp.ones((self.dim_x,)), 
                         "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
                         "log_sigma": jnp.log(1)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)), 
-                        "B": -10*jnp.ones((self.dim_x,self.dim_x))}
+                         "B": -10*jnp.ones((self.dim_x,self.dim_x)) + jnp.diag((jnp.log(1.)+10.)*jnp.ones((self.dim_x,)))}
         return SDE_params
 
     def get_SDE_mean(self, SDE_params):
@@ -85,6 +85,10 @@ class VE_SDE_Class(Base_SDE_Class):
             alpha = self.beta_int(SDE_params, 1)
             factor = alpha[:, None] + alpha[None, :]
             overall_covar = factor*jnp.diag(sigma**2) + covar
+            # print("B", jax.lax.stop_gradient(jnp.exp(SDE_params["B"])))
+            # print("covar", jax.lax.stop_gradient(covar))
+            # print("overall_covar", jax.lax.stop_gradient(overall_covar), jax.lax.stop_gradient(sigma), jax.lax.stop_gradient(factor), jax.lax.stop_gradient(alpha))
+
             return overall_covar
 
     def beta_int(self, SDE_params, t):

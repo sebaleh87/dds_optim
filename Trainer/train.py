@@ -35,7 +35,9 @@ class TrainerClass:
         self.num_epochs = base_config["num_epochs"]
         self.n_integration_steps = SDE_Loss_Config["n_integration_steps"]
         self._init_Network()
-        #self._test_invariance()
+
+        if(self.EnergyClass.invariance):
+            self._test_invariance()
         #self.EnergyClass.plot_properties()
 
     def _init_Network(self):
@@ -65,8 +67,8 @@ class TrainerClass:
         rotated_scores = []
         unrotated_scores = []
         for rot in rotations:
-            x_centered_resh_rot = jax.vmap(jax.vmap(rotate_vector, in_axes=(0, None)), in_axes=(0, None))(x_centered_resh, rot)
-            x_centered_resh_rot =  x_centered_resh_rot.reshape((batch_size, self.dim_x)) 
+            x_centered_rot = jax.vmap(jax.vmap(rotate_vector, in_axes=(0, None)), in_axes=(0, None))(x_centered_resh, rot)
+            x_centered_resh_rot =  x_centered_rot.reshape((batch_size, self.dim_x)) 
 
             grad_init = jnp.ones((batch_size,self.dim_x,))
             Energy_value = jnp.ones((batch_size,1))
@@ -82,6 +84,9 @@ class TrainerClass:
 
         print("Rotated scores", rotated_scores)
         print("Unrotated scores")
+        for el in rotated_scores:
+            print(el.reshape((batch_size, self.EnergyClass.n_particles, self.EnergyClass.particle_dim)))
+
         for el in unrotated_scores:
             print(el)
         raise ValueError("Check if scores are invariant to rotations")
