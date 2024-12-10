@@ -31,7 +31,7 @@ class VP_SDE_Class(Base_SDE_Class):
 
     def sample_prior(self, SDE_params, key, n_states):
         key, subkey = random.split(key)
-        mean = self.get_SDE_mean(SDE_params)
+        mean = self.get_mean_prior(SDE_params)
         if(self.invariance):
             overall_sigma = self.return_prior_covar(SDE_params)
             x_prior = random.normal(subkey, shape=(n_states, self.dim_x))*overall_sigma[None, :] + mean[None, :]
@@ -58,16 +58,17 @@ class VP_SDE_Class(Base_SDE_Class):
 
     
     def get_SDE_params(self):
+        # "mean" is here the mean of the SDE
         if(self.invariance):
             SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"])* jnp.ones((self.dim_x,)), 
             "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
-            "log_sigma": jnp.log(1), "mean": jnp.zeros((self.dim_x,)), 
+            "log_sigma": jnp.log(1), "mean": jnp.zeros((self.dim_x,)), "mean_target": jnp.zeros((self.dim_x,)),
             "log_sigma_t": jnp.log(-10)}
 
         else:
             SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"])* jnp.ones((self.dim_x,)), 
                         "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
-                        "log_sigma": jnp.log(1)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)), 
+                        "log_sigma": jnp.log(1)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)),  "mean_target": jnp.zeros((self.dim_x,)),
                         "B": -10*jnp.ones((self.dim_x,self.dim_x)) + jnp.diag((jnp.log(1.)+10.)*jnp.ones((self.dim_x,)))
                         }
         return SDE_params
@@ -78,6 +79,17 @@ class VP_SDE_Class(Base_SDE_Class):
         else:
             mean = SDE_params["mean"]
         return mean
+    
+    def get_mean_prior(self, SDE_params):
+        if(self.invariance):
+            mean = jnp.zeros((self.dim_x,))
+            mean_target = jnp.zeros((self.dim_x,))
+        else:
+            mean = SDE_params["mean"]
+            mean_target = SDE_params["mean_target"]
+        alpha = self.beta_int(SDE_params, 1)
+        overall_mean = (1- jnp.exp(- alpha))*mean + jnp.exp(- alpha)*mean_target
+        return overall_mean
 
     def get_SDE_sigma(self, SDE_params):
         if(self.invariance):

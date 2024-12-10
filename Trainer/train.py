@@ -66,6 +66,8 @@ class TrainerClass:
         rotations = [np.pi, np.pi/2, np.pi/4]
         rotated_scores = []
         unrotated_scores = []
+        unrotated_final_samples = []
+
         for rot in rotations:
             x_centered_rot = jax.vmap(jax.vmap(rotate_vector, in_axes=(0, None)), in_axes=(0, None))(x_centered_resh, rot)
             x_centered_resh_rot =  x_centered_rot.reshape((batch_size, self.dim_x)) 
@@ -82,13 +84,26 @@ class TrainerClass:
             unrotated_score = jax.vmap(jax.vmap(rotate_vector, in_axes=(0, None)), in_axes=(0, None))(resh_scores, -rot)
             unrotated_scores.append(unrotated_score)
 
+
+            x_final = self.SDE_LossClass.SDE_type.simulated_SDE_from_x(self.model, self.params, self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, x_centered_resh_rot, key, n_integration_steps = self.n_integration_steps)
+            resh_x_final = x_final.reshape((batch_size, self.EnergyClass.n_particles, self.EnergyClass.particle_dim))
+            unrotated_resh_x_final = jax.vmap(jax.vmap(rotate_vector, in_axes=(0, None)), in_axes=(0, None))(resh_x_final, -rot)
+            unrotated_final_samples.append(unrotated_resh_x_final)
+
+
         print("Rotated scores", rotated_scores)
-        print("Unrotated scores")
         for el in rotated_scores:
             print(el.reshape((batch_size, self.EnergyClass.n_particles, self.EnergyClass.particle_dim)))
 
+        print("Unrotated scores")
         for el in unrotated_scores:
             print(el)
+
+
+        print("Unrotated final samples")
+        for el in unrotated_final_samples:
+            print(el)
+
         raise ValueError("Check if scores are invariant to rotations")
 
 
