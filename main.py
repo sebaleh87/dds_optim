@@ -230,6 +230,7 @@ if(__name__ == "__main__"):
         "T_end": args.T_end,
         "N_anneal": args.N_anneal,
         "N_warmup": args.N_warmup,
+        "lam": 10.
     }
 
 

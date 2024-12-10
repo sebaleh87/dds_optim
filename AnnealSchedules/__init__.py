@@ -1,9 +1,11 @@
 
 from .LinearSchedule import LinearSchedule
+from .ExpSchedule import ExpScheduleClass
 
 
 AnnealSchedule_registry = {
-    "Linear": LinearSchedule
+    "Linear": LinearSchedule,
+    "ExpSchedule": ExpScheduleClass,
 }
 
 def get_AnnealSchedule_class(AnnealConfig):

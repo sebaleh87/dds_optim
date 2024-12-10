@@ -27,7 +27,7 @@ class LogVariance_Loss_Class(Base_SDE_Loss_Class):
         x_last = jax.lax.stop_gradient(SDE_tracer["x_final"])
         x_dim = x_last.shape[-1]
         
-        log_prior = jnp.sum(self.vmap_get_log_prior(SDE_params, x_prior), axis = -1)
+        log_prior = self.vmap_get_log_prior(SDE_params, x_prior)
         mean_log_prior = jnp.mean(log_prior)
 
         Energy, key = self.EnergyClass.vmap_calc_energy(x_last, Energy_params, key)

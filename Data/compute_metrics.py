@@ -1,5 +1,6 @@
 import numpy as np
 import ot
+import re
 
 def wasserstein_distance_w2(samples1, samples2, weights1=None, weights2=None):
     """
@@ -48,14 +49,29 @@ if __name__ == "__main__":
     split = [ "val", "test"]
     datasets = ["DW4", "LJ13-1000", "LJ55-1000-part1"]
     for el in datasets:
+
+        match = re.search(r'\d+', el)
+        if match:
+            n_paricles = int(match.group())
+        else:
+            raise ValueError(f"No number found in string: {el}")
         datas = []
         for s in split:
             split_el = np.load(f'/system/user/publicwork/sanokows/Denoising_diff_sampler/Data/{s}_split_{el}.npy')
             print(f"Loaded {s} with shape: {split_el.shape}")
+
+            samples = split_el.reshape((split_el.shape[0], n_paricles, -1))
+            #print(samples)
+            #print("mean", np.mean(samples, axis = 0), np.var(samples, axis = 0), np.mean(split_el[:,0:-1:2], axis = 0))
+
+            com_samples = samples - np.mean(samples, axis = 1, keepdims=True)
+            #print(samples)
+            print(el, "com mean", np.mean(np.mean(com_samples, axis = 0), axis = 0), np.mean(np.var(com_samples, axis = 0), axis = 0))
+
             datas.append(split_el)
 
-        d1 = datas[0]
-        d2 = datas[1]
-        print("computing distance", el)
-        print(wasserstein_distance_w2(d1, d1))
-        print(wasserstein_distance_w2(d1, d2))
+        # d1 = datas[0]
+        # d2 = datas[1]
+        # print("computing distance", el)
+        # print(wasserstein_distance_w2(d1, d1))
+        # print(wasserstein_distance_w2(d1, d2))
