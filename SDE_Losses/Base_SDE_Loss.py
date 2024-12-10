@@ -135,11 +135,12 @@ class Base_SDE_Loss_Class:
         return shifted_samples
 
     @partial(jax.jit, static_argnums=(0,), static_argnames=("n_integration_steps", "n_states"))
-    def simulate_reverse_sde_scan(self, params, Energy_params, SDE_params, key, n_states = 100, n_integration_steps = 1000):
+    def simulate_reverse_sde_scan(self, params, Energy_params, SDE_params, key, n_states = 100, n_integration_steps = 1000):    #TODO change name! this one also applies scaling!
         SDE_tracer, key = self.SDE_type.simulate_reverse_sde_scan(self.model, params, Energy_params, SDE_params, key, n_states = n_states, x_dim = self.EnergyClass.dim_x, n_integration_steps = n_integration_steps)
-        loss, out_dict = self.evaluate_loss(Energy_params, SDE_params, SDE_tracer, key)
-        key, subkey = jax.random.split(key)
+        loss, out_dict = self.evaluate_loss(Energy_params, SDE_params, SDE_tracer, key)     #TODO add not implemented template class for self.evaluate_loss
+        key, subkey = jax.random.split(key)                                                 
         batched_key = jax.random.split(subkey, n_states)
+        #TODO really want to scale the output for eval?
         SDE_tracer["ys"] = jax.vmap(jax.vmap(self.shift_samples, in_axes=(0, None,0)), in_axes=(0, None, None))(SDE_tracer["xs"], Energy_params, batched_key)
         SDE_tracer["y_final"] = jax.vmap(self.shift_samples, in_axes=(0,None, 0))(SDE_tracer["x_final"], Energy_params, batched_key)
         return SDE_tracer, out_dict, key
