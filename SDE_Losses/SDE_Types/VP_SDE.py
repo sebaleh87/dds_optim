@@ -25,7 +25,7 @@ class VP_SDE_Class(Base_SDE_Class):
         else:
             overall_covar = self.return_prior_covar(SDE_params)
             #return jax.random.multivariate_normal(random.PRNGKey(0), mean, jnp.diag(overall_sigma**2), x.shape[0])
-            log_pdf = jax.scipy.stats.multivariate_normal.pdf(x, mean, overall_covar)
+            log_pdf = jax.scipy.stats.multivariate_normal.logpdf(x, mean, overall_covar)
             #return jax.scipy.stats.norm.logpdf(x, loc=mean, scale=overall_sigma) 
             return log_pdf
 
@@ -64,7 +64,7 @@ class VP_SDE_Class(Base_SDE_Class):
             SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"])* jnp.ones((self.dim_x,)), 
                         "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
                         "log_sigma": jnp.log(1)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)), 
-                        "B": jnp.ones((self.dim_x, self.dim_x))
+                        "B": -10*jnp.ones((self.dim_x, self.dim_x))
                         }
         return SDE_params
     
