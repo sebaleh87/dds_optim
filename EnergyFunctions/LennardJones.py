@@ -7,7 +7,7 @@ from functools import partial
 from jax.scipy.special import logsumexp
 
 
-class LeonardJonesClass(EnergyModelClass):
+class LennardJonesClass(EnergyModelClass):
     def __init__(self, config):
         """
         Initialize the Gaussian Mixture Model.

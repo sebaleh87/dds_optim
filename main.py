@@ -62,7 +62,7 @@ parser.add_argument("--model_seed", type=int, default=0, help="Seed used for mod
 
 #energy function specific args
 parser.add_argument("--Pytheus_challenge", type=int, default=1, choices=[0,1,2,3,4,5], help="Pyhteus Chellange Index")
-parser.add_argument("--Scaling_factor", type=int, default=1, choices=[0,1,2,3,4,5], help="Pyhteus Chellange Index")
+parser.add_argument("--Scaling_factor", type=float, default=1.0, help="Scaling factor for Energy Functions")
 
 args = parser.parse_args()
 
@@ -70,9 +70,12 @@ if(__name__ == "__main__"):
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   # see issue #152
     if args.GPU !=-1:                              # GPU -1 means select GPU via env var in command line
         os.environ["CUDA_VISIBLE_DEVICES"]=f"{str(args.GPU)}"
+
     #disable JIT compilation
+
     if(args.disable_jit):
         jax.config.update("jax_disable_jit", True)
+
     # if(args.lr/args.SDE_lr  < 5):
     #     print("Warning: args.lr/args.SDE_lr  < 5, emperically this ratio is too high")
 
@@ -186,6 +189,24 @@ if(__name__ == "__main__"):
             "weights": [1/num_gaussians for i in range(num_gaussians)],
             
         }
+    elif(args.Energy_Config == "GaussianMixture"):
+        torch.manual_seed(0)
+        #np.random.seed(42)
+        dim = 2
+        num_gaussians = 40
+        x_min = -40
+        x_max = 40
+        mean = (torch.rand((num_gaussians, dim)) - 0.5)*2
+        log_var = torch.ones((num_gaussians, dim))
+
+        #rand_func = lambda x: np.random.uniform(x_min, x_max, 2)
+        Energy_Config = {
+            "name": "GaussianMixture",
+            "dim_x": 2,
+            "means": mean,
+            "variances": np.exp(log_var),
+            "weights": [1/num_gaussians for i in range(num_gaussians)],
+        }
     elif(args.Energy_Config == "Rastrigin"):
         Energy_Config = {
             "name": "Rastrigin",
@@ -205,7 +226,7 @@ if(__name__ == "__main__"):
         }
         n_eval_samples = 10000
 
-    elif("LeonardJones" in args.Energy_Config):
+    elif("LennardJones" in args.Energy_Config):
         Network_Config["base_name"] = "EGNN"
         N = 13
         out_dim = 3
@@ -258,6 +279,7 @@ if(__name__ == "__main__"):
     
     else:
         raise ValueError("Energy Config not found")
+    Energy_Config["scaling"] = args.Scaling_factor
 
     Anneal_Config = {
         "name": args.AnnealSchedule,
