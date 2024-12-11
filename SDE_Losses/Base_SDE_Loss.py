@@ -44,7 +44,6 @@ class Base_SDE_Loss_Class:
             self.update_params = self.update_params_DKL
         else:
             raise ValueError("Unknown update mode")
-
         ### TODO make initial forward pass
         ## initialize moving averages
     
@@ -90,6 +89,8 @@ class Base_SDE_Loss_Class:
         if not self.Optimizer_Config["learn_beta_min_max"]:
             SDE_params["log_beta_min"] = jnp.log(self.SDE_type.config["beta_min"])*jnp.ones_like(SDE_params["log_beta_min"])
             SDE_params["log_beta_delta"] = jnp.log(self.SDE_type.config["beta_max"])*jnp.ones_like(SDE_params["log_beta_delta"])
+	#else:
+	 #   SDE_params["log_beta_min"] = jnp.log(self.SDE_type.config["beta_min"])*jnp.ones_like(SDE_params["log_beta_min"])		
         
         return params, Energy_params, SDE_params, opt_state, Energy_params_state, SDE_params_state, loss_value, out_dict
 

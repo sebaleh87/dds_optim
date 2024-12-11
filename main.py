@@ -29,6 +29,9 @@ parser.add_argument("--Energy_lr", type=float, default=0.0)
 parser.add_argument("--SDE_lr", type=float, default=10**-5)
 parser.add_argument("--learn_beta_min_max", type=bool, default=False, help="learn beta min and max, lin interp in-between")
 
+parser.add_argument("--learn_covar", type=bool, default=False, help="learn additional covar of target")
+parser.add_argument("--sigma_init", type=float, default=1., help="init value of sigma")
+
 parser.add_argument("--N_anneal", type=int, default=1000)
 parser.add_argument("--N_warmup", type=int, default=0)
 parser.add_argument("--steps_per_epoch", type=int, default=100)
@@ -119,7 +122,9 @@ if(__name__ == "__main__"):
             "use_interpol_gradient": args.use_interpol_gradient,
             "n_integration_steps": args.n_integration_steps,
             "SDE_weightening": args.SDE_weightening,
-            "use_normal": args.use_normal
+            "use_normal": args.use_normal,
+            "learn_covar": args.learn_covar,
+            "sigma_init": args.sigma_init,
         }
         
         SDE_Loss_Config = {
@@ -128,7 +133,7 @@ if(__name__ == "__main__"):
             "batch_size": args.batch_size,
             "n_integration_steps": args.n_integration_steps,
             "minib_time_steps": args.minib_time_steps,
-            "update_params_mode": args.update_params_mode
+            "update_params_mode": args.update_params_mode,
             
         }
 
