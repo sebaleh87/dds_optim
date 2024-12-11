@@ -24,12 +24,14 @@ class EnergyModelClass:
         self.latent_dim = self.dim_x
         self.levels = 100
         self.invariance = False
+        self.scaling = self.config["scaling"]*jnp.ones((self.dim_x))
         ### TODO define plot range here
 
+    #TODO why needed?
     def init_EnergyParams(self):
         return {"log_var_x": jnp.log(1.)*jnp.ones((self.dim_x))}
 
-    def energy_function(self, x):
+    def energy_function(self, x):       #TODO: check if jit pays off 
         """
         This method should be overridden by subclasses to define
         the specific energy function.
@@ -48,8 +50,7 @@ class EnergyModelClass:
         return energy_value, key
     
     def scale_samples(self, diff_samples, energy_params, key):
-        sigma = jnp.exp(energy_params["log_var_x"])
-        Y = sigma*diff_samples
+        Y = diff_samples/self.scaling
         return Y, key
 
 
@@ -58,7 +59,7 @@ class EnergyModelClass:
         Calculate the log probabilities, where T is the temperature.
         log_probs = -1/T * energy(x)
         """
-        energy = self.energy_function(x)
+        energy, _ = self.calc_energy(x, None, None)
         return -1.0 / T * energy
     
     def plot_properties(self):
