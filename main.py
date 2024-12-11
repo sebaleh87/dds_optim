@@ -12,8 +12,8 @@ parser = argparse.ArgumentParser(description="Denoising Diffusion Sampler")
 parser.add_argument("--GPU", type=int, default=6, help="GPU id to use")
 parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=["Reverse_KL_Loss","LogVariance_Loss", "LogVariance_Loss_MC", "LogVariance_Loss_with_grad", "LogVariance_Loss_weighted",
                                                                                 "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam"], help="select loss function")
-parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE", "VE_SDE"], help="GPU id to use")
-parser.add_argument("--Energy_Config", type=str, default="LeonardJones", choices=["GaussianMixture", "Rastrigin", "LeonardJones", "DoubleWell_iter", "DoubleWell_Richter",
+parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE", "VE_SDE", "VP_SDE_working"], help="GPU id to use")
+parser.add_argument("--Energy_Config", type=str, default="LeonardJones", choices=["GaussianMixture", "GaussianMixtureToy", "Rastrigin", "LeonardJones", "DoubleWell_iter", "DoubleWell_Richter",
                                                                                      "MexicanHat", "Pytheus", "WavePINN_latent", "WavePINN_hyperparam", "DoubleMoon"], help="EnergyClass")
 parser.add_argument("--T_start", type=float, default=1., help="Starting Temperature")
 parser.add_argument("--T_end", type=float, default=0., help="End Temperature")
@@ -142,7 +142,29 @@ if(__name__ == "__main__"):
 
     n_eval_samples = 10000
     ### TODO implement different scales
-    if(args.Energy_Config == "GaussianMixture"):
+    if(args.Energy_Config == "GaussianMixtureToy"):
+        torch.manual_seed(0)
+        #np.random.seed(42)
+        dim = 2
+        num_gaussians = 1
+        x_min = -1
+        x_max = 1
+        loc_scaling = 1
+        log_var_scaling = 0.1
+
+        mean = (torch.rand((num_gaussians, dim)) - 0.5)*2 * loc_scaling
+        log_var = torch.ones((num_gaussians, dim)) * log_var_scaling
+
+        #rand_func = lambda x: np.random.uniform(x_min, x_max, 2)
+        Energy_Config = {
+            "name": "GaussianMixture",
+            "dim_x": 2,
+            "means": mean,
+            "variances": np.exp(log_var),
+            "weights": [1/num_gaussians for i in range(num_gaussians)],
+            
+        }
+    elif(args.Energy_Config == "GaussianMixture"):
         torch.manual_seed(0)
         #np.random.seed(42)
         dim = 2

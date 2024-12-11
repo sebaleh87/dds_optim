@@ -22,7 +22,7 @@ class Reverse_KL_Loss_Class(Base_SDE_Loss_Class):
         x_prior = SDE_tracer["x_prior"]
         x_last = SDE_tracer["x_final"]
 
-        log_prior = self.vmap_get_log_prior(SDE_params, x_prior)
+        log_prior = jnp.sum(self.vmap_get_log_prior(SDE_params, x_prior), axis = -1)
         #print("log_prior", log_prior.shape, x_prior.shape)
         mean_log_prior = jnp.mean(log_prior)
 
