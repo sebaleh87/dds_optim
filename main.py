@@ -32,6 +32,8 @@ parser.add_argument("--learn_beta_min_max", type=bool, default=False, help="lear
 parser.add_argument("--learn_covar", type=bool, default=False, help="learn additional covar of target")
 parser.add_argument("--sigma_init", type=float, default=1., help="init value of sigma")
 
+parser.add_argument("--disable_jit", type=bool, default=False, help="learn additional covar of target")
+
 parser.add_argument("--N_anneal", type=int, default=1000)
 parser.add_argument("--N_warmup", type=int, default=0)
 parser.add_argument("--steps_per_epoch", type=int, default=100)
@@ -69,7 +71,8 @@ if(__name__ == "__main__"):
     if args.GPU !=-1:                              # GPU -1 means select GPU via env var in command line
         os.environ["CUDA_VISIBLE_DEVICES"]=f"{str(args.GPU)}"
     #disable JIT compilation
-    #jax.config.update("jax_disable_jit", True)
+    if(args.disable_jit):
+        jax.config.update("jax_disable_jit", True)
     # if(args.lr/args.SDE_lr  < 5):
     #     print("Warning: args.lr/args.SDE_lr  < 5, emperically this ratio is too high")
 
