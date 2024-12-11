@@ -119,11 +119,11 @@ class TrainerClass:
         wandb.log({f"fig/Trajectory Plot {rot}": wandb.Image(fig)})  # Log the single figure with subplots to Weights & Biases
         plt.close(fig)  # Close the figure after logging
 
-        print("Rotated scores", rotated_scores)
+        print("output scores (should be invariant)")
         for el in rotated_scores:
             print(el.reshape((batch_size, self.EnergyClass.n_particles, self.EnergyClass.particle_dim)))
 
-        print("Unrotated scores")
+        print("backrotated scores (should be different)")
         for el in unrotated_scores:
             print(el)
 

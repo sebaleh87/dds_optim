@@ -20,14 +20,14 @@ class VE_SDE_Class(Base_SDE_Class):
             ### if beta is learnable this also ahs to be dim(1)
             SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"])* jnp.ones((self.dim_x,)), 
             "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
-            "log_sigma": jnp.log(1), "mean": jnp.zeros((self.dim_x,)), 
-            "log_sigma_t": jnp.log(1.)}
+            "log_sigma": jnp.log(self.sigma_init), "mean": jnp.zeros((self.dim_x,)), 
+            "log_sigma_t": jnp.log(10**-5)}
 
         else:
             SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"])* jnp.ones((self.dim_x,)), 
                         "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
-                        "log_sigma": jnp.log(1)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)), 
-                         "B": -10*jnp.ones((self.dim_x,self.dim_x)) + jnp.diag((jnp.log(1.)+10.)*jnp.ones((self.dim_x,)))}
+                        "log_sigma": jnp.log(self.sigma_init)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)), 
+                         "B": -10*jnp.ones((self.dim_x,self.dim_x)) + jnp.diag((jnp.log(self.sigma_init)+10.)*jnp.ones((self.dim_x,)))}
         return SDE_params
 
     def get_mean_prior(self, SDE_params):
@@ -85,33 +85,42 @@ class VE_SDE_Class(Base_SDE_Class):
         return x_prior, key
     
     def return_prior_covar(self, SDE_params):
-        if(self.invariance):
-            sigma, sigma_t = self.get_SDE_sigma(SDE_params)
-            alpha = self.beta_int(SDE_params, 1)
-            overall_sigma = jnp.sqrt(2*sigma**2*alpha + sigma_t**2)
-            return overall_sigma
+        if(self.learn_covar):
+            if(self.invariance):
+                sigma, sigma_t = self.get_SDE_sigma(SDE_params)
+                alpha = self.beta_int(SDE_params, 1)
+                overall_sigma = jnp.sqrt(2*sigma**2*alpha + sigma_t**2)
+                return overall_sigma
+            else:
+                sigma, covar = self.get_SDE_sigma(SDE_params)
+                alpha = self.beta_int(SDE_params, 1)
+                factor = alpha[:, None] + alpha[None, :]
+                overall_covar = factor*jnp.diag(sigma**2) + covar
+                return overall_covar
         else:
-            sigma, covar = self.get_SDE_sigma(SDE_params)
-            alpha = self.beta_int(SDE_params, 1)
-            factor = alpha[:, None] + alpha[None, :]
-            overall_covar = covar#factor*jnp.diag(sigma**2) + covar
-            # print("B", jax.lax.stop_gradient(jnp.exp(SDE_params["B"])))
-            # print("covar", jax.lax.stop_gradient(covar))
-            # print("overall_covar", jax.lax.stop_gradient(overall_covar), jax.lax.stop_gradient(sigma), jax.lax.stop_gradient(factor), jax.lax.stop_gradient(alpha))
-
-            return overall_covar
+            if(self.invariance):
+                sigma, sigma_t = self.get_SDE_sigma(SDE_params)
+                alpha = self.beta_int(SDE_params, 1)
+                overall_sigma = jnp.sqrt(2*sigma**2*alpha )
+                return overall_sigma
+            else:
+                sigma, covar = self.get_SDE_sigma(SDE_params)
+                alpha = self.beta_int(SDE_params, 1)
+                factor = alpha[:, None] + alpha[None, :]
+                overall_covar = factor*jnp.diag(sigma**2) 
+                return overall_covar
 
     def beta_int(self, SDE_params, t):
         beta_delta = jnp.exp(SDE_params["log_beta_delta"])
         beta_min = jnp.exp(SDE_params["log_beta_min"])
         beta_max = beta_min + beta_delta
-        return beta_min*((beta_max/beta_min)**t-1)/(jnp.log(beta_max)- jnp.log(beta_min)) ### TODO chekc this factor 0.5
+        return 0.5*(beta_min*((beta_max/beta_min)**t))**2 ### TODO chekc this factor 0.5
 
     def beta(self, SDE_params, t):
         beta_delta = jnp.exp(SDE_params["log_beta_delta"])
         beta_min = jnp.exp(SDE_params["log_beta_min"])
         beta_max = beta_min + beta_delta
-        return beta_min*(beta_max/beta_min)**t ### TODO chekc this factor 0.5
+        return (beta_min*(beta_max/beta_min)**t)**2*(jnp.log(beta_max) - jnp.log(beta_min)) ### TODO chekc this factor 0.5
 
 
     def interpol_func(self, x, t, SDE_params, Energy_params, key):

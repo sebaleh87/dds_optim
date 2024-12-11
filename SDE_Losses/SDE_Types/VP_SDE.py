@@ -20,8 +20,9 @@ class VP_SDE_Class(Base_SDE_Class):
         #print("VP_SDE", x.shape, mean.shape, sigma.shape)
         if(self.invariance):
             overall_sigma = self.return_prior_covar(SDE_params)
-            log_pdf_vec = jax.scipy.stats.norm.logpdf(x, loc=mean, scale=overall_sigma) + 0.5*jnp.log(2 * jnp.pi * overall_sigma)/sigma.shape[0]*self.Energy_Class.particle_dim
+            log_pdf_vec = jax.scipy.stats.norm.logpdf(x, loc=mean, scale=overall_sigma) + 0.5*jnp.log(2 * jnp.pi * overall_sigma)/overall_sigma.shape[0]*self.Energy_Class.particle_dim
             log_pdf_vec = jnp.sum(log_pdf_vec, axis = -1)
+            return log_pdf_vec
         else:
             overall_covar = self.return_prior_covar(SDE_params)
             #return jax.random.multivariate_normal(random.PRNGKey(0), mean, jnp.diag(overall_sigma**2), x.shape[0])
@@ -41,20 +42,27 @@ class VP_SDE_Class(Base_SDE_Class):
         return x_prior, key
     
     def return_prior_covar(self, SDE_params):
-        if(self.invariance):
-            sigma, sigma_t = self.get_SDE_sigma(SDE_params)
-            overall_sigma = jnp.sqrt(self.beta_int(SDE_params, 1)*(sigma_t**2 - sigma**2) + sigma**2)
-            return overall_sigma
-        else:
-            sigma, covar = self.get_SDE_sigma(SDE_params)
-            alpha = self.beta_int(SDE_params, 1)
-            factor = jnp.exp(-alpha)[:,None]*jnp.exp(-alpha)[None, :]
-            overall_covar = covar#factor*(covar - jnp.diag(sigma)**2) + jnp.diag(sigma)**2
+        if(self.learn_covar):
+            if(self.invariance):
+                sigma, sigma_t = self.get_SDE_sigma(SDE_params)
+                overall_sigma = jnp.sqrt(self.beta_int(SDE_params, 1)*(sigma_t**2 - sigma**2) + sigma**2)
+                return overall_sigma
+            else:
+                sigma, covar = self.get_SDE_sigma(SDE_params)
+                alpha = self.beta_int(SDE_params, 1)
+                factor = jnp.exp(-alpha)[:,None]*jnp.exp(-alpha)[None, :]
+                overall_covar = factor*(covar - jnp.diag(sigma)**2) + jnp.diag(sigma)**2
 
-            # print("B", jax.lax.stop_gradient(jnp.exp(SDE_params["B"])))
-            # print("covar", jax.lax.stop_gradient(covar))
-            # print("overall_covar", jax.lax.stop_gradient(overall_covar), jax.lax.stop_gradient(sigma), jax.lax.stop_gradient(factor), jax.lax.stop_gradient(alpha))
-            return overall_covar
+                return overall_covar
+        else:
+            if(self.invariance):
+                sigma, sigma_t = self.get_SDE_sigma(SDE_params)
+                overall_sigma = sigma
+                return overall_sigma
+            else:
+                sigma, covar = self.get_SDE_sigma(SDE_params)
+                overall_covar = jnp.diag(sigma)**2
+                return overall_covar
 
     
     def get_SDE_params(self):
@@ -62,14 +70,14 @@ class VP_SDE_Class(Base_SDE_Class):
         if(self.invariance):
             SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"])* jnp.ones((self.dim_x,)), 
             "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
-            "log_sigma": jnp.log(1), "mean": jnp.zeros((self.dim_x,)), "mean_target": jnp.zeros((self.dim_x,)),
-            "log_sigma_t": jnp.log(1.)}
+            "log_sigma": jnp.log(self.sigma_init), "mean": jnp.zeros((self.dim_x,)), "mean_target": jnp.zeros((self.dim_x,)),
+            "log_sigma_t": jnp.log(10**-5)}
 
         else:
             SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"])* jnp.ones((self.dim_x,)), 
                         "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
-                        "log_sigma": jnp.log(1)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)),  "mean_target": jnp.zeros((self.dim_x,)),
-                        "B": -10*jnp.ones((self.dim_x,self.dim_x)) + jnp.diag((jnp.log(1.)+10.)*jnp.ones((self.dim_x,)))
+                        "log_sigma": jnp.log(self.sigma_init)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)),  "mean_target": jnp.zeros((self.dim_x,)),
+                        "B": -10*jnp.ones((self.dim_x,self.dim_x)) + jnp.diag((jnp.log(self.sigma_init)+10.)*jnp.ones((self.dim_x,)))
                         }
         return SDE_params
     
@@ -88,7 +96,7 @@ class VP_SDE_Class(Base_SDE_Class):
             mean = SDE_params["mean"]
             mean_target = SDE_params["mean_target"]
         alpha = self.beta_int(SDE_params, 1)
-        overall_mean = mean_target #(1- jnp.exp(- alpha))*mean + jnp.exp(- alpha)*mean_target
+        overall_mean = (1- jnp.exp(- alpha))*mean + jnp.exp(- alpha)*mean_target
         return overall_mean
 
     def get_SDE_sigma(self, SDE_params):

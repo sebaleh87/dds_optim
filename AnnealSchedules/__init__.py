@@ -5,7 +5,7 @@ from .ExpSchedule import ExpScheduleClass
 
 AnnealSchedule_registry = {
     "Linear": LinearSchedule,
-    "ExpSchedule": ExpScheduleClass,
+    "Exp": ExpScheduleClass,
 }
 
 def get_AnnealSchedule_class(AnnealConfig):

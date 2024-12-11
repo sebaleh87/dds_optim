@@ -19,6 +19,7 @@ parser.add_argument("--T_start", type=float, default=1., help="Starting Temperat
 parser.add_argument("--T_end", type=float, default=0., help="End Temperature")
 parser.add_argument("--n_integration_steps", type=int, default=100)
 parser.add_argument("--SDE_weightening", type=str, default="normal", choices=["normal", "weighted"], help="SDE weightening")
+parser.add_argument("--AnnealSchedule", type=str, default="Linear", choices=["Linear", "Exp"], help="type of anneal schedule")
 parser.add_argument("--project_name", type=str, default="")
 
 parser.add_argument("--minib_time_steps", type=int, default=20)
@@ -27,6 +28,9 @@ parser.add_argument("--lr", type=float, default=0.001)
 parser.add_argument("--Energy_lr", type=float, default=0.0)
 parser.add_argument("--SDE_lr", type=float, default=10**-5)
 parser.add_argument("--learn_beta_min_max", type=bool, default=False, help="learn beta min and max, lin interp in-between")
+
+parser.add_argument("--learn_covar", type=bool, default=False, help="learn additional covar of target")
+parser.add_argument("--sigma_init", type=float, default=1., help="init value of sigma")
 
 parser.add_argument("--N_anneal", type=int, default=1000)
 parser.add_argument("--N_warmup", type=int, default=0)
@@ -120,7 +124,9 @@ if(__name__ == "__main__"):
             "use_interpol_gradient": args.use_interpol_gradient,
             "n_integration_steps": args.n_integration_steps,
             "SDE_weightening": args.SDE_weightening,
-            "use_normal": args.use_normal
+            "use_normal": args.use_normal,
+            "learn_covar": args.learn_covar,
+            "sigma_init": args.sigma_init,
         }
         
         SDE_Loss_Config = {
@@ -129,7 +135,7 @@ if(__name__ == "__main__"):
             "batch_size": args.batch_size,
             "n_integration_steps": args.n_integration_steps,
             "minib_time_steps": args.minib_time_steps,
-            "update_params_mode": args.update_params_mode
+            "update_params_mode": args.update_params_mode,
             
         }
 
@@ -228,7 +234,7 @@ if(__name__ == "__main__"):
     Energy_Config["scaling"] = args.Scaling_factor
 
     Anneal_Config = {
-        "name": "Linear",
+        "name": args.AnnealSchedule,
         "T_start": args.T_start,
         "T_end": args.T_end,
         "N_anneal": args.N_anneal,
