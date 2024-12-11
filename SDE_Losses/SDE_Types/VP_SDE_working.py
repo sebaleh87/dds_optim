@@ -20,9 +20,9 @@ class VP_SDE_working_Class(Base_SDE_Class):
         mean = self.get_SDE_mean(SDE_params)
         #print("VP_SDE", x.shape, mean.shape, sigma.shape)
         if(self.invariance):
-            return jax.scipy.stats.norm.logpdf(x, loc=mean, scale=sigma) + 0.5*jnp.log(2 * jnp.pi * sigma[0])*self.Energy_Class.particle_dim
+            return jnp.sum(jax.scipy.stats.norm.logpdf(x, loc=mean, scale=sigma), axis = -1) + 0.5*jnp.log(2 * jnp.pi * sigma[0])*self.Energy_Class.particle_dim
         else:
-            return jax.scipy.stats.norm.logpdf(x, loc=mean, scale=sigma)
+            return jnp.sum(jax.scipy.stats.norm.logpdf(x, loc=mean, scale=sigma), axis = -1)
 
     def sample_prior(self, SDE_params, key, n_states):
         key, subkey = random.split(key)
@@ -82,7 +82,7 @@ class VP_SDE_working_Class(Base_SDE_Class):
 
     def interpol_func(self, x, t, SDE_params, Energy_params, key):
         Energy_value, key = self.Energy_Class.calc_energy(x, Energy_params, key)
-        interpol = (t)*jnp.sum(self.get_log_prior(SDE_params,x), axis = -1) + (1-t)*Energy_value
+        interpol = (t)*self.get_log_prior(SDE_params,x) + (1-t)*Energy_value
         return interpol, key
 
     ### THIs implements drift and diffusion as in vargas papers
