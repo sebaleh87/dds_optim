@@ -24,7 +24,7 @@ class EGNNNetwork(nn.Module):
         orig_x_shapes = x_0.shape
         orig_h_shapes = h.shape
         x = x.reshape((self.n_particles, self.out_dim))
-        h = jnp.repeat(h[None, :], self.n_particles, axis = -2)
+        h = jnp.repeat(h[None, :], self.n_particles, axis = 0)
 
         for i in range(self.n_layers):
             net = EGNNLayer( hidden_dim = self.hidden_dim, feature_dim = self.feature_dim, n_particles = self.n_particles,out_dim = self.out_dim)
@@ -128,7 +128,12 @@ class EGNNLayer(nn.Module):
         d_net_out = self.net_d(flattened_mass_mat).reshape(self.n_particles, self.n_particles, -1)
         h_next = self.net_h(jnp.concatenate([h, m_transformed_i], axis = -1)) ### concatenate
         #x_next = x + jnp.sum( mask[...,None]*(x[:, None, : ] - x[None, :, :])/(jnp.sqrt(dist_squared[..., None] + 10**-3)+1)*d_net_out, axis = 1)
-        x_next = x + jnp.sum( mask[...,None]*(x[:, None, : ] - x[None, :, :])*d_net_out, axis = 1)
+        delta_x = jnp.sum( mask[...,None]*(x[:, None, : ] - x[None, :, :])*d_net_out, axis = 1)
+        x_next = x + delta_x
         # print("x_next", jax.lax.stop_gradient(jnp.mean(x_next)))
         # print("h_next", jax.lax.stop_gradient(jnp.mean(h_next)))
+        print(delta_x.shape,(mask[...,None]*(x[:, None, : ] - x[None, :, :])*d_net_out).shape, "shapes")
+        # print("averages", jax.lax.stop_gradient(jnp.mean(d_net_out)), jax.lax.stop_gradient(jnp.mean(m_transformed_i)))
+        # print("xs")
+        # print(jax.lax.stop_gradient(jnp.mean(delta_x)), jax.lax.stop_gradient(jnp.mean(x_next)))
         return x_next, h_next
