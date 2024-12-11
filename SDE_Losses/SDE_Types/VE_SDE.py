@@ -114,13 +114,13 @@ class VE_SDE_Class(Base_SDE_Class):
         beta_delta = jnp.exp(SDE_params["log_beta_delta"])
         beta_min = jnp.exp(SDE_params["log_beta_min"])
         beta_max = beta_min + beta_delta
-        return beta_min*((beta_max/beta_min)**t-1)/(jnp.log(beta_max)- jnp.log(beta_min)) ### TODO chekc this factor 0.5
+        return 0.5*(beta_min*((beta_max/beta_min)**t))**2 ### TODO chekc this factor 0.5
 
     def beta(self, SDE_params, t):
         beta_delta = jnp.exp(SDE_params["log_beta_delta"])
         beta_min = jnp.exp(SDE_params["log_beta_min"])
         beta_max = beta_min + beta_delta
-        return beta_min*(beta_max/beta_min)**t ### TODO chekc this factor 0.5
+        return (beta_min*(beta_max/beta_min)**t)**2*(jnp.log(beta_max) - jnp.log(beta_min)) ### TODO chekc this factor 0.5
 
 
     def interpol_func(self, x, t, SDE_params, Energy_params, key):

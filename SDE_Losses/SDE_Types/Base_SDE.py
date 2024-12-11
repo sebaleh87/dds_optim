@@ -37,8 +37,8 @@ class Base_SDE_Class:
 
         self.invariance = self.Energy_Class.invariance
         
-        self.sigma_init = SDE_config["sigma_init"]
-        self.learn_covar = SDE_config["learn_covar"]
+        self.sigma_init = config["sigma_init"]
+        self.learn_covar = config["learn_covar"]
 
     def weightening(self, t):
         SDE_params = self.get_SDE_params()
