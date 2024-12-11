@@ -164,7 +164,7 @@ class VP_SDE_Class(Base_SDE_Class):
         return - self.beta(SDE_params, t)[None, :] * (x-mean[None, :])
     
     def get_div_drift(self, SDE_params, t):
-        return - self.beta(SDE_params, t)
+        return self.beta(SDE_params, t)
     
     def get_diffusion(self, SDE_params, x, t):
         sigma, _ = self.get_SDE_sigma(SDE_params)
