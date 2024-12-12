@@ -39,7 +39,7 @@ class VP_SDE_Class(Base_SDE_Class):
         if(self.invariance):
             overall_sigma = self.return_prior_covar(SDE_params)
             x_prior = random.normal(subkey, shape=(n_states, self.dim_x))*overall_sigma[None, :] + prior_mean[None, :]
-        if(not self.learn_covar):
+        elif(not self.learn_covar):
             prior_sigma = self.return_prior_covar(SDE_params)
             x_prior = random.normal(subkey, shape=(n_states, self.dim_x))*prior_sigma[None, :] + prior_mean[None, :]
         else:
@@ -97,15 +97,17 @@ class VP_SDE_Class(Base_SDE_Class):
         if(self.invariance):
             mean = jnp.zeros((self.dim_x,))
             mean_target = jnp.zeros((self.dim_x,))
-        else:
+            overall_mean = mean
+            return overall_mean
+        if(self.learn_covar):
             mean = SDE_params["mean"]
             mean_target = SDE_params["mean_target"]
-        if(self.learn_covar):
             alpha = self.beta_int(SDE_params, 1)
             overall_mean = (1- jnp.exp(- alpha))*mean + jnp.exp(- alpha)*mean_target
+            return overall_mean
         else:
             overall_mean = SDE_params["mean"]
-        return overall_mean
+            return overall_mean
 
     def get_SDE_sigma(self, SDE_params):
         if(self.invariance):

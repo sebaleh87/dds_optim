@@ -57,7 +57,7 @@ class TrainerClass:
     def _test_invariance(self):
         key = jax.random.PRNGKey(0)
         batch_size = 1
-        x_init = jax.random.normal(key, (batch_size,self.dim_x ))
+        x_init = 2*jax.random.normal(key, (batch_size,self.dim_x ))
         
         x_init_resh = x_init.reshape((batch_size, self.EnergyClass.n_particles, self.EnergyClass.particle_dim))
         x_COM = jnp.mean(x_init_resh, axis = 1, keepdims=True)
@@ -74,8 +74,10 @@ class TrainerClass:
             x_centered_rot = jax.vmap(jax.vmap(rotate_vector, in_axes=(0, None)), in_axes=(0, None))(x_centered_resh, rot)
             x_centered_resh_rot =  x_centered_rot.reshape((batch_size, self.dim_x)) 
 
-            grad_init = jnp.ones((batch_size,self.dim_x,))
-            Energy_value = jnp.zeros((batch_size,1))
+            vmap_energy, vmap_grad, key = self.SDE_LossClass.SDE_type.vmap_prior_target_grad_interpolation(x_centered_resh_rot, 0., self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, key)
+
+            grad_init = vmap_grad
+            Energy_value = vmap_energy
             init_carry = jnp.zeros(( batch_size, self.Network_Config["n_hidden"],))
             in_dict = {"x": x_centered_resh_rot, "Energy_value": Energy_value,  "t": jnp.ones((batch_size, 1,)), "grads": grad_init, "hidden_state": [(init_carry, init_carry) for i in range(self.Network_Config["n_layers"])]}
             out_dict = self.model.apply(self.params, in_dict, train = True)
@@ -120,11 +122,11 @@ class TrainerClass:
             wandb.log({f"fig/Trajectory Plot {rot}": wandb.Image(fig)})  # Log the single figure with subplots to Weights & Biases
             plt.close(fig)  # Close the figure after logging
 
-        print("output scores (should be invariant)")
+        print("output scores (should be different)")
         for el in rotated_scores:
             print(el.reshape((batch_size, self.EnergyClass.n_particles, self.EnergyClass.particle_dim)))
 
-        print("backrotated scores (should be different)")
+        print("backrotated scores (should be invariant)")
         for el in unrotated_scores:
             print(el)
 
@@ -133,7 +135,7 @@ class TrainerClass:
         for el in unrotated_final_samples:
             print(el)
 
-        raise ValueError("Check if scores are invariant to rotations")
+        #raise ValueError("Check if scores are invariant to rotations")
 
 
     def _init_wandb(self):
@@ -228,6 +230,7 @@ class TrainerClass:
             best_metric_ever = best_metric_value
 
             param_dict = self.SDE_LossClass.get_param_dict(params)
+            ### TODO SDE paramters should also be saved!
             self.save_params_and_config(param_dict, self.config, filename=f"best_{metric_name}_checkpoint.pkl")
             if(figs != None):
                 wandb.log(figs, step=epoch+1)

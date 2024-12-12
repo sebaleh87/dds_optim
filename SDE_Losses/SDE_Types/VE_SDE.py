@@ -83,7 +83,7 @@ class VE_SDE_Class(Base_SDE_Class):
         if(self.invariance):
             overall_sigma = self.return_prior_covar(SDE_params)
             x_prior = random.normal(subkey, shape=(n_states, self.dim_x))*overall_sigma[None, :] + prior_mean[None, :]
-        if(not self.learn_covar):
+        elif(not self.learn_covar):
             prior_sigma = self.return_prior_covar(SDE_params)
             x_prior = random.normal(subkey, shape=(n_states, self.dim_x))*prior_sigma[None, :] + prior_mean[None, :]
         else:
