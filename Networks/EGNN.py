@@ -31,7 +31,8 @@ class EGNNNetwork(nn.Module):
             x, h = net(x, h)
 
         x = x.reshape(orig_x_shapes)
-        x_hidden = nn.Dense(self.out_dim, kernel_init=nn.initializers.he_normal())(h)
+        x_hidden = nn.Dense(1, kernel_init=nn.initializers.he_normal())(h)
+        x_hidden = jnp.repeat(x_hidden, self.out_dim, axis = -1)
         x_hidden = x_hidden.reshape(orig_x_shapes)
         out_dict = {"x": x-x_0,  "x_hidden": x_hidden}
         return out_dict
@@ -83,7 +84,7 @@ class EGNNLayer(nn.Module):
                                  bias_init=nn.initializers.zeros),
             nn.LayerNorm(),
             nn.silu,
-            nn.Dense(self.out_dim, kernel_init=nn.initializers.he_normal(),
+            nn.Dense(1, kernel_init=nn.initializers.he_normal(),
                                  bias_init=nn.initializers.zeros),
             nn.silu        ]
         )
@@ -128,11 +129,13 @@ class EGNNLayer(nn.Module):
         d_net_out = self.net_d(flattened_mass_mat).reshape(self.n_particles, self.n_particles, -1)
         h_next = self.net_h(jnp.concatenate([h, m_transformed_i], axis = -1)) ### concatenate
         #x_next = x + jnp.sum( mask[...,None]*(x[:, None, : ] - x[None, :, :])/(jnp.sqrt(dist_squared[..., None] + 10**-3)+1)*d_net_out, axis = 1)
-        delta_x = jnp.sum( mask[...,None]*(x[:, None, : ] - x[None, :, :])*d_net_out, axis = 1)
+        delta_x = jnp.sum( mask[...,None]*(x[:, None, : ] - x[None, :, :])*d_net_out, axis = -2)
         x_next = x + delta_x
         # print("x_next", jax.lax.stop_gradient(jnp.mean(x_next)))
         # print("h_next", jax.lax.stop_gradient(jnp.mean(h_next)))
-        print(delta_x.shape,(mask[...,None]*(x[:, None, : ] - x[None, :, :])*d_net_out).shape, "shapes")
+        # print(delta_x.shape,((x[:, None, : ] - x[None, :, :])*d_net_out).shape, mask[...,None].shape, "shapes")
+        # print(d_net_out.shape,(x[:, None, : ] - x[None, :, :]).shape,  "d_net_out")
+        # print(jax.lax.stop_gradient(d_net_out))
         # print("averages", jax.lax.stop_gradient(jnp.mean(d_net_out)), jax.lax.stop_gradient(jnp.mean(m_transformed_i)))
         # print("xs")
         # print(jax.lax.stop_gradient(jnp.mean(delta_x)), jax.lax.stop_gradient(jnp.mean(x_next)))

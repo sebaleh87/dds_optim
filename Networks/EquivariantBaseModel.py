@@ -53,8 +53,8 @@ class EGNNBaseClass(nn.Module):
 
     
         
-        grad_score = h_score * jnp.clip(grads, -10**2, 10**2) #* nn.softplus(interpolated_grad) 
-        correction_grad_score = x_score#+ grad_score
+        grad_score = h_score * grads/jnp.linalg.norm(grads)#jnp.clip(grads, -10**2, 10**2) #* nn.softplus(interpolated_grad) 
+        correction_grad_score = x_score+ grad_score
         score = jnp.clip(correction_grad_score, -10**4, 10**4 )
 
         out_dict["score"] = score
