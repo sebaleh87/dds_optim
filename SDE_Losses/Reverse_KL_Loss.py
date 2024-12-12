@@ -33,7 +33,7 @@ class Reverse_KL_Loss_Class(Base_SDE_Loss_Class):
         drift_divergence = self.vmap_drift_divergence( SDE_params, ts)[:,None, :]
         #print("shapes", score.shape, diff_factor.shape, drift_divergence.shape)
         U = diff_factor*score
-        f = (1/2*jnp.sum( ( U)**2, axis = -1) - jnp.sum(drift_divergence, axis = -1))
+        f = (1/2*jnp.sum( ( U)**2, axis = -1) + jnp.sum(drift_divergence, axis = -1))
         
         S = jnp.sum(jnp.sum(U * dW, axis = -1), axis = 0)
         R_diff = jnp.sum(dts*f  , axis = 0)

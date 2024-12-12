@@ -25,16 +25,12 @@ class VP_SDE_Class(Base_SDE_Class):
             return log_pdf
         if(not self.learn_covar):
             sigma= self.return_prior_covar(SDE_params)
-            #return jax.random.multivariate_normal(random.PRNGKey(0), mean, jnp.diag(overall_sigma**2), x.shape[0])
             log_pdf_vec = jax.scipy.stats.norm.logpdf(x, loc=mean, scale=sigma) 
             log_pdf = jnp.sum(log_pdf_vec, axis = -1)
-            #print("log pdf", log_pdf.shape)
             return log_pdf
         else:
             overall_covar = self.return_prior_covar(SDE_params)
-            #return jax.random.multivariate_normal(random.PRNGKey(0), mean, jnp.diag(overall_sigma**2), x.shape[0])
             log_pdf = jax.scipy.stats.multivariate_normal.logpdf(x, mean, overall_covar)
-            #return jax.scipy.stats.norm.logpdf(x, loc=mean, scale=overall_sigma) 
             return log_pdf
 
     def sample_prior(self, SDE_params, key, n_states):
