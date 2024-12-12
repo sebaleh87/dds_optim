@@ -57,9 +57,6 @@ class EGNNLayer(nn.Module):
                                  bias_init=nn.initializers.zeros),
             nn.LayerNorm(),
             nn.silu,
-            nn.Dense(self.out_dim, kernel_init=nn.initializers.he_normal(),
-                                 bias_init=nn.initializers.zeros),
-            nn.silu
         ]
         )
 
@@ -72,10 +69,6 @@ class EGNNLayer(nn.Module):
                                  bias_init=nn.initializers.zeros),
             nn.LayerNorm(),
             nn.silu,
-
-            nn.Dense(self.out_dim, kernel_init=nn.initializers.he_normal(),
-                                 bias_init=nn.initializers.zeros),
-            nn.silu
                     ]
         )
 

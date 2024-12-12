@@ -9,9 +9,6 @@ class LogVariance_Loss_Class(Base_SDE_Loss_Class):
         super().__init__(SDE_config, Optimizer_Config, EnergyClass, Network_Config, model)
         self.SDE_type.stop_gradient = True
         print("Gradient over expectation is supposed to be stopped from now on")
-        self.vmap_diff_factor = jax.vmap(self.SDE_type.get_diffusion, in_axes=(None, None, 0))
-        self.vmap_drift_divergence = jax.vmap(self.SDE_type.get_div_drift, in_axes = (None, 0))
-        self.vmap_get_log_prior = jax.vmap(self.SDE_type.get_log_prior, in_axes = (None, 0))
 
     @partial(jax.jit, static_argnums=(0,))  
     def evaluate_loss(self, Energy_params, SDE_params, SDE_tracer, key, temp = 1.0):

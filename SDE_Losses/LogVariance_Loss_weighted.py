@@ -12,7 +12,8 @@ class LogVariance_Loss_weighted_Class(Base_SDE_Loss_Class):
         self.vmap_diff_factor = jax.vmap(self.SDE_type.get_diffusion, in_axes=(None, None, 0))
         self.vmap_drift_divergence = jax.vmap(self.SDE_type.beta, in_axes = (None, 0))
         self.vmap_get_log_prior = jax.vmap(self.SDE_type.get_log_prior, in_axes = (None, 0))
-
+        raise NotImplementedError("This class is not up to date")
+    
     @partial(jax.jit, static_argnums=(0,))  
     def evaluate_loss(self, Energy_params, SDE_params, SDE_tracer, key, temp = 1.0):
         score = SDE_tracer["scores"]
