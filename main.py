@@ -65,6 +65,8 @@ parser.add_argument("--model_seed", type=int, default=0, help="Seed used for mod
 #energy function specific args
 parser.add_argument("--Pytheus_challenge", type=int, default=1, choices=[0,1,2,3,4,5], help="Pyhteus Chellange Index")
 parser.add_argument("--Scaling_factor", type=float, default=1.0, help="Scaling factor for Energy Functions")
+parser.add_argument("--Variances", type=float, default=0.05, help="Variances of Gaussian Mixtures before scalling when means ~Unif([-0.5,0.5])")
+
 
 args = parser.parse_args()
 
@@ -175,40 +177,15 @@ if(__name__ == "__main__"):
         #np.random.seed(42)
         dim = 2
         num_gaussians = 40
-        x_min = -40
-        x_max = 40
-        loc_scaling = 40
-        log_var_scaling = 0.1
-
-        mean = (torch.rand((num_gaussians, dim)) - 0.5)*2 * loc_scaling
-        log_var = torch.ones((num_gaussians, dim)) * log_var_scaling
-
-        #rand_func = lambda x: np.random.uniform(x_min, x_max, 2)
-        Energy_Config = {
-            "name": "GaussianMixture",
-            "dim_x": 2,
-            "means": mean,
-            "variances": np.exp(log_var),
-            "weights": [1/num_gaussians for i in range(num_gaussians)],
-            
-        }
-    elif(args.Energy_Config == "GaussianMixture"):
-        torch.manual_seed(0)
-        #np.random.seed(42)
-        dim = 2
-        num_gaussians = 40
-        x_min = -40
-        x_max = 40
         mean = (torch.rand((num_gaussians, dim)) - 0.5)*2
-        log_var = torch.ones((num_gaussians, dim))
-
-        #rand_func = lambda x: np.random.uniform(x_min, x_max, 2)
+        log_var = torch.ones((num_gaussians, dim)) * np.log(args.Variances) 
         Energy_Config = {
             "name": "GaussianMixture",
             "dim_x": 2,
             "means": mean,
-            "variances": np.exp(log_var),
+            "variances": torch.exp(log_var),
             "weights": [1/num_gaussians for i in range(num_gaussians)],
+            "num_modes": num_gaussians
         }
     elif(args.Energy_Config == "Rastrigin"):
         Energy_Config = {

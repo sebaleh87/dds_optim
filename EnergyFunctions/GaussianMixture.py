@@ -1,4 +1,3 @@
-
 from .BaseEnergy import EnergyModelClass
 import jax
 import jax.numpy as jnp
@@ -20,11 +19,12 @@ class GaussianMixtureClass(EnergyModelClass):
         self.variances = jnp.array(config["variances"])
         self.weights = jnp.array(config["weights"])
         super().__init__(config)
-        margin = 2
-        self.x_min = np.min(self.means) - np.max(self.variances) + self.shift - margin
-        self.y_min = np.min(self.means) - np.max(self.variances) + self.shift - margin
-        self.x_max = np.max(self.means) + np.max(self.variances) + self.shift + margin
-        self.y_max = np.max(self.means) + np.max(self.variances) + self.shift + margin
+
+        self.x_min = self.config['scaling'] * (np.min(self.means) + self.shift - 2 * np.max(self.variances))
+        self.x_max = self.config['scaling'] * (np.max(self.means) + self.shift + 2 * np.max(self.variances))
+        self.y_min = self.config['scaling'] * (np.min(self.means) + self.shift - 2 * np.max(self.variances))
+        self.y_max = self.config['scaling'] * (np.max(self.means) + self.shift + 2 * np.max(self.variances))    
+ 
         self.levels = 50
 
     # @partial(jax.jit, static_argnums=(0,))
