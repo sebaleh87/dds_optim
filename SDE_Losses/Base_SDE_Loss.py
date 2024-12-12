@@ -83,14 +83,14 @@ class Base_SDE_Loss_Class:
         updates, opt_state = self.optimizer.update(grads, opt_state)
         params = optax.apply_updates(params, updates)
         
-        SDE_params_updates, SDE_params_state = self.SDE_params_optimizer.update(SDE_params_grad, SDE_params_state)
+        SDE_params_updates, SDE_params_state = self.SDE_params_optimizer.update(SDE_params_grad, SDE_params_state, SDE_params)
         SDE_params = optax.apply_updates(SDE_params, SDE_params_updates)
 
         if not self.Optimizer_Config["learn_beta_min_max"]:
             SDE_params["log_beta_min"] = jnp.log(self.SDE_type.config["beta_min"])*jnp.ones_like(SDE_params["log_beta_min"])
             SDE_params["log_beta_delta"] = jnp.log(self.SDE_type.config["beta_max"])*jnp.ones_like(SDE_params["log_beta_delta"])
-	#else:
-	 #   SDE_params["log_beta_min"] = jnp.log(self.SDE_type.config["beta_min"])*jnp.ones_like(SDE_params["log_beta_min"])		
+        else:
+            SDE_params["log_beta_min"] = jnp.log(self.SDE_type.config["beta_min"])*jnp.ones_like(SDE_params["log_beta_min"])		
         
         return params, Energy_params, SDE_params, opt_state, Energy_params_state, SDE_params_state, loss_value, out_dict
 
@@ -125,10 +125,11 @@ class Base_SDE_Loss_Class:
         lr_min = l_max/10
         overall_steps = self.Optimizer_Config["epochs"]*self.Optimizer_Config["steps_per_epoch"]*self.lr_factor
         warmup_steps = int(0.1 * overall_steps)
+        weight_decay = self.Optimizer_Config["SDE_weight_decay"]
 
         self.SDE_schedule = lambda epoch: learning_rate_schedule(epoch, l_max, l_start, lr_min, overall_steps, warmup_steps)
         #optimizer = optax.radam(l_max)
-        optimizer = optax.chain(optax.clip_by_global_norm(1.0), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.SDE_schedule(epoch)))
+        optimizer = optax.chain( optax.add_decayed_weights(weight_decay), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.SDE_schedule(epoch)))
         return optimizer
     
     def shift_samples(self, X_samples, SDE_params, energy_key):
