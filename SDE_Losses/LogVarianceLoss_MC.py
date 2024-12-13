@@ -51,6 +51,7 @@ class LogVarianceLoss_MC_Class(Base_SDE_Loss_Class):
     
     @partial(jax.jit, static_argnums=(0,))
     def _select_minibatch(self, SDE_tracer, perm_diff_array, target_keys = ["scores", "dW", "xs", "ts"]):
+        ### TODO splitting of keys and hidden state wont be easy, maybe ignore key and hidden state? raise exception if they are in target_keys
         minib_SDE_tracer = {}
         batch_indices = jnp.arange(0, self.batch_size)[None, :]
         for key in SDE_tracer.keys():
@@ -134,6 +135,7 @@ class LogVarianceLoss_MC_Class(Base_SDE_Loss_Class):
         ts = minib_SDE_tracer["ts"]
         keys = minib_SDE_tracer["keys"]
         x_prior = minib_SDE_tracer["x_prior"]
+        x_last = minib_SDE_tracer["x_last"]
         Energy = minib_SDE_tracer["Energy"]
         hidden_state = minib_SDE_tracer["hidden_state"]
 
@@ -158,6 +160,7 @@ class LogVarianceLoss_MC_Class(Base_SDE_Loss_Class):
         log_Z = res_dict["log_Z"]
         Free_Energy, n_eff, NLL = res_dict["Free_Energy"], res_dict["n_eff"], res_dict["NLL"]
 
+        mean_Energy = jnp.mean(Energy)
         mean_log_prior = jnp.mean(log_prior)
         mean_R_diff = jnp.mean(R_diff)
         Entropy = -(mean_R_diff + mean_log_prior)

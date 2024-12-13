@@ -73,13 +73,17 @@ class EGNNLayer(nn.Module):
         )
 
         self.net_d = nn.Sequential([
+            # nn.Dense(self.hidden_dim, kernel_init=nn.initializers.he_normal(),
+            #                      bias_init=nn.initializers.zeros),
+            # nn.LayerNorm(),
+            # nn.silu,
             nn.Dense(self.hidden_dim, kernel_init=nn.initializers.he_normal(),
                                  bias_init=nn.initializers.zeros),
             nn.LayerNorm(),
             nn.silu,
             nn.Dense(1, kernel_init=nn.initializers.he_normal(),
-                                 bias_init=nn.initializers.zeros),
-            nn.silu        ]
+                                 bias_init=nn.initializers.zeros)
+        ]
         )
 
         self.net_h = nn.Sequential([
@@ -104,6 +108,7 @@ class EGNNLayer(nn.Module):
         h = h_prev
 
         dist_squared = mask*jnp.sum((x[:, None, : ] - x[ None,:, :])**2, axis = -1)
+        dist = jnp.sqrt(dist_squared + 10**-8)
         #print("mask", mask)
         #flattened_dist_squared = dist_squared.reshape(self.n_particles**2, -1)
 
@@ -122,7 +127,7 @@ class EGNNLayer(nn.Module):
         d_net_out = self.net_d(flattened_mass_mat).reshape(self.n_particles, self.n_particles, -1)
         h_next = self.net_h(jnp.concatenate([h, m_transformed_i], axis = -1)) ### concatenate
         #x_next = x + jnp.sum( mask[...,None]*(x[:, None, : ] - x[None, :, :])/(jnp.sqrt(dist_squared[..., None] + 10**-3)+1)*d_net_out, axis = 1)
-        delta_x = jnp.sum( mask[...,None]*(x[:, None, : ] - x[None, :, :])*d_net_out, axis = -2)
+        delta_x = jnp.sum( mask[...,None]*(x[:, None, : ] - x[None, :, :])/(dist[..., None] + 1.)*d_net_out, axis = -2)
         x_next = x + delta_x
         # print("x_next", jax.lax.stop_gradient(jnp.mean(x_next)))
         # print("h_next", jax.lax.stop_gradient(jnp.mean(h_next)))

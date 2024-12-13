@@ -98,7 +98,7 @@ if __name__ == "__main__":
                 for com_sample in com_samples:
                     sample = np.ravel(com_sample)
                     energy_list.append(DW_energy(sample, 2))
-                print(energy_list)
+                #print(energy_list)
                 print("DW4 mean energy", np.mean(energy_list), np.std(energy_list))
                 print("ad", np.min(energy_list), np.max(energy_list))
 
