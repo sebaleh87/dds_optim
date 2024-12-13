@@ -82,6 +82,12 @@ class TrainerClass:
             in_dict = {"x": x_centered_resh_rot, "Energy_value": Energy_value,  "t": jnp.ones((batch_size, 1,)), "grads": grad_init, "hidden_state": [(init_carry, init_carry) for i in range(self.Network_Config["n_layers"])]}
             out_dict = self.model.apply(self.params, in_dict, train = True)
             score = out_dict["score"]
+
+            x_new = x_centered_resh_rot + score
+            x_new_resh = x_new.reshape((batch_size, self.EnergyClass.n_particles, self.EnergyClass.particle_dim))
+            print("COM", jnp.mean(jnp.mean(x_new_resh, axis = 1, keepdims=True)))
+            print("COM x_in", jnp.mean(jnp.mean(x_centered_resh_rot, axis = 1, keepdims=True)))
+
             rotated_scores.append(score)
 
             resh_scores = score.reshape((batch_size, self.EnergyClass.n_particles, self.EnergyClass.particle_dim))

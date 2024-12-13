@@ -18,13 +18,13 @@ class VE_SDE_Class(Base_SDE_Class):
     def get_SDE_params(self):
         if(self.invariance):
             ### if beta is learnable this also ahs to be dim(1)
-            SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"])* jnp.ones((self.dim_x,)), 
-            "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
+            SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"] - self.config["beta_min"]), 
+            "log_beta_min": jnp.log(self.config["beta_min"]),
             "log_sigma": jnp.log(self.sigma_init), "mean": jnp.zeros((self.dim_x,)), 
             "log_sigma_t": jnp.log(10**-5)}
 
         else:
-            SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"])* jnp.ones((self.dim_x,)), 
+            SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"] - self.config["beta_min"])* jnp.ones((self.dim_x,)), 
                         "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
                         "log_sigma": jnp.log(self.sigma_init)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)), 
                          "B": -10*jnp.ones((self.dim_x,self.dim_x)) + jnp.diag((jnp.log(self.sigma_init)+10.)*jnp.ones((self.dim_x,)))}
@@ -118,15 +118,11 @@ class VE_SDE_Class(Base_SDE_Class):
                 return overall_covar
 
     def beta_int(self, SDE_params, t):
-        beta_delta = jnp.exp(SDE_params["log_beta_delta"])
-        beta_min = jnp.exp(SDE_params["log_beta_min"])
-        beta_max = beta_min + beta_delta
+        beta_min, beta_max = self.get_beta_min_and_max(SDE_params)
         return 0.5*(beta_min*((beta_max/beta_min)**t))**2 ### TODO chekc this factor 0.5
 
     def beta(self, SDE_params, t):
-        beta_delta = jnp.exp(SDE_params["log_beta_delta"])
-        beta_min = jnp.exp(SDE_params["log_beta_min"])
-        beta_max = beta_min + beta_delta
+        beta_min, beta_max = self.get_beta_min_and_max(SDE_params)
         return (beta_min*(beta_max/beta_min)**t)**2*(jnp.log(beta_max) - jnp.log(beta_min)) ### TODO chekc this factor 0.5
 
 

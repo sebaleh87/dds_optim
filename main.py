@@ -13,7 +13,7 @@ parser.add_argument("--GPU", type=int, default=6, help="GPU id to use")
 parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=["Reverse_KL_Loss","LogVariance_Loss", "LogVariance_Loss_MC", "LogVariance_Loss_with_grad", "LogVariance_Loss_weighted",
                                                                                 "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam"], help="select loss function")
 parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE", "VE_SDE"], help="GPU id to use")
-parser.add_argument("--Energy_Config", type=str, default="LennardJones", choices=["GaussianMixture", "GaussianMixtureToy", "Rastrigin", "LennardJones", "DoubleWell_iter", "DoubleWell_Richter",
+parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "GaussianMixtureToy", "Rastrigin", "LennardJones", "DoubleWell_iter", "DoubleWell_Richter",
                                                                                      "MexicanHat", "Pytheus", "WavePINN_latent", "WavePINN_hyperparam", "DoubleMoon"], help="EnergyClass")
 parser.add_argument("--T_start", type=float, default=1., help="Starting Temperature")
 parser.add_argument("--T_end", type=float, default=0., help="End Temperature")
@@ -29,7 +29,7 @@ parser.add_argument("--lr", type=float, default=0.001)
 parser.add_argument("--Energy_lr", type=float, default=0.0)
 parser.add_argument("--SDE_lr", type=float, default=10**-5)
 parser.add_argument("--SDE_weight_decay", type=float, default=0.)
-parser.add_argument("--learn_beta_min_max", type=bool, default=False, help="learn beta min and max, lin interp in-between")
+parser.add_argument("--learn_beta_mode", type=str, default="None", choices=["min_and_max", "max", "None"], help="learn beta min and max, lin interp in-between")
 
 parser.add_argument("--learn_covar", type=bool, default=False, help="learn additional covar of target")
 parser.add_argument("--sigma_init", type=float, default=1., help="init value of sigma")
@@ -89,7 +89,7 @@ if(__name__ == "__main__"):
         "lr": args.lr,
         "Energy_lr": args.Energy_lr,
         "SDE_lr": args.SDE_lr,
-        "learn_beta_min_max": args.learn_beta_min_max,
+        "learn_beta_mode": args.learn_beta_mode,
         "epochs": epochs,
         "steps_per_epoch": args.steps_per_epoch,
         "epochs_per_eval": args.epochs_per_eval,

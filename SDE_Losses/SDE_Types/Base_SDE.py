@@ -85,6 +85,18 @@ class Base_SDE_Class:
         #grad = jnp.clip(grad, -10**2, 10**2)
         return jnp.expand_dims(Energy, axis = -1), grad
 
+    def get_beta_min_and_max(self, SDE_params):
+        if(self.invariance):
+            beta_min = jnp.exp(SDE_params["log_beta_min"])*jnp.ones((self.dim_x,))
+            beta_delta = jnp.exp(SDE_params["log_beta_delta"])*jnp.ones((self.dim_x,))
+            beta_max = beta_min + beta_delta
+            return beta_min, beta_max
+        else:
+            beta_delta = jnp.exp(SDE_params["log_beta_delta"])
+            beta_min = jnp.exp(SDE_params["log_beta_min"])
+            beta_max = beta_min + beta_delta
+            return beta_min, beta_max
+
     def get_diffusion(self, t, x, log_sigma):
         """
         Method to get the diffusion term of the SDE.

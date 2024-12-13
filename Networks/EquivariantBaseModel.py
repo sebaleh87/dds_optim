@@ -18,6 +18,8 @@ class EGNNBaseClass(nn.Module):
                                     feature_dim = self.network_config["feature_dim"], n_particles = self.network_config["n_particles"],
                                     out_dim = self.network_config["out_dim"])
         self.use_normal = True#self.SDE_Loss_Config["SDE_Type_Config"]["use_normal"]
+        self.n_particles = self.network_config["n_particles"]
+        self.particle_dim = self.network_config["out_dim"]
         
     @nn.compact
     def __call__(self, in_dict, train = False):
@@ -57,7 +59,10 @@ class EGNNBaseClass(nn.Module):
         correction_grad_score = x_score+ grad_score
         clipped_score = jnp.where(jnp.linalg.norm(correction_grad_score) > 10**4, 10**4*correction_grad_score/jnp.linalg.norm(correction_grad_score), correction_grad_score)
 
-        out_dict["score"] = clipped_score
+        resh_score = clipped_score.reshape(-1, self.n_particles, self.particle_dim)
+        resh_COM_score = resh_score - jnp.mean(resh_score, axis = 1, keepdims=   True)
+        COM_score = resh_COM_score.reshape(-1, self.particle_dim*self.n_particles)
+        out_dict["score"] = COM_score
         return out_dict
 
 
