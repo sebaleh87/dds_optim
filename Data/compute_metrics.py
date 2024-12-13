@@ -2,6 +2,31 @@ import numpy as np
 import ot
 import re
 
+def DW_energy( x, dim):
+    d = dim
+    a = 0
+    b = -4
+    c = 0.9
+    tau = 1.
+    """
+    Calculate the energy of the Gaussian Mixture Model using logsumexp.
+    
+    :param x: Input array.
+    :return: Energy value.
+    """
+    d_0 = 4.0
+    x = x.reshape(-1, d)
+    d_ij = np.sqrt(np.sum((x[:, None, :] - x[None, :, :]) ** 2 , axis=-1) + 10**-8)
+    mask = np.eye(d_ij.shape[0])
+
+    energy_per_particle = a* (d_ij -d_0) + b *(d_ij - d_0)**2 + c*(d_ij - d_0)**4
+    energy_per_particle = np.where(mask, 0, energy_per_particle)
+
+    energy = 1/(2*tau) * np.sum(energy_per_particle)
+    # energy = jnp.nan_to_num(energy, 10**4)
+    # energy = jnp.where(energy > 10**4, 10**4, energy)
+    return energy
+
 def wasserstein_distance_w2(samples1, samples2, weights1=None, weights2=None):
     """
     Compute the W2 Wasserstein distance between two discrete distributions.
@@ -67,6 +92,15 @@ if __name__ == "__main__":
             com_samples = samples - np.mean(samples, axis = 1, keepdims=True)
             #print(samples)
             print(el, "com mean", np.mean(np.mean(com_samples, axis = 0), axis = 0), np.mean(np.var(com_samples, axis = 0), axis = 0))
+
+            if(el == "DW4"):
+                energy_list = []
+                for com_sample in com_samples:
+                    sample = np.ravel(com_sample)
+                    energy_list.append(DW_energy(sample, 2))
+                #print(energy_list)
+                print("DW4 mean energy", np.mean(energy_list), np.std(energy_list))
+                print("ad", np.min(energy_list), np.max(energy_list))
 
             datas.append(split_el)
 

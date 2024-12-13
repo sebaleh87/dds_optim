@@ -51,13 +51,13 @@ class EGNNBaseClass(nn.Module):
         
         grads = copy_grads
 
-    
+        clipped_grads = jnp.where(jnp.linalg.norm(grads) > 10**2, 10**2*grads/jnp.linalg.norm(grads), grads)
         
-        grad_score = h_score * grads/jnp.linalg.norm(grads)#jnp.clip(grads, -10**2, 10**2) #* nn.softplus(interpolated_grad) 
+        grad_score = h_score * clipped_grads#jnp.clip(grads, -10**2, 10**2) #* nn.softplus(interpolated_grad) 
         correction_grad_score = x_score+ grad_score
-        score = jnp.clip(correction_grad_score, -10**4, 10**4 )
+        clipped_score = jnp.where(jnp.linalg.norm(correction_grad_score) > 10**4, 10**4*correction_grad_score/jnp.linalg.norm(correction_grad_score), correction_grad_score)
 
-        out_dict["score"] = score
+        out_dict["score"] = clipped_score
         return out_dict
 
 

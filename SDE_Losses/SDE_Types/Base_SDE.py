@@ -184,6 +184,36 @@ class Base_SDE_Class:
         reverse_out_dict = {"x_next": x_next, "t_next": t - dt, "drift_ref": x, "forward_drift": forward_drift, "reverse_drift": reverse_drift, "dW": dW}
         return reverse_out_dict, key
     
+    
+    def apply_model(self, model, x, t, params, Energy_params, SDE_params, hidden_state, key):
+        t_arr = t*jnp.ones((x.shape[0], 1)) 
+        new_hidden_state = hidden_state
+        if(self.use_interpol_gradient):
+            if(self.network_has_hidden_state):
+                Energy, grad, key = self.vmap_prior_target_grad_interpolation(x, t, Energy_params, SDE_params, key) 
+                Energy_value = Energy #Energy[...,None]
+                in_dict = {"x": x, "Energy_value": Energy_value, "t": t_arr, "grads": grad, "hidden_state": hidden_state}
+                out_dict = model.apply(params, in_dict, train = True)
+                score = out_dict["score"]
+                new_hidden_state = out_dict["hidden_state"]
+            else:
+                Energy, grad, key = self.vmap_prior_target_grad_interpolation(x, t, Energy_params, SDE_params, key) 
+                Energy_value = Energy
+                in_dict = {"x": x, "Energy_value": Energy_value,  "t": t_arr, "grads": grad}
+                out_dict = model.apply(params, in_dict, train = True)
+                score = out_dict["score"]
+        # if(jnp.isnan(concat_values).any()):
+        #     print("concat_values", concat_values)
+        #     raise ValueError("concat_values is nan")
+            
+        else:
+            ### TODO x dim should be increased by 1
+            grad = jnp.zeros((x.shape[0], self.dim_x))
+            in_dict = {"x": x, "t": t_arr, "Energy_value": jnp.zeros((x.shape[0], 1)),  "grads": grad}
+            out_dict = model.apply(params, in_dict, train = True)
+            score = out_dict["score"]
+        return score, new_hidden_state, grad, key
+    
     def simulate_reverse_sde_scan(self, model, params, Energy_params, SDE_params, key, n_states = 100, x_dim = 2, n_integration_steps = 1000):
 
         def scan_fn(carry, step):
@@ -191,32 +221,9 @@ class Base_SDE_Class:
             # if(jnp.isnan(x).any()):
             #     print("score", x)
             #     raise ValueError("score is nan")
-            t_arr = t*jnp.ones((x.shape[0], 1)) 
-            if(self.use_interpol_gradient):
-                if(self.network_has_hidden_state):
-                    Energy, grad, key = self.vmap_prior_target_grad_interpolation(x, t, Energy_params, SDE_params, key) 
-                    Energy_value = Energy #Energy[...,None]
-                    in_dict = {"x": x, "Energy_value": Energy_value, "t": t_arr, "grads": grad, "hidden_state": carry_dict["hidden_state"]}
-                    out_dict = model.apply(params, in_dict, train = True)
-                    score = out_dict["score"]
-                    carry_dict["hidden_state"] = out_dict["hidden_state"]
-                else:
-                    Energy, grad, key = self.vmap_prior_target_grad_interpolation(x, t, Energy_params, SDE_params, key) 
-                    Energy_value = Energy
-                    in_dict = {"x": x, "Energy_value": Energy_value,  "t": t_arr, "grads": grad}
-                    out_dict = model.apply(params, in_dict, train = True)
-                    score = out_dict["score"]
-            # if(jnp.isnan(concat_values).any()):
-            #     print("concat_values", concat_values)
-            #     raise ValueError("concat_values is nan")
-                
-            else:
-                ### TODO x dim should be increased by 1
-                grad = jnp.zeros((x.shape[0], self.dim_x))
-                in_dict = {"x": x, "t": t_arr, "Energy_value": jnp.zeros((x.shape[0], 1)),  "grads": grad}
-                out_dict = model.apply(params, in_dict, train = True)
-                score = out_dict["score"]
-
+            hidden_state = carry_dict["hidden_state"]
+            score, new_hidden_state, grad, key = self.apply_model(model, x, t, params, Energy_params, SDE_params, hidden_state, key)
+            carry_dict["hidden_state"] = new_hidden_state
 
             dt = self.reversed_dt_values[step]
             reverse_out_dict, key = self.reverse_sde(SDE_params, score, x, t, dt, key)
@@ -230,7 +237,9 @@ class Base_SDE_Class:
             "forward_drift": reverse_out_dict["forward_drift"],
             "reverse_drift": reverse_out_dict["reverse_drift"],
             "drift_ref": reverse_out_dict["drift_ref"],
-            "dts": dt
+            "dts": dt,
+            "key": key,
+            "hidden_state": carry_dict["hidden_state"]
             }
 
             x = reverse_out_dict["x_next"]
@@ -269,7 +278,11 @@ class Base_SDE_Class:
             "drift_ref": SDE_tracker_steps["drift_ref"],
             "dts": SDE_tracker_steps["dts"],
             "x_final": x_final,
-            "x_prior": x_prior
+            "x_prior": x_prior,
+            "hidden_states": SDE_tracker_steps["hidden_state"],
+            "keys": SDE_tracker_steps["key"],
+            "interpolated_grads": SDE_tracker_steps["interpolated_grad"]
+
         }
 
         return SDE_tracker, key

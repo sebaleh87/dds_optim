@@ -8,6 +8,7 @@ class Discrete_Time_rKL_Loss_Class_reparam(Base_SDE_Loss_Class):
     def __init__(self, SDE_config, Optimizer_Config, EnergyClass, Network_Config, model):
         self.temp_mode = SDE_config["SDE_Type_Config"]["temp_mode"]
         super().__init__(SDE_config, Optimizer_Config, EnergyClass, Network_Config, model)
+        raise NotImplementedError("This class is not up to date")
 
     @partial(jax.jit, static_argnums=(0,), static_argnames=("n_integration_steps", "n_states", "x_dim"))  
     def compute_loss(self, params, key, n_integration_steps = 100, n_states = 10, temp = 1.0, x_dim = 2):
