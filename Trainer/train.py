@@ -158,7 +158,7 @@ class TrainerClass:
         pbar = trange(self.num_epochs)
         for epoch in pbar:
             start_time = time.time()
-            if(epoch % self.Optimizer_Config["epochs_per_eval"] == 0 and epoch):
+            if(epoch % int(self.num_epochs/self.Optimizer_Config["epochs_per_eval"]) == 0 and epoch):
                 n_samples = self.config["n_eval_samples"]
                 SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, key, n_integration_steps = self.n_integration_steps, n_states = n_samples)
                 wandb.log({ f"eval/{key}": np.mean(out_dict[key]) for key in out_dict.keys()}, step=epoch+1)

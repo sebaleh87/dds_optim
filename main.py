@@ -38,10 +38,10 @@ parser.add_argument("--disable_jit", type=bool, default=False, help="learn addit
 
 parser.add_argument("--N_anneal", type=int, default=1000)
 parser.add_argument("--N_warmup", type=int, default=0)
-parser.add_argument("--steps_per_epoch", type=int, default=100)
+parser.add_argument("--steps_per_epoch", type=int, default=10)
 
 parser.add_argument("--update_params_mode", type=str, choices = ["all_in_one", "DKL"], default="all_in_one")
-parser.add_argument("--epochs_per_eval", type=int, default=10)
+parser.add_argument("--epochs_per_eval", type=int, default=50)
 
 parser.add_argument("--beta_min", type=float, default=0.05)
 parser.add_argument("--beta_max", type=float, default=5.)
@@ -146,7 +146,7 @@ if(__name__ == "__main__"):
             
         }
 
-    n_eval_samples = 1000
+    n_eval_samples = 2000
     ### TODO implement different scales
     if(args.Energy_Config == "GaussianMixtureToy"):
         torch.manual_seed(0)

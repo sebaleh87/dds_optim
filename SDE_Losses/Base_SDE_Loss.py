@@ -49,6 +49,7 @@ class Base_SDE_Loss_Class:
         self.vmap_diff_factor = jax.vmap(self.SDE_type.get_diffusion, in_axes=(None, None, 0))
         self.vmap_drift_divergence = jax.vmap(self.SDE_type.get_div_drift, in_axes = (None, 0))
         self.vmap_get_log_prior = jax.vmap(self.SDE_type.get_log_prior, in_axes = (None, 0))
+        self.optim_mode = "equilibrium"
     
     def init_mov_averages(self, X_init_samples):
         self.Mov_average_dict = self.MovAvrgCalculator.initialize_averages(X_init_samples)

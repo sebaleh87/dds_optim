@@ -166,8 +166,12 @@ class EnergyModelClass:
         elif(self.dim_x == 1):
             pass
         else:
-            pass
+            self.plot_interatomic_distances(x, panel = panel)
             #self.visualize_samples(Xs)
+
+    def plot_interatomic_distances(self, x, panel = "fig"):
+        pass
+
 
     def plot_histogram(self, Xs, panel = "fig"):
         if(self.dim_x == 2):

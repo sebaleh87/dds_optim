@@ -41,7 +41,12 @@ class LogVariance_Loss_Class(Base_SDE_Loss_Class):
         Entropy = -(mean_R_diff + mean_log_prior)
 
         #obs = temp*R_diff + temp*S+ temp*log_prior+ Energy
-        obs = temp*(R_diff + S+ log_prior) + Energy
+        if(self.optim_mode == "optim"):
+            obs = temp*(R_diff + S+ log_prior) + Energy
+        elif(self.optim_mode == "equilibrium"):
+            obs = (R_diff + S+ log_prior) + Energy/temp
+        else:
+            raise ValueError(f"Unknown optim_mode: {self.optim}")
 
         log_var_loss = jnp.mean((obs)**2) - jnp.mean(obs)**2#jnp.var(obs)#jnp.mean((obs)**2) - jnp.mean(obs)**2
 
