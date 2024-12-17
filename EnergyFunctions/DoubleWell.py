@@ -1,4 +1,5 @@
-
+from matplotlib import pyplot as plt
+import wandb
 from .BaseEnergy import EnergyModelClass
 import jax
 import jax.numpy as jnp
@@ -23,6 +24,7 @@ class DoubleWellClass(EnergyModelClass):
             self.b = -4
             self.c = 0.9
             self.tau = 1.
+            self.dataset_file = "DW4"
 
 
             self.d = 2
@@ -81,51 +83,3 @@ class DoubleWellClass(EnergyModelClass):
         # energy = jnp.nan_to_num(energy, 10**4)
         # energy = jnp.where(energy > 10**4, 10**4, energy)
         return energy
-
-    # @partial(jax.jit, static_argnums=(0,))
-    # def energy_function(self, x):
-
-    #     return custom_energy_grad(x)
-
-
-    # Register the custom VJP with JAX
-
-# @jax.custom_vjp
-# def custom_energy_grad(x):
-#     return compute_energy(x)
-
-# def compute_energy(x):
-#     d = 2
-#     a = 0.
-#     b = -4.
-#     c = 0.9
-#     tau = 1.
-#     d_0 = 4.0
-#     x = x.reshape(-1, d)
-#     d_ij = jnp.sqrt(jnp.sum((x[:, None, :] - x[None, :, :]) ** 2, axis=-1))
-#     mask = jnp.eye(d_ij.shape[0])
-
-#     energy_per_particle = a * (d_ij - d_0) + b * (d_ij - d_0) ** 2 + c * (d_ij - d_0) ** 4
-#     energy_per_particle = jnp.where(mask, 0, energy_per_particle)
-
-#     energy = 1 / (2 * tau) * jnp.sum(energy_per_particle)
-#     print("energy", jnp.min(energy), jnp.max(energy))
-#     return energy
-    
-# def energy_function_bwd(x, grad_energy):
-#     # `aux_data` is `x` from the forward pass, `grad_energy` is the gradient from the loss
-
-#     # Compute the gradients of the energy function w.r.t. x
-#     grad_x = jax.grad(lambda xin: compute_energy(xin))(x )
-    
-#     # Apply gradient clipping (e.g., clip by norm)
-#     clip_value = 10**3  # Adjust this value as needed
-#     grad_x_clipped = jnp.clip(grad_x, -clip_value, clip_value)
-#     grad_x_clipped = jnp.where(jnp.isnan(grad_x), 0, grad_x_clipped)
-
-#     print("gradient", jnp.min(grad_x_clipped), jnp.max(grad_x_clipped))
-#     print("grad_energy", grad_energy.shape, grad_x_clipped.shape)
-#     # Return the clipped gradients multiplied by the incoming gradient
-#     return (grad_energy * grad_x_clipped,)    
-
-# custom_energy_grad.defvjp(compute_energy, energy_function_bwd)

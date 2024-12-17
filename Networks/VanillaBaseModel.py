@@ -47,7 +47,12 @@ class VanillaBaseModelClass(nn.Module):
         embedding = out_dict["embedding"]
 
         x_dim = in_dict["x"].shape[-1]
-        if(self.SDE_mode == "DiscreteTime_SDE"):
+        if(self.SDE_mode == "Bridge_SDE"):
+            score = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
+                                                bias_init=nn.initializers.zeros)(embedding)
+            out_dict["score"] = score            
+            return out_dict
+        elif(self.SDE_mode == "DiscreteTime_SDE"):
             mean_x = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
                                                 bias_init=nn.initializers.zeros)(embedding)
             log_var_x = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),

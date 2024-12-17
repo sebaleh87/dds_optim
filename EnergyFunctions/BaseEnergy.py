@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import wandb
+import re
 
 # Base Class
 class EnergyModelClass:
@@ -25,6 +26,8 @@ class EnergyModelClass:
         self.levels = 100
         self.invariance = False
         self.scaling = self.config["scaling"]*jnp.ones((self.dim_x))
+        self.Energy_params = self.init_EnergyParams()
+        self.dataset_file = ""
         ### TODO define plot range here
 
     #TODO why needed?
@@ -167,9 +170,78 @@ class EnergyModelClass:
             self.plot_2_D_last_samples(Xs, panel = panel)
         elif(self.dim_x == 1):
             pass
+        elif( hasattr(self, 'n_particles')):
+            data = self.load_data()
+            self.plot_interatomic_distances(Xs, data, panel=panel)
+            self.plot_energy_histogram(Xs, data, panel=panel)
         else:
             pass
-            #self.visualize_samples(Xs)
+
+    def plot_interatomic_distances(self, x, data, panel = "fig"):
+        data_samples = data.reshape((data.shape[0], self.n_particles, -1))
+
+        fig = plt.figure()
+        x_resh = x.reshape(-1, self.n_particles, self.particle_dim)
+        mask = 1 - jnp.repeat(jnp.eye(self.n_particles)[None, ...], x.shape[0], axis = 0)
+
+        data_mask = 1 - jnp.repeat(jnp.eye(self.n_particles)[None, ...], data.shape[0], axis = 0)
+
+        d_ij = np.sqrt(np.sum((x_resh[:, None, :, :] - x_resh[:, :, None, :]) ** 2 , axis=-1))
+        d_ij = d_ij[mask == 1]
+
+        data_d_ij = np.sqrt(np.sum((data_samples[:, None, :, :] - data_samples[:, :, None, :]) ** 2 , axis=-1))
+        data_d_ij = data_d_ij[data_mask == 1]
+
+        plt.hist(d_ij.flatten(), bins=100, density=True, color='blue', alpha=0.5, edgecolor='blue', label = "model")
+        plt.hist(data_d_ij.flatten(), bins=100, density=True, color='red', alpha=0.5, edgecolor='red', label = "data")
+        plt.xlabel("Interatomic distance")
+        plt.ylabel("Density")
+        plt.legend()
+        
+        wandb.log({f"{panel}/Energy_Landscape": wandb.Image(fig)})
+        plt.close()
+
+
+    def load_data(self):
+        s = "test"
+        el = self.dataset_file
+        if(el != ""):
+            match = re.search(r'\d+', el)
+            if match:
+                n_paricles = int(match.group())
+            else:
+                raise ValueError(f"No number found in string: {el}")
+
+            split_el = np.load(f'/system/user/publicwork/sanokows/Denoising_diff_sampler/Data/{s}_split_{el}.npy')
+            print(f"Loaded {s} with shape: {split_el.shape}")
+            return split_el
+
+    def plot_energy_histogram(self, x, data, panel="fig"):
+        """
+        Compute the energy values of x and plot a histogram of these energies.
+        """
+        # Compute the energy values
+        energy_values, _ = self.vmap_calc_energy(x, self.Energy_params, jax.random.PRNGKey(0))
+        data_energy_values, _ = self.vmap_calc_energy(data, self.Energy_params, jax.random.PRNGKey(0))
+
+        # Plot the histogram
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.hist(energy_values, bins=100, density=True, color='blue', alpha=0.5, edgecolor='blue', label = "model")
+        
+        ax.hist(data_energy_values, bins=100, density=True, color='red', alpha=0.5, edgecolor='red', label = "data")
+        ax.set_title('Histogram of Energy Values')
+        ax.set_xlabel('Energy')
+        ax.set_ylabel('Density')
+        ax.grid(True)
+        plt.legend()
+
+        # Log the figure using wandb
+        wfig = wandb.Image(fig)
+        wandb.log({f"{panel}/energy_histogram": wfig})
+        plt.close()
+
+
+
 
     def plot_histogram(self, Xs, panel = "fig"):
         if(self.dim_x == 2):

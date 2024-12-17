@@ -73,13 +73,13 @@ class VP_SDE_Class(Base_SDE_Class):
     def get_SDE_params(self):
         # "mean" is here the mean of the SDE
         if(self.invariance):
-            SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"])* jnp.ones((self.dim_x,)), 
-            "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
+            SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"] - self.config["beta_min"]), 
+            "log_beta_min": jnp.log(self.config["beta_min"]),
             "log_sigma": jnp.log(self.sigma_init), "mean": jnp.zeros((self.dim_x,)), "mean_target": jnp.zeros((self.dim_x,)),
             "log_sigma_t": jnp.log(10**-5)}
 
         else:
-            SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"])* jnp.ones((self.dim_x,)), 
+            SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"] - self.config["beta_min"])* jnp.ones((self.dim_x,)), 
                         "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
                         "log_sigma": jnp.log(self.sigma_init)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)),  "mean_target": jnp.zeros((self.dim_x,)),
                         "B": -10*jnp.ones((self.dim_x,self.dim_x)) + jnp.diag((jnp.log(self.sigma_init)+10.)*jnp.ones((self.dim_x,)))
@@ -130,16 +130,12 @@ class VP_SDE_Class(Base_SDE_Class):
     
     def beta_int(self, SDE_params, t):
         ### TODO check if t is correct here!
-        beta_delta = jnp.exp(SDE_params["log_beta_delta"])
-        beta_min = jnp.exp(SDE_params["log_beta_min"])
-        beta_max = beta_min + beta_delta
+        beta_min, beta_max = self.get_beta_min_and_max(SDE_params)
         beta_int_value = 0.5*t**2*(beta_max-beta_min) + t*beta_min
         return beta_int_value
 
     def beta(self, SDE_params, t):
-        beta_delta = jnp.exp(SDE_params["log_beta_delta"])
-        beta_min = jnp.exp(SDE_params["log_beta_min"])
-        beta_max = beta_min + beta_delta
+        beta_min, beta_max = self.get_beta_min_and_max(SDE_params)
         return (beta_min + t * (beta_max - beta_min)) ### TODO chekc this factor 0.5
 
     def forward_sde(self, x, t, dt, key):
@@ -150,11 +146,6 @@ class VP_SDE_Class(Base_SDE_Class):
         noise = random.normal(subkey, shape=x.shape)
         x_next = x + drift * dt + diffusion * jnp.sqrt(dt) * noise
         return x_next, t + dt, key
-
-    def interpol_func(self, x, t, SDE_params, Energy_params, key):
-        Energy_value, key = self.Energy_Class.calc_energy(x, Energy_params, key)
-        interpol = (t)*self.get_log_prior(SDE_params,x) + (1-t)*Energy_value
-        return interpol, key
 
     ### THIs implements drift and diffusion as in vargas papers
     def get_drift(self, SDE_params, x, t):

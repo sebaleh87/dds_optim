@@ -14,6 +14,7 @@ class Base_SDE_Loss_Class:
         self.lr_factor = lr_factor
         self.batch_size = SDE_config["batch_size"]
         self.n_integration_steps = SDE_config["n_integration_steps"]
+        self.lr_schedule = Optimizer_Config["lr_schedule"]
 
         self.EnergyClass = Energy_Class
         self.model = model
@@ -34,6 +35,8 @@ class Base_SDE_Loss_Class:
         self.SDE_params_optimizer = self.init_SDE_params_optimizer()
         self.SDE_params_state = self.SDE_params_optimizer.init(self.SDE_params)
 
+
+
         alpha = 0.01
         self.MovAvrgCalculator = MovAvrgCalculator.MovAvrgCalculator(alpha)
         self.Energy_key = jax.random.PRNGKey(0)
@@ -49,6 +52,18 @@ class Base_SDE_Loss_Class:
         self.vmap_diff_factor = jax.vmap(self.SDE_type.get_diffusion, in_axes=(None, None, 0))
         self.vmap_drift_divergence = jax.vmap(self.SDE_type.get_div_drift, in_axes = (None, 0))
         self.vmap_get_log_prior = jax.vmap(self.SDE_type.get_log_prior, in_axes = (None, 0))
+        self.optim_mode = "equilibrium"
+
+
+    def _init_lr_schedule(self, l_max, l_start, lr_min, overall_steps, warmup_steps):
+        if(self.lr_schedule == "const"):
+            lr_scheudule_func = lambda step: constant_lr(step, l_max = self.Optimizer_Config["lr"])
+        elif(self.lr_schedule == "cosine"):
+            lr_scheudule_func = lambda step: learning_rate_schedule(step, l_max, l_start, lr_min, overall_steps, warmup_steps)
+        else:
+            raise ValueError(f"Unknown lr_schedule: {self.lr_schedule}")
+
+        return lr_scheudule_func
     
     def init_mov_averages(self, X_init_samples):
         self.Mov_average_dict = self.MovAvrgCalculator.initialize_averages(X_init_samples)
@@ -89,11 +104,22 @@ class Base_SDE_Loss_Class:
         SDE_params_updates, SDE_params_state = self.SDE_params_optimizer.update(SDE_params_grad, SDE_params_state, SDE_params)
         SDE_params = optax.apply_updates(SDE_params, SDE_params_updates)
 
-        if not self.Optimizer_Config["learn_beta_min_max"]:
+        if( self.Optimizer_Config["learn_beta_mode"] == "None"):
             SDE_params["log_beta_min"] = jnp.log(self.SDE_type.config["beta_min"])*jnp.ones_like(SDE_params["log_beta_min"])
             SDE_params["log_beta_delta"] = jnp.log(self.SDE_type.config["beta_max"])*jnp.ones_like(SDE_params["log_beta_delta"])
-        else:
-            SDE_params["log_beta_min"] = jnp.log(self.SDE_type.config["beta_min"])*jnp.ones_like(SDE_params["log_beta_min"])		
+        elif( self.Optimizer_Config["learn_beta_mode"] == "max"):
+            SDE_params["log_beta_min"] = jnp.log(self.SDE_type.config["beta_min"])*jnp.ones_like(SDE_params["log_beta_min"])
+        elif( self.Optimizer_Config["learn_beta_mode"] == "min_and_max"):
+            pass			
+        
+        return params, Energy_params, SDE_params, opt_state, Energy_params_state, SDE_params_state, loss_value, out_dict
+    
+    @partial(jax.jit, static_argnums=(0,))
+    def update_net_params_only(self, params, Energy_params, SDE_params, opt_state, Energy_params_state, SDE_params_state, key, T_curr):
+        (loss_value, out_dict), (grads) = jax.value_and_grad(self.loss_fn, argnums=(0), has_aux = True)(params, Energy_params, SDE_params, T_curr, key)
+        updates, opt_state = self.optimizer.update(grads, opt_state)
+        params = optax.apply_updates(params, updates)
+    	
         
         return params, Energy_params, SDE_params, opt_state, Energy_params_state, SDE_params_state, loss_value, out_dict
 
@@ -105,8 +131,8 @@ class Base_SDE_Loss_Class:
         overall_steps = self.Optimizer_Config["epochs"]*self.Optimizer_Config["steps_per_epoch"]*self.lr_factor
         warmup_steps = int(0.1 * overall_steps)
 
-        self.schedule = lambda epoch: learning_rate_schedule(epoch, l_max, l_start, lr_min, overall_steps, warmup_steps)
-        #optimizer = optax.adam(self.schedule)
+        self.schedule = self._init_lr_schedule(l_max, l_start, lr_min, overall_steps, warmup_steps)
+
         optimizer = optax.chain(optax.clip_by_global_norm(1.0), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.schedule(epoch)))
         return optimizer
     
@@ -117,7 +143,7 @@ class Base_SDE_Loss_Class:
         overall_steps = self.Optimizer_Config["epochs"]*self.Optimizer_Config["steps_per_epoch"]*self.lr_factor
         warmup_steps = int(0.1 * overall_steps)
 
-        self.Energy_schedule = lambda epoch: learning_rate_schedule(epoch, l_max, l_start, lr_min, overall_steps, warmup_steps)
+        self.Energy_schedule = self._init_lr_schedule(l_max, l_start, lr_min, overall_steps, warmup_steps)
         #optimizer = optax.adam(self.schedule)
         optimizer = optax.chain( optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.Energy_schedule(epoch)))
         return optimizer
@@ -130,9 +156,9 @@ class Base_SDE_Loss_Class:
         warmup_steps = int(0.1 * overall_steps)
         weight_decay = self.Optimizer_Config["SDE_weight_decay"]
 
-        self.SDE_schedule = lambda epoch: learning_rate_schedule(epoch, l_max, l_start, lr_min, overall_steps, warmup_steps)
+        self.SDE_schedule = self._init_lr_schedule(l_max, l_start, lr_min, overall_steps, warmup_steps)
         #optimizer = optax.radam(l_max)
-        optimizer = optax.chain( optax.add_decayed_weights(weight_decay), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.SDE_schedule(epoch)))
+        optimizer = optax.chain(optax.add_decayed_weights(weight_decay), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.SDE_schedule(epoch)))
         return optimizer
     
     def shift_samples(self, X_samples, SDE_params, energy_key):
@@ -140,9 +166,9 @@ class Base_SDE_Loss_Class:
         return shifted_samples
 
     @partial(jax.jit, static_argnums=(0,), static_argnames=("n_integration_steps", "n_states"))
-    def simulate_reverse_sde_scan(self, params, Energy_params, SDE_params, key, n_states = 100, n_integration_steps = 1000):    #TODO change name! this one also applies scaling!
-        SDE_tracer, key = self.SDE_type.simulate_reverse_sde_scan(self.model, params, Energy_params, SDE_params, key, n_states = n_states, x_dim = self.EnergyClass.dim_x, n_integration_steps = n_integration_steps)
-        loss, out_dict = self.evaluate_loss(Energy_params, SDE_params, SDE_tracer, key)     #TODO add not implemented template class for self.evaluate_loss
+    def simulate_reverse_sde_scan(self, params, Energy_params, SDE_params, temp, key, n_states = 100, n_integration_steps = 1000):    #TODO change name! this one also applies scaling!
+        SDE_tracer, key = self.SDE_type.simulate_reverse_sde_scan(self.model, params, Energy_params, SDE_params, temp, key, n_states = n_states, x_dim = self.EnergyClass.dim_x, n_integration_steps = n_integration_steps)
+        loss, out_dict = self.evaluate_loss(params, Energy_params, SDE_params, SDE_tracer, key)     #TODO add not implemented template class for self.evaluate_loss
         key, subkey = jax.random.split(key)                                                 
         batched_key = jax.random.split(subkey, n_states)
         #TODO really want to scale the output for eval?
@@ -155,6 +181,9 @@ class Base_SDE_Loss_Class:
         loss, SDE_tracer = self.compute_loss(params, Energy_params, SDE_params, key, n_integration_steps = n_integration_steps, n_states = n_states)
 
         return SDE_tracer, SDE_tracer["key"]
+    
+    def evaluate_loss(self, params, Energy_params, SDE_params, SDE_tracer, key, temp = 1.0):
+        raise NotImplementedError("Not implemented yet")
     
     def compute_partition_sum(self, R_diff, S, log_prior, Energy):
         Z_estim = R_diff + S + log_prior + Energy
@@ -171,8 +200,8 @@ class Base_SDE_Loss_Class:
 
     @partial(jax.jit, static_argnums=(0,), static_argnames=("n_integration_steps", "n_states", "x_dim"))  
     def compute_loss(self, params, Energy_params, SDE_params, key, n_integration_steps = 100, n_states = 10, temp = 1.0, x_dim = 2):
-        SDE_tracer, key = self.SDE_type.simulate_reverse_sde_scan(self.model , params, Energy_params, SDE_params, key, n_integration_steps = n_integration_steps, n_states = n_states, x_dim = x_dim)
-        loss, out_dict = self.evaluate_loss(Energy_params, SDE_params, SDE_tracer, key, temp = temp)
+        SDE_tracer, key = self.SDE_type.simulate_reverse_sde_scan(self.model , params, Energy_params, SDE_params, temp, key, n_integration_steps = n_integration_steps, n_states = n_states, x_dim = x_dim)
+        loss, out_dict = self.evaluate_loss(params, Energy_params, SDE_params, SDE_tracer, key, temp = temp)
         out_dict["x_final"] = SDE_tracer["x_final"]
         out_dict["losses/SDE_loss"] = loss
         return loss, out_dict
@@ -238,9 +267,10 @@ class Base_SDE_Loss_Class:
     
     def get_param_dict(self, params):
         return {"model_params": params, "Energy_params": self.Energy_params, "SDE_params": self.SDE_params}
-
-
     
+
+def constant_lr(step, l_max = 1e-4):
+    return l_max
 
 def learning_rate_schedule(step, l_max = 1e-4, l_start = 1e-5, lr_min = 1e-4, overall_steps = 1000, warmup_steps = 100):
     cosine_decay = lambda step: optax.cosine_decay_schedule(init_value=(l_max - lr_min), decay_steps=overall_steps - warmup_steps)(step) + lr_min

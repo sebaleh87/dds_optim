@@ -10,7 +10,7 @@ class Reverse_KL_Loss_Class(Base_SDE_Loss_Class):
         super().__init__(SDE_config, Optimizer_Config, EnergyClass, Network_Config, model)
 
     @partial(jax.jit, static_argnums=(0,))  
-    def evaluate_loss(self, Energy_params, SDE_params, SDE_tracer, key, temp = 1.0):
+    def evaluate_loss(self, params, Energy_params, SDE_params, SDE_tracer, key, temp = 1.0):
         score = SDE_tracer["scores"]
         ts = SDE_tracer["ts"]
         dW = SDE_tracer["dW"]
@@ -36,7 +36,13 @@ class Reverse_KL_Loss_Class(Base_SDE_Loss_Class):
         R_diff = jnp.sum(dts*f  , axis = 0)
         mean_R_diff = jnp.mean(R_diff)
 
-        loss = temp*mean_R_diff + temp*mean_log_prior + mean_Energy
+        if(self.optim_mode == "optim"):
+            loss = temp*(mean_R_diff + mean_log_prior) + mean_Energy
+        elif(self.optim_mode == "equilibrium"):
+            loss = (mean_R_diff + mean_log_prior) + mean_Energy/temp
+        else:
+            raise ValueError(f"Unknown optim_mode: {self.optim}")
+        
         Entropy = -(mean_R_diff + mean_log_prior)
 
         #print("RKL LOss", mean_R_diff, mean_log_prior, beta*mean_Energy)
