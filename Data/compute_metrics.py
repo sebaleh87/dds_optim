@@ -77,7 +77,7 @@ def plot_dm_samples(samples, energy_list, h=3, w=3):
     interatomic_distances = np.sqrt(np.sum((samples[:, None, :, :] - samples[:, :, None, :]) ** 2, axis=-1))
     interatomic_distances = np.ravel(interatomic_distances)
     plt.figure(figsize=(10, 5))
-    plt.hist(interatomic_distances.flatten(), bins=50, alpha=0.7, color='blue', density=True)
+    plt.hist(interatomic_distances.flatten(), bins=100, alpha=0.7, color='blue', density=True)
     plt.title("Histogram of Interatomic Distances")
     plt.xlabel("Distance")
     plt.ylabel("Frequency")
@@ -85,7 +85,7 @@ def plot_dm_samples(samples, energy_list, h=3, w=3):
 
     # Plot histogram of energy
     plt.figure(figsize=(10, 5))
-    plt.hist(energy_list, bins=50, alpha=0.7, color='green', density=True)
+    plt.hist(energy_list, bins=100, alpha=0.7, color='green', density=True)
     plt.title("Histogram of Energy")
     plt.xlabel("Energy")
     plt.ylabel("Frequency")
@@ -126,10 +126,10 @@ if __name__ == "__main__":
 
             com_samples = samples - np.mean(samples, axis = 1, keepdims=True)
             #print(samples)
-            print(el, "com mean", np.mean(np.mean(com_samples, axis = 0), axis = 0), np.mean(np.var(com_samples, axis = 0), axis = 0))
+            print(el, "com mean", np.mean(np.mean(com_samples, axis = 0), axis = 0), np.mean(np.std(com_samples, axis = 0), axis = 0))
 
             flattened_com_samples = com_samples.reshape((com_samples.shape[0], -1))
-            print("mean, std before reshape", np.mean(flattened_com_samples), np.mean(np.var(flattened_com_samples, axis = 0)))
+            print("mean, std before reshape", np.mean(flattened_com_samples), np.mean(np.std(flattened_com_samples, axis = 0)))
             if(el == "DW4"):
                 energy_list = []
                 for com_sample in com_samples:

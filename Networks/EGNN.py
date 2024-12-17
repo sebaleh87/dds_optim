@@ -31,7 +31,7 @@ class EGNNNetwork(nn.Module):
             x, h = net(x, h)
 
         x = x.reshape(orig_x_shapes)
-        x_hidden = nn.Dense(1, kernel_init=nn.initializers.he_normal())(h)
+        x_hidden = nn.Dense(1, kernel_init=nn.initializers.xavier_normal())(h)
         x_hidden = jnp.repeat(x_hidden, self.out_dim, axis = -1)
         x_hidden = x_hidden.reshape(orig_x_shapes)
         out_dict = {"x": x-x_0,  "x_hidden": x_hidden}
@@ -81,7 +81,7 @@ class EGNNLayer(nn.Module):
                                  bias_init=nn.initializers.zeros),
             nn.LayerNorm(),
             nn.silu,
-            nn.Dense(1, kernel_init=nn.initializers.he_normal(),
+            nn.Dense(1, kernel_init=nn.initializers.xavier_normal(),
                                  bias_init=nn.initializers.zeros)
         ]
         )
@@ -120,14 +120,14 @@ class EGNNLayer(nn.Module):
 
 
         #m_transformed_ij = flattened_mask[...,None]*self.net_m(flattened_mass_mat)*flattened_mass_mat ### old version
-        m_transformed_ij = flattened_mask[...,None]*self.net_m(flattened_mass_mat)
+        m_transformed_ij = flattened_mask[...,None]*self.net_m(flattened_mass_mat)*flattened_mass_mat
         m_transformed_ij_resh = m_transformed_ij.reshape(self.n_particles, self.n_particles, -1)
-        m_transformed_i = jnp.sum(m_transformed_ij_resh, axis = -2)
+        m_transformed_i = jnp.mean(m_transformed_ij_resh, axis = -2)
 
         d_net_out = self.net_d(flattened_mass_mat).reshape(self.n_particles, self.n_particles, -1)
         h_next = self.net_h(jnp.concatenate([h, m_transformed_i], axis = -1)) ### concatenate
         #x_next = x + jnp.sum( mask[...,None]*(x[:, None, : ] - x[None, :, :])/(jnp.sqrt(dist_squared[..., None] + 10**-3)+1)*d_net_out, axis = 1)
-        delta_x = jnp.sum( mask[...,None]*(x[:, None, : ] - x[None, :, :])/(dist[..., None] + 1.)*d_net_out, axis = -2)
+        delta_x = jnp.mean( mask[...,None]*(x[:, None, : ] - x[None, :, :])/(dist[..., None] + 1.)*d_net_out, axis = -2)
         x_next = x + delta_x
         # print("x_next", jax.lax.stop_gradient(jnp.mean(x_next)))
         # print("h_next", jax.lax.stop_gradient(jnp.mean(h_next)))

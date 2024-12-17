@@ -18,7 +18,7 @@ class ExpScheduleClass(BaseScheduleClass):
         elif self.current_step >= self.steps:
             return self.final_temperature
         lam = self.lam
-        value = self.final_temperature + jnp.exp(- lam * self.current_step / self.steps )* (self.start_temperature - self.final_temperature)
+        value = self.final_temperature + jnp.exp(- lam * (self.current_step-self.N_warmup_steps) / self.steps )* (self.start_temperature - self.final_temperature)
         return value
 
     def reset(self):

@@ -10,9 +10,11 @@ import torch
 
 parser = argparse.ArgumentParser(description="Denoising Diffusion Sampler")
 parser.add_argument("--GPU", type=int, default=6, help="GPU id to use")
-parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=["Reverse_KL_Loss","LogVariance_Loss", "LogVariance_Loss_MC", "LogVariance_Loss_with_grad", "LogVariance_Loss_weighted",
+parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=["Reverse_KL_Loss","LogVariance_Loss", "LogVariance_Loss_MC", 
+                                                                                 "LogVariance_Loss_with_grad", "LogVariance_Loss_weighted",
+                                                                                 "Bridge_rKL",
                                                                                 "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam"], help="select loss function")
-parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE", "VE_SDE"], help="GPU id to use")
+parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE", "VE_SDE", "Bridge_SDE"], help="GPU id to use")
 parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "GaussianMixtureToy", "Rastrigin", "LennardJones", "DoubleWell_iter", "DoubleWell_Richter",
                                                                                      "MexicanHat", "Pytheus", "WavePINN_latent", "WavePINN_hyperparam", "DoubleMoon"], help="EnergyClass")
 parser.add_argument("--T_start", type=float, default=1., help="Starting Temperature")
@@ -26,6 +28,7 @@ parser.add_argument("--project_name", type=str, default="")
 parser.add_argument("--minib_time_steps", type=int, default=20)
 parser.add_argument("--batch_size", type=int, default=200)
 parser.add_argument("--lr", type=float, default=0.001)
+parser.add_argument("--lr_schedule", type=str, choices = ["cosine", "const"], default = "cosine")
 parser.add_argument("--Energy_lr", type=float, default=0.0)
 parser.add_argument("--SDE_lr", type=float, default=10**-5)
 parser.add_argument("--SDE_weight_decay", type=float, default=0.)
@@ -94,6 +97,7 @@ if(__name__ == "__main__"):
         "steps_per_epoch": args.steps_per_epoch,
         "epochs_per_eval": args.epochs_per_eval,
         "SDE_weight_decay": args.SDE_weight_decay,
+        "lr_schedule": args.lr_schedule,
     }
 
     Network_Config = {
@@ -231,6 +235,7 @@ if(__name__ == "__main__"):
         n_eval_samples = 10000
 
     elif("LennardJones" in args.Energy_Config):
+        n_eval_samples = 1000
         Network_Config["base_name"] = "EGNN"
         N = 13
         out_dim = 3

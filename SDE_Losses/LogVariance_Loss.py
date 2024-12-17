@@ -11,7 +11,7 @@ class LogVariance_Loss_Class(Base_SDE_Loss_Class):
         print("Gradient over expectation is supposed to be stopped from now on")
 
     @partial(jax.jit, static_argnums=(0,))  
-    def evaluate_loss(self, Energy_params, SDE_params, SDE_tracer, key, temp = 1.0):
+    def evaluate_loss(self, params, Energy_params, SDE_params, SDE_tracer, key, temp = 1.0):
         score = SDE_tracer["scores"]
         dW = jax.lax.stop_gradient(SDE_tracer["dW"])
         ts = SDE_tracer["ts"]
@@ -59,8 +59,8 @@ class LogVariance_Loss_Class(Base_SDE_Loss_Class):
         # print("Energy", jax.lax.stop_gradient(Energy).mean())
         # print("log_var_loss", jax.lax.stop_gradient(log_var_loss).mean())
 
-        return log_var_loss, {"mean_energy": mean_Energy, "Free_Energy_at_T=1": Free_Energy, "Entropy": Entropy, "R_diff": R_diff, 
+        return log_var_loss, {"mean_energy": mean_Energy, "Free_Energy_at_T=1": Free_Energy, "log_Z_at_T=1": log_Z, "n_eff": n_eff, "Entropy": Entropy, "R_diff": R_diff, 
                       "key": key, "X_0": x_last, "mean_X_prior": jnp.mean(x_prior), "std_X_prior": jnp.mean(jnp.std(x_prior, axis = 0)), 
                        "sigma": jnp.exp(SDE_params["log_sigma"]),
-                      "beta_min": jnp.exp(SDE_params["log_beta_min"]), "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": SDE_params["mean"],
-                        "log_Z_at_T=1": log_Z, "n_eff": n_eff, "NLL": NLL}
+                      "beta_min": jnp.exp(SDE_params["log_beta_min"]), "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": SDE_params["mean"]
+                        , "NLL": NLL}

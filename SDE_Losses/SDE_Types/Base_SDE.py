@@ -50,6 +50,9 @@ class Base_SDE_Class:
         den_weight =  jnp.mean(2*jax.vmap(self.beta, in_axes=(None, 0))(SDE_params, t), axis = -1)
         return den_weight
     
+    def get_div_drift(self, SDE_params, t):
+        raise NotImplementedError("get_diffusion method not implemented")
+
     def get_SDE_params(self):
         raise NotImplementedError("get_diffusion method not implemented")
 
@@ -70,18 +73,18 @@ class Base_SDE_Class:
     def sample_prior(self, SDE_params, key, n_states):
         raise NotImplementedError("get_diffusion method not implemented")
     
-    def vmap_prior_target_grad_interpolation(self, x, t, Energy_params, SDE_params, key):
+    def vmap_prior_target_grad_interpolation(self, x, t, Energy_params, SDE_params, temp, key):
         key, subkey = random.split(key)
         batched_subkey = random.split(subkey, x.shape[0])
-        vmap_energy, vmap_grad = jax.vmap(self.prior_target_grad_interpolation, in_axes=(0, None, None, None, 0))(x,t, Energy_params, SDE_params, batched_subkey)
+        vmap_energy, vmap_grad = jax.vmap(self.prior_target_grad_interpolation, in_axes=(0, 0, None, None, None, 0))(x,t, Energy_params, SDE_params, temp, batched_subkey)
         #print("vmap_grad", jnp.mean(jax.lax.stop_gradient(vmap_grad)))
         vmap_grad = jnp.where(jnp.isfinite(vmap_grad), vmap_grad, 0)
-        return vmap_energy, vmap_grad, key
+        return vmap_energy, jax.lax.stop_gradient(vmap_grad), key
     
-    def prior_target_grad_interpolation(self, x, t, Energy_params, SDE_params, key):
+    def prior_target_grad_interpolation(self, x, t, Energy_params, SDE_params, temp, key):
         
         #interpol = lambda x: self.Energy_Class.calc_energy(x, Energy_params, key)
-        (Energy, key), (grad)  = jax.value_and_grad(self.interpol_func, has_aux=True)( x,t, SDE_params, Energy_params, key)
+        (Energy, key), (grad)  = jax.value_and_grad(self.interpol_func, has_aux=True)( x,t[0], SDE_params, Energy_params, temp, key)
         #grad = jnp.clip(grad, -10**2, 10**2)
         return jnp.expand_dims(Energy, axis = -1), grad
 
@@ -97,7 +100,7 @@ class Base_SDE_Class:
             beta_max = beta_min + beta_delta
             return beta_min, beta_max
 
-    def get_diffusion(self, t, x, log_sigma):
+    def get_diffusion(self, SDE_params, x, t):
         """
         Method to get the diffusion term of the SDE.
         
@@ -110,7 +113,7 @@ class Base_SDE_Class:
         """
         raise NotImplementedError("get_diffusion method not implemented")
 
-    def get_drift(self, t, x):
+    def get_drift(self, SDE_params, x, t):
         """
         Method to get the drift term of the SDE.
         
@@ -122,21 +125,6 @@ class Base_SDE_Class:
         float: Drift term.
         """
         raise NotImplementedError("get_drift method not implemented")
-
-    def reverse_sde(self, SDE_params, score, x, t, dt, key, mode = "DIS"):
-        """
-        Method to simulate the forward SDE.
-        
-        Parameters:
-        x0 (float): Initial state.
-        t0 (float): Initial time.
-        t1 (float): Final time.
-        dt (float): Time step.
-        
-        Returns:
-        list: Simulated path of the state variable.
-        """
-        raise NotImplementedError("simulate_forward_SDE method not implemented")
 
     def forward_sde(self, x, t, dt, key):
         """
@@ -152,7 +140,13 @@ class Base_SDE_Class:
         list: Simulated path of the state variable.
         """
         raise NotImplementedError("simulate_reverse_sde method not implemented")
-    
+
+    def interpol_func(self, x, t, SDE_params, Energy_params, temp, key):
+        clipped_temp = jnp.clip(temp, 0.0001)
+        Energy_value, key = self.Energy_Class.calc_energy(x, Energy_params, key)
+        interpol = (t)*self.get_log_prior(SDE_params,x)  - (1-t)*Energy_value / clipped_temp
+        return interpol, key
+
     def simulate_forward_sde(self, x0, t, key, n_integration_steps = 1000):
         x = x0
         t = 0.0
@@ -195,21 +189,21 @@ class Base_SDE_Class:
         ### TODO check at which x drift ref should be evaluated?
         reverse_out_dict = {"x_next": x_next, "t_next": t - dt, "drift_ref": x, "forward_drift": forward_drift, "reverse_drift": reverse_drift, "dW": dW}
         return reverse_out_dict, key
+
     
-    
-    def apply_model(self, model, x, t, params, Energy_params, SDE_params, hidden_state, key):
+    def apply_model(self, model, x, t, params, Energy_params, SDE_params, hidden_state, temp, key):
         t_arr = t*jnp.ones((x.shape[0], 1)) 
         new_hidden_state = hidden_state
         if(self.use_interpol_gradient):
             if(self.network_has_hidden_state):
-                Energy, grad, key = self.vmap_prior_target_grad_interpolation(x, t, Energy_params, SDE_params, key) 
+                Energy, grad, key = self.vmap_prior_target_grad_interpolation(x, t_arr, Energy_params, SDE_params, temp, key) 
                 Energy_value = Energy #Energy[...,None]
                 in_dict = {"x": x, "Energy_value": Energy_value, "t": t_arr, "grads": grad, "hidden_state": hidden_state}
                 out_dict = model.apply(params, in_dict, train = True)
                 score = out_dict["score"]
                 new_hidden_state = out_dict["hidden_state"]
             else:
-                Energy, grad, key = self.vmap_prior_target_grad_interpolation(x, t, Energy_params, SDE_params, key) 
+                Energy, grad, key = self.vmap_prior_target_grad_interpolation(x, t_arr, Energy_params, SDE_params, temp, key) 
                 Energy_value = Energy
                 in_dict = {"x": x, "Energy_value": Energy_value,  "t": t_arr, "grads": grad}
                 out_dict = model.apply(params, in_dict, train = True)
@@ -226,7 +220,7 @@ class Base_SDE_Class:
             score = out_dict["score"]
         return score, new_hidden_state, grad, key
     
-    def simulate_reverse_sde_scan(self, model, params, Energy_params, SDE_params, key, n_states = 100, x_dim = 2, n_integration_steps = 1000):
+    def simulate_reverse_sde_scan(self, model, params, Energy_params, SDE_params, temp, key, n_states = 100, x_dim = 2, n_integration_steps = 1000):
 
         def scan_fn(carry, step):
             x, t, key, carry_dict = carry
@@ -234,7 +228,7 @@ class Base_SDE_Class:
             #     print("score", x)
             #     raise ValueError("score is nan")
             hidden_state = carry_dict["hidden_state"]
-            score, new_hidden_state, grad, key = self.apply_model(model, x, t, params, Energy_params, SDE_params, hidden_state, key)
+            score, new_hidden_state, grad, key = self.apply_model(model, x, t, params, Energy_params, SDE_params, hidden_state, temp, key)
             carry_dict["hidden_state"] = new_hidden_state
 
             dt = self.reversed_dt_values[step]

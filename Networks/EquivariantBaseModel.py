@@ -17,18 +17,19 @@ class EGNNBaseClass(nn.Module):
         self.backbone = EGNNNetwork(n_layers = self.network_config["n_layers"], hidden_dim = self.network_config["n_hidden"], 
                                     feature_dim = self.network_config["feature_dim"], n_particles = self.network_config["n_particles"],
                                     out_dim = self.network_config["out_dim"])
-        self.use_normal = True#self.SDE_Loss_Config["SDE_Type_Config"]["use_normal"]
+        self.use_normal = self.SDE_Loss_Config["SDE_Type_Config"]["use_normal"]
         self.n_particles = self.network_config["n_particles"]
         self.particle_dim = self.network_config["out_dim"]
         
     @nn.compact
     def __call__(self, in_dict, train = False):
-        ### TODO compute embedding here?
+        ### TODO rewrite code so that __call__ is allways applied with vmap
         if(self.use_normal):
             copy_grads = jax.lax.stop_gradient(in_dict["grads"])
             in_dict["grads"] = jnp.zeros_like(in_dict["grads"])
             in_dict["Energy_value"] = jax.lax.stop_gradient(jnp.zeros_like(in_dict["Energy_value"]))
         else:
+            ### TODO compute grad norm to keep this invariant
             grad = in_dict["grads"]
             Energy = jax.lax.stop_gradient(jnp.zeros_like(in_dict["Energy_value"]))
             eps = 10**-10
@@ -53,16 +54,24 @@ class EGNNBaseClass(nn.Module):
         
         grads = copy_grads
 
-        clipped_grads = jnp.where(jnp.linalg.norm(grads) > 10**2, 10**2*grads/jnp.linalg.norm(grads), grads)
-        
-        grad_score = h_score * clipped_grads#jnp.clip(grads, -10**2, 10**2) #* nn.softplus(interpolated_grad) 
-        correction_grad_score = x_score+ grad_score
-        clipped_score = jnp.where(jnp.linalg.norm(correction_grad_score) > 10**4, 10**4*correction_grad_score/jnp.linalg.norm(correction_grad_score), correction_grad_score)
+        if(self.use_normal):
+            clip_value = 20
+            clip_overall_score = 10**4
+            grads_norm = jnp.linalg.norm(grads, axis = -1, keepdims = True)
+            clipped_grads = jnp.where(grads_norm > clip_value, clip_value*grads/grads_norm, grads)
+            
+            grad_score = h_score * clipped_grads
+            correction_grad_score = x_score+ grad_score
+            correction_grad_score_norm = jnp.linalg.norm(correction_grad_score, axis = -1, keepdims = True)
+            clipped_score = jnp.where(correction_grad_score_norm > clip_overall_score, clip_overall_score*correction_grad_score/correction_grad_score_norm, correction_grad_score)
 
-        resh_score = clipped_score.reshape(-1, self.n_particles, self.particle_dim)
-        resh_COM_score = resh_score - jnp.mean(resh_score, axis = 1, keepdims=   True)
-        COM_score = resh_COM_score.reshape(-1, self.particle_dim*self.n_particles)
-        out_dict["score"] = COM_score
-        return out_dict
+            resh_score = clipped_score.reshape(-1, self.n_particles, self.particle_dim)
+            resh_COM_score = resh_score - jnp.mean(resh_score, axis = 1, keepdims=   True)
+            COM_score = resh_COM_score.reshape(-1, self.particle_dim*self.n_particles)
+            out_dict["score"] = COM_score
+            return out_dict
+        else:
+            out_dict["score"] = x_score
+            return out_dict
 
 

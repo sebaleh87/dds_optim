@@ -147,11 +147,6 @@ class VP_SDE_Class(Base_SDE_Class):
         x_next = x + drift * dt + diffusion * jnp.sqrt(dt) * noise
         return x_next, t + dt, key
 
-    def interpol_func(self, x, t, SDE_params, Energy_params, key):
-        Energy_value, key = self.Energy_Class.calc_energy(x, Energy_params, key)
-        interpol = (t)*self.get_log_prior(SDE_params,x) + (1-t)*Energy_value
-        return interpol, key
-
     ### THIs implements drift and diffusion as in vargas papers
     def get_drift(self, SDE_params, x, t):
         mean = self.get_SDE_mean(SDE_params)

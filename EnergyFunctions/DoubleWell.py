@@ -1,4 +1,5 @@
-
+from matplotlib import pyplot as plt
+import wandb
 from .BaseEnergy import EnergyModelClass
 import jax
 import jax.numpy as jnp
@@ -23,6 +24,7 @@ class DoubleWellClass(EnergyModelClass):
             self.b = -4
             self.c = 0.9
             self.tau = 1.
+            self.dataset_file = "DW4"
 
 
             self.d = 2
@@ -81,18 +83,3 @@ class DoubleWellClass(EnergyModelClass):
         # energy = jnp.nan_to_num(energy, 10**4)
         # energy = jnp.where(energy > 10**4, 10**4, energy)
         return energy
-
-    def plot_interatomic_distances(self, x, panel = ""):
-        """
-        Plot the interatomic distances between particles in the input array.
-        
-        :param x: Input array.
-        """
-        x = x.reshape(-1, self.n_particles, self.particle_dim)
-        d_ij = np.sqrt(np.sum((x[:, None, :, :] - x[:, :, None, :]) ** 2 , axis=-1))
-        plt.hist(d_ij.flatten(), bins=100, density=True)
-        plt.xlabel("Interatomic distance")
-        plt.ylabel("Density")
-        
-        wandb.log({f"{panel}/Energy_Landscape": wfig})
-        plt.close()

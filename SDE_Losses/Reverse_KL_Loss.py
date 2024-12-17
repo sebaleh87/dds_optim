@@ -10,7 +10,7 @@ class Reverse_KL_Loss_Class(Base_SDE_Loss_Class):
         super().__init__(SDE_config, Optimizer_Config, EnergyClass, Network_Config, model)
 
     @partial(jax.jit, static_argnums=(0,))  
-    def evaluate_loss(self, Energy_params, SDE_params, SDE_tracer, key, temp = 1.0):
+    def evaluate_loss(self, params, Energy_params, SDE_params, SDE_tracer, key, temp = 1.0):
         score = SDE_tracer["scores"]
         ts = SDE_tracer["ts"]
         dW = SDE_tracer["dW"]
