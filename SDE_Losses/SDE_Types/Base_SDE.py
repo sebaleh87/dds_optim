@@ -142,7 +142,7 @@ class Base_SDE_Class:
         raise NotImplementedError("simulate_reverse_sde method not implemented")
 
     def interpol_func(self, x, t, SDE_params, Energy_params, temp, key):
-        clipped_temp = jnp.clip(temp, 0.0001)
+        clipped_temp = jnp.clip(temp, min = 0.0001)
         Energy_value, key = self.Energy_Class.calc_energy(x, Energy_params, key)
         interpol = (t)*self.get_log_prior(SDE_params,x)  - (1-t)*Energy_value / clipped_temp
         return interpol, key

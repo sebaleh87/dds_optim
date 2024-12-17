@@ -30,7 +30,7 @@ class Bridge_rKL_Loss_Class(Base_SDE_Loss_Class):
 
 
         if(self.optim_mode == "optim"):
-            loss = jnp.mean(temp*entropy_loss + temp*noise_loss + Energy + log_prior)
+            loss = jnp.mean(temp*entropy_loss + temp*noise_loss + Energy + temp*log_prior)
         elif(self.optim_mode == "equilibrium"):
             loss = jnp.mean(entropy_loss + noise_loss + Energy/temp + log_prior)
         return loss, {"loss": loss, "Free_Energy_at_T=1": Free_Energy, "log_Z_at_T=1": log_Z, "n_eff": n_eff, "mean_energy": mean_Energy, 
