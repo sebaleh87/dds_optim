@@ -19,7 +19,7 @@ class LennardJonesClass(EnergyModelClass):
 
         super().__init__(config)
         self.r = 1
-        self.tau = 1.
+        self.tau = 0.5
         self.eps = 1.
         self.c = 0.5
 
@@ -43,7 +43,7 @@ class LennardJonesClass(EnergyModelClass):
 
         eps = 10**-8
         eps2 = 9*10**-3
-        d_ij_squared = jnp.sum((x[:, None, :] - x[None, :, :]) ** 2 + eps, axis=-1)
+        d_ij_squared = jnp.sum((x[:, None, :] - x[None, :, :]) ** 2, axis=-1)
         d_ij_squared = jnp.where(d_ij_squared < eps2, d_ij_squared + eps2, d_ij_squared)
         mask = jnp.eye(d_ij_squared.shape[0])
 

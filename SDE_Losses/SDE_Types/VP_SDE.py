@@ -10,7 +10,6 @@ class VP_SDE_Class(Base_SDE_Class):
     def __init__(self, SDE_Type_Config, Network_Config, Energy_Class):
         self.beta_min = SDE_Type_Config["beta_min"]
         self.beta_max = SDE_Type_Config["beta_max"]
-        self.sigma_sde = 1.
         self.config = SDE_Type_Config
         super().__init__(SDE_Type_Config, Network_Config, Energy_Class)
         ### THIS code assumes that sigma of reference distribution is 1

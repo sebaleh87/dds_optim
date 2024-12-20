@@ -52,7 +52,7 @@ class Reverse_KL_Loss_Class(Base_SDE_Loss_Class):
         Free_Energy, n_eff, NLL = res_dict["Free_Energy"], res_dict["n_eff"], res_dict["NLL"]
 
         return loss, {"mean_energy": mean_Energy, "Free_Energy_at_T=1": Free_Energy, "Entropy": Entropy, "R_diff": R_diff, "likelihood_ratio": jnp.mean(loss), 
-                      "key": key, "X_0": x_last, "mean_X_prior": jnp.mean(x_prior), "std_X_prior": jnp.mean(jnp.std(x_prior, axis = 0)), 
+                      "key": key, "X_0": x_last, "mean_X_prior": jnp.mean(x_prior), #"std_X_prior": jnp.mean(jnp.std(x_prior, axis = 0)), 
                        "sigma": jnp.exp(SDE_params["log_sigma"]),
                       "beta_min": jnp.exp(SDE_params["log_beta_min"]), "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": SDE_params["mean"]
                       , "log_Z_at_T=1": log_Z, "n_eff": n_eff, "NLL": NLL}

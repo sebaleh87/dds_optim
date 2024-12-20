@@ -101,6 +101,10 @@ class Base_SDE_Loss_Class:
         updates, opt_state = self.optimizer.update(grads, opt_state)
         params = optax.apply_updates(params, updates)
         
+        # check_nans(grads)
+        # check_nans(SDE_params_grad)
+        # print(loss_value)
+
         SDE_params_updates, SDE_params_state = self.SDE_params_optimizer.update(SDE_params_grad, SDE_params_state, SDE_params)
         SDE_params = optax.apply_updates(SDE_params, SDE_params_updates)
 
@@ -157,8 +161,8 @@ class Base_SDE_Loss_Class:
         weight_decay = self.Optimizer_Config["SDE_weight_decay"]
 
         self.SDE_schedule = self._init_lr_schedule(l_max, l_start, lr_min, overall_steps, warmup_steps)
-        #optimizer = optax.radam(l_max)
-        optimizer = optax.chain(optax.add_decayed_weights(weight_decay), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.SDE_schedule(epoch)))
+        #clipping is necessary due to lennard jones instabilities
+        optimizer = optax.chain(optax.clip(1.0), optax.add_decayed_weights(weight_decay), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.SDE_schedule(epoch)))
         return optimizer
     
     def shift_samples(self, X_samples, SDE_params, energy_key):

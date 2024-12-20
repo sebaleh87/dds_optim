@@ -15,6 +15,7 @@ class Base_SDE_Class:
         self.Energy_Class = Energy_Class
         self.dim_x = self.Energy_Class.dim_x
         self.use_interpol_gradient = config["use_interpol_gradient"]
+        self.n_integration_steps = config["n_integration_steps"]
         self.Network_Config = Network_Config
         if("LSTM" in Network_Config["name"]):
             self.network_has_hidden_state = True
@@ -79,10 +80,10 @@ class Base_SDE_Class:
         vmap_energy, vmap_grad = jax.vmap(self.prior_target_grad_interpolation, in_axes=(0, 0, None, None, None, 0))(x,t, Energy_params, SDE_params, temp, batched_subkey)
         #print("vmap_grad", jnp.mean(jax.lax.stop_gradient(vmap_grad)))
         vmap_grad = jnp.where(jnp.isfinite(vmap_grad), vmap_grad, 0)
-        return vmap_energy, jax.lax.stop_gradient(vmap_grad), key
+        return vmap_energy, vmap_grad, key
     
     def prior_target_grad_interpolation(self, x, t, Energy_params, SDE_params, temp, key):
-        
+        x = jax.lax.stop_gradient(x)
         #interpol = lambda x: self.Energy_Class.calc_energy(x, Energy_params, key)
         (Energy, key), (grad)  = jax.value_and_grad(self.interpol_func, has_aux=True)( x,t[0], SDE_params, Energy_params, temp, key)
         #grad = jnp.clip(grad, -10**2, 10**2)
