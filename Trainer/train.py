@@ -223,7 +223,7 @@ class TrainerClass:
         self.SDE_LossClass.SDE_params = param_dict["SDE_params"]
 
         n_samples = self.config["n_eval_samples"]
-        SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, key, n_integration_steps = self.n_integration_steps, n_states = n_samples)
+        SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, T_curr, key, n_integration_steps = self.n_integration_steps, n_states = n_samples)
         fig_traj = self.EnergyClass.plot_trajectories(np.array(SDE_tracer["ys"])[:,0:10,:], panel = "best_figs")
         fig_hist = self.EnergyClass.plot_histogram(np.array(SDE_tracer["y_final"]), panel = "best_figs")
         fig_last_samples = self.EnergyClass.plot_last_samples(np.array(SDE_tracer["y_final"]), panel = "best_figs")
