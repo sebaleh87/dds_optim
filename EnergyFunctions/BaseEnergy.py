@@ -238,6 +238,20 @@ class EnergyModelClass:
         wandb.log({f"{panel}/energy_histogram": wfig})
         plt.close()
 
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        ax.hist(data_energy_values, bins=100, density=True, color='red', alpha=0.5, edgecolor='red', label = "data")
+        ax.set_title('Histogram of Energy Values')
+        ax.set_xlabel('Energy')
+        ax.set_ylabel('Density')
+        ax.grid(True)
+        plt.legend()
+
+        # Log the figure using wandb
+        wfig = wandb.Image(fig)
+        wandb.log({f"{panel}/energy_gt_histogram": wfig})
+        plt.close()
+
 
 
 

@@ -12,7 +12,7 @@ parser = argparse.ArgumentParser(description="Denoising Diffusion Sampler")
 parser.add_argument("--GPU", type=int, default=6, help="GPU id to use")
 parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=["Reverse_KL_Loss","LogVariance_Loss", "LogVariance_Loss_MC", 
                                                                                  "LogVariance_Loss_with_grad", "LogVariance_Loss_weighted",
-                                                                                 "Bridge_rKL",
+                                                                                 "Bridge_rKL", "Bridge_LogVarLoss",
                                                                                 "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam"], help="select loss function")
 parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE", "VE_SDE", "Bridge_SDE"], help="GPU id to use")
 parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "GaussianMixtureToy", "Rastrigin", "LennardJones", "DoubleWell_iter", "DoubleWell_Richter",
@@ -80,6 +80,7 @@ if(__name__ == "__main__"):
 
     if(args.disable_jit):
         jax.config.update("jax_disable_jit", True)
+        jax.config.update("jax_debug_nans", True)
 
     # if(args.lr/args.SDE_lr  < 5):
     #     print("Warning: args.lr/args.SDE_lr  < 5, emperically this ratio is too high")

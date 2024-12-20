@@ -20,13 +20,27 @@ class Bridge_SDE_Class(Base_SDE_Class):
             ### if beta is learnable this also ahs to be dim(1)
             SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"] - self.config["beta_min"]), 
             "log_beta_min": jnp.log(self.config["beta_min"]),
-            "log_sigma": jnp.log(self.sigma_init), "mean": jnp.zeros((self.dim_x,))}
+            "log_sigma": jnp.log(self.sigma_init), "mean": jnp.zeros((self.dim_x,)),
+            "log_sigma_prior": jnp.log(self.sigma_init)}
 
         else:
             SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"] - self.config["beta_min"])* jnp.ones((self.dim_x,)), 
                         "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
-                        "log_sigma": jnp.log(self.sigma_init)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,))}
+                        "log_sigma": jnp.log(self.sigma_init)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)),
+                        "log_sigma_prior": jnp.log(self.sigma_init)* jnp.ones((self.dim_x,)),
+                        "beta_interpol_params": jnp.ones((self.n_integration_steps))}
         return SDE_params
+
+    def interpol_func(self, x, t, SDE_params, Energy_params, temp, key):
+        clipped_temp = jnp.clip(temp, min = 0.0001)
+        step_index = round((1-t)*self.n_integration_steps)
+        beta_params = SDE_params["beta_interpol_params"]
+        beta_activ = nn.softplus(beta_params)
+        where_true = 1*(jnp.arange(0, self.n_integration_steps) < step_index)
+        beta_interpol = 1 - jnp.sum(where_true*beta_activ)/ jnp.sum(beta_activ)
+        Energy_value, key = jax.lax.stop_gradient(self.Energy_Class.calc_energy(x, Energy_params, key))
+        interpol = (beta_interpol)*self.get_log_prior(SDE_params,x)  - (1-beta_interpol)*Energy_value / clipped_temp
+        return interpol, key
 
     def get_log_prior(self, SDE_params, x):
         mean = self.get_mean_prior(SDE_params)
@@ -46,13 +60,9 @@ class Bridge_SDE_Class(Base_SDE_Class):
         if(self.invariance):
             mean = jnp.zeros((self.dim_x,))
         else:
-            mean = jnp.zeros((self.dim_x,))
+            mean = SDE_params["mean"]*jnp.zeros((self.dim_x,))
         overall_mean = mean 
         return overall_mean
-
-    def get_SDE_mean(self, SDE_params):
-        mean = jnp.zeros((self.dim_x,))
-        return mean
 
     def get_SDE_sigma(self, SDE_params):
         if(self.invariance):
@@ -60,7 +70,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
             return sigma
         else:
             sigma = jnp.exp(SDE_params["log_sigma"])
-            return sigma 
+            return sigma
 
     def sample_prior(self, SDE_params, key, n_states):
         key, subkey = random.split(key)
@@ -75,16 +85,16 @@ class Bridge_SDE_Class(Base_SDE_Class):
     
     def return_prior_covar(self, SDE_params):
         if(self.invariance):
-            sigma = self.get_SDE_sigma(SDE_params)
+            sigma = jnp.exp(SDE_params["log_sigma_prior"])*jnp.ones((self.dim_x,))
             overall_sigma = sigma
             return overall_sigma
         else:
-            sigma = self.get_SDE_sigma(SDE_params)
+            sigma = jnp.exp(SDE_params["log_sigma_prior"])
             return sigma
 
     def beta(self, SDE_params, t):
         beta_min, beta_max = self.get_beta_min_and_max(SDE_params)
-        return beta_min + beta_max*jnp.cos(jnp.pi/2*t) 
+        return beta_min + (beta_max-beta_min)*jnp.cos(jnp.pi/2*(1-t)) 
 
     def get_diffusion(self, SDE_params, x, t):
         sigma, _ = self.get_SDE_sigma(SDE_params)
@@ -98,7 +108,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
         else:
             log_pdf_vec = jax.scipy.stats.norm.logpdf(mean, loc=loc, scale=scale)
 
-        return jnp.sum(log_pdf_vec, axis = 1)
+        return jnp.sum(log_pdf_vec, axis = -1)
 
     def forward_sde(self, SDE_params, x, t, key):
         pass
@@ -113,13 +123,12 @@ class Bridge_SDE_Class(Base_SDE_Class):
         return dx, key
     
     def compute_reverse_drift(self, diffusion, score, grad):
-        reverse_drift = diffusion**2*(score + 0.5*grad)
+        reverse_drift = diffusion**2*score
         return reverse_drift
     
     def reverse_sde(self, SDE_params, score, grad, x, t, dt, key):
         diffusion = self.get_diffusion(SDE_params, x, t)
 
-        x_s = x
         reverse_drift_t_g_s = self.compute_reverse_drift(diffusion, score, grad) #TODO check is this power of two correct? I think yes because U = diffusion*score
 
         dx, key = self.sample_noise(SDE_params, x, t, dt, key)
@@ -133,7 +142,6 @@ class Bridge_SDE_Class(Base_SDE_Class):
         else:
             x_next = x + reverse_drift_t_g_s  * dt  + dx
 
-        x_t = x_next
         log_prob_t_g_s = self.calc_diff_log_prob(x_next, x + reverse_drift_t_g_s*dt, diffusion*jnp.sqrt(dt))
 
 
