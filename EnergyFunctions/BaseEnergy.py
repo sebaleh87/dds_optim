@@ -86,7 +86,8 @@ class EnergyModelClass:
         grid_points = jnp.stack([X.ravel(), Y.ravel()], axis=-1)
         
         # Calculate energy and log-probs for each point in the grid
-        Z_energy = jax.vmap(self.energy_function)(grid_points)
+        # Z_energy = jax.vmap(self.energy_function)(grid_points)
+        Z_energy = jax.vmap(self.calc_energy)(grid_points)
         Z_log_probs = jax.vmap(lambda pt: self.calc_log_probs(pt, T))(grid_points)
         
         # Reshape results back into a 2D grid
@@ -129,7 +130,8 @@ class EnergyModelClass:
         x = jnp.linspace(x_range[0], x_range[1], resolution)
         
         # Calculate energy and log-probs for each point in the range
-        Z_energy = jax.vmap(self.energy_function)(x)
+        # Z_energy = jax.vmap(self.energy_function)(x)
+        Z_energy = jax.vmap(self.calc_energy)(x)
         Z_log_probs = jax.vmap(lambda pt: self.calc_log_probs(pt, T))(x)
 
         # Plotting
