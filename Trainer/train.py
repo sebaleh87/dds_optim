@@ -12,6 +12,7 @@ import time
 import pickle
 import os
 from utils.rotate_vector import rotate_vector
+from matplotlib import pyplot as plt
 
 class TrainerClass:
     def __init__(self, base_config):
@@ -175,7 +176,24 @@ class TrainerClass:
                 figs = {"figs/best_trajectories": fig_traj, "figs/best_histogram": fig_hist, "figs/best_last_samples": fig_last_samples}
                 Energy_values = self.SDE_LossClass.vmap_Energy_function(SDE_tracer["y_final"])
 
-                self.check_improvement(params, Best_Energy_value_ever, np.min(Energy_values), "Energy", epoch=epoch)
+                self.check_improvement(params, Best_Energy_value_ever, np.min(Energy_values), "Energy", epoch=epoch+1)
+
+                if("beta_interpol_params" in self.SDE_LossClass.SDE_params.keys()):
+                    beta_interpol_params = self.SDE_LossClass.SDE_params["beta_interpol_params"]
+                    steps = np.arange(0,len(beta_interpol_params))
+
+                    interpol_time = [self.SDE_LossClass.SDE_type.compute_energy_interpolation_time(self.SDE_LossClass.SDE_params, t) for t in range(len(beta_interpol_params))]
+
+                    fig, ax = plt.subplots()
+
+                    ax.plot(steps, interpol_time, label='Beta Interpolation Parameters')
+                    ax.set_xlabel('Steps')
+                    ax.set_ylabel('Beta Interpolation Parameters')
+                    ax.set_title('Beta Interpolation Parameters over Steps')
+                    ax.legend()
+                    wandb.log({"fig/Beta_Interpolation_Parameters": wandb.Image(fig)})
+                    plt.close(fig)
+                    
 
 
 

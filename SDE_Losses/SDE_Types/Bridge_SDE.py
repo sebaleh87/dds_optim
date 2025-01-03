@@ -33,14 +33,19 @@ class Bridge_SDE_Class(Base_SDE_Class):
 
     def interpol_func(self, x, t, SDE_params, Energy_params, temp, key):
         clipped_temp = jnp.clip(temp, min = 0.0001)
-        step_index = round((1-t)*self.n_integration_steps)
+        beta_interpol = self.compute_energy_interpolation_time(SDE_params, t)
+        Energy_value, key = self.Energy_Class.calc_energy(x, Energy_params, key)
+        log_prior = self.get_log_prior(jax.lax.stop_gradient(SDE_params),x)  ### only stop gradient for log prior but not for beta_interpol or x
+        interpol = (beta_interpol)*log_prior  - (1-beta_interpol)*Energy_value / clipped_temp
+        return interpol, key
+    
+    def compute_energy_interpolation_time(self, SDE_params, t):
+        step_index = self.n_integration_steps-t
         beta_params = SDE_params["beta_interpol_params"]
         beta_activ = nn.softplus(beta_params)
         where_true = 1*(jnp.arange(0, self.n_integration_steps) < step_index)
         beta_interpol = 1 - jnp.sum(where_true*beta_activ)/ jnp.sum(beta_activ)
-        Energy_value, key = jax.lax.stop_gradient(self.Energy_Class.calc_energy(x, Energy_params, key))
-        interpol = (beta_interpol)*self.get_log_prior(SDE_params,x)  - (1-beta_interpol)*Energy_value / clipped_temp
-        return interpol, key
+        return beta_interpol
 
     def get_log_prior(self, SDE_params, x):
         mean = self.get_mean_prior(SDE_params)
@@ -93,6 +98,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
             return sigma
 
     def beta(self, SDE_params, t):
+        t = t/self.n_integration_steps
         beta_min, beta_max = self.get_beta_min_and_max(SDE_params)
         return beta_min + (beta_max-beta_min)*jnp.cos(jnp.pi/2*(1-t)) 
 
@@ -140,7 +146,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
         if(self.stop_gradient):
             x_next = jax.lax.stop_gradient(x + reverse_drift_t_g_s*dt  + dx)
         else:
-            x_next = x + reverse_drift_t_g_s  * dt  + dx
+            x_next = x + reverse_drift_t_g_s * dt  + dx
 
         log_prob_t_g_s = self.calc_diff_log_prob(x_next, x + reverse_drift_t_g_s*dt, diffusion*jnp.sqrt(dt))
 
@@ -148,10 +154,11 @@ class Bridge_SDE_Class(Base_SDE_Class):
         ### TODO check at which x drift ref should be evaluated?
         reverse_out_dict = {"x_next": x_next, "t_next": t - dt, "diffusion": diffusion, "reverse_drift": reverse_drift_t_g_s, "reverse_log_prob": log_prob_t_g_s, "dx": dx}
         return reverse_out_dict, key
-    
+
+
     def simulate_reverse_sde_scan(self, model, params, Energy_params, SDE_params, temp, key, n_states = 100, x_dim = 2, n_integration_steps = 1000):
-        dt = 1./n_integration_steps
-        t = 1.
+        dt = 1.
+        t = n_integration_steps
         def scan_fn(carry, step):
             x, t, key, carry_dict = carry
             # if(jnp.isnan(x).any()):
@@ -237,75 +244,5 @@ class Bridge_SDE_Class(Base_SDE_Class):
         }
 
         return SDE_tracker, key
-    
-    def simulated_SDE_from_x(self, model, params, Energy_params, SDE_params, x, key, n_integration_steps = 1000):
-        def scan_fn(carry, step):
-            x, t, key, carry_dict = carry
-            # if(jnp.isnan(x).any()):
-            #     print("score", x)
-            #     raise ValueError("score is nan")
-            t_arr = t*jnp.ones((x.shape[0], 1)) 
-            if(self.use_interpol_gradient):
-                if(self.network_has_hidden_state):
-                    Energy, grad, key = self.vmap_prior_target_grad_interpolation(x, t, Energy_params, SDE_params, key) 
-                    Energy_value = Energy #Energy[...,None]
-                    in_dict = {"x": x, "Energy_value": Energy_value, "t": t_arr, "grads": grad, "hidden_state": carry_dict["hidden_state"]}
-                    out_dict = model.apply(params, in_dict, train = True)
-                    score = out_dict["score"]
-                    carry_dict["hidden_state"] = out_dict["hidden_state"]
-                else:
-                    Energy, grad, key = self.vmap_prior_target_grad_interpolation(x, t, Energy_params, SDE_params, key) 
-                    Energy_value = Energy
-                    in_dict = {"x": x, "Energy_value": Energy_value,  "t": t_arr, "grads": grad}
-                    out_dict = model.apply(params, in_dict, train = True)
-                    score = out_dict["score"]
-            # if(jnp.isnan(concat_values).any()):
-            #     print("concat_values", concat_values)
-            #     raise ValueError("concat_values is nan")
-                
-            else:
-                ### TODO x dim should be increased by 1
-                grad = jnp.zeros((x.shape[0], self.dim_x))
-                in_dict = {"x": x, "t": t_arr, "Energy_value": jnp.zeros((x.shape[0], 1)),  "grads": grad}
-                out_dict = model.apply(params, in_dict, train = True)
-                score = out_dict["score"]
-
-
-            dt = self.reversed_dt_values[step]
-            reverse_out_dict, key = self.reverse_sde(SDE_params, score, x, t, dt, key)
-
-            SDE_tracker_step = {
-            "interpolated_grad": grad,
-            "dW": reverse_out_dict["dW"],
-            "xs": x,
-            "ts": t,
-            "scores": score,
-            "forward_drift": reverse_out_dict["forward_drift"],
-            "reverse_drift": reverse_out_dict["reverse_drift"],
-            "drift_ref": reverse_out_dict["drift_ref"],
-            "dts": dt
-            }
-
-            x = reverse_out_dict["x_next"]
-            t = reverse_out_dict["t_next"]
-            return (x, t, key, carry_dict), SDE_tracker_step
-
-        if(self.invariance == True):
-            x = self.subtract_COM(x)
-
-        t = 1.0
-        dt = 1. / n_integration_steps
-        ### this function is primarily so that i can test the equivaraicne of the sde
-        init_carry = jnp.zeros((x.shape[0], self.Network_Config["n_hidden"]))
-        carry_dict = {"hidden_state": [(init_carry, init_carry)  for i in range(self.Network_Config["n_layers"])]}
-        print("key",key)
-        (x_final, t_final, key, carry_dict), SDE_tracker_steps = jax.lax.scan(
-            scan_fn,
-            (x, t, key, carry_dict),
-            jnp.arange(n_integration_steps)
-        )
-
-        return x_final, SDE_tracker_steps
-    
 
 

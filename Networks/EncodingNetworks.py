@@ -61,7 +61,7 @@ class EncodingNetwork(nn.Module):
 
         x_encode = nn.Dense(self.feature_dim, kernel_init=nn.initializers.he_normal(),
                                  bias_init=nn.initializers.zeros)(x_in)
-        x = nn.LayerNorm()(x_encode)
+        x_encode = nn.LayerNorm()(x_encode)
         x_encode = nn.relu(x_encode)
         x = jnp.concatenate([ x_encode, t, t_encodings], axis=-1)
 

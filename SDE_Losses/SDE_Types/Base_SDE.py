@@ -83,9 +83,9 @@ class Base_SDE_Class:
         return vmap_energy, vmap_grad, key
     
     def prior_target_grad_interpolation(self, x, t, Energy_params, SDE_params, temp, key):
-        x = jax.lax.stop_gradient(x)
+        x_stopped = jax.lax.stop_gradient(x)
         #interpol = lambda x: self.Energy_Class.calc_energy(x, Energy_params, key)
-        (Energy, key), (grad)  = jax.value_and_grad(self.interpol_func, has_aux=True)( x,t[0], SDE_params, Energy_params, temp, key)
+        (Energy, key), (grad)  = jax.value_and_grad(self.interpol_func, has_aux=True)( x_stopped,t[0], SDE_params, Energy_params, temp, key)
         #grad = jnp.clip(grad, -10**2, 10**2)
         return jnp.expand_dims(Energy, axis = -1), grad
 
@@ -145,7 +145,8 @@ class Base_SDE_Class:
     def interpol_func(self, x, t, SDE_params, Energy_params, temp, key):
         clipped_temp = jnp.clip(temp, min = 0.0001)
         Energy_value, key = self.Energy_Class.calc_energy(x, Energy_params, key)
-        interpol = (t)*self.get_log_prior(SDE_params,x)  - (1-t)*Energy_value / clipped_temp
+        log_prior = self.get_log_prior(jax.lax.stop_gradient(SDE_params),x)
+        interpol = (t)*log_prior  - (1-t)*Energy_value / clipped_temp
         return interpol, key
 
     def simulate_forward_sde(self, x0, t, key, n_integration_steps = 1000):
