@@ -53,7 +53,7 @@ class EnergyModelClass:
         return energy_value, key
     
     def scale_samples(self, diff_samples, energy_params, key):
-        Y = diff_samples/self.scaling
+        Y = diff_samples#/self.scaling
         return Y, key
 
 

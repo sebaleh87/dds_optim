@@ -40,6 +40,7 @@ class Base_SDE_Class:
         
         self.sigma_init = config["sigma_init"]
         self.learn_covar = config["learn_covar"]
+        self.repulsion_strength = config["repulsion_strength"]
 
     def weightening(self, t):
         SDE_params = self.get_SDE_params()
@@ -80,14 +81,50 @@ class Base_SDE_Class:
         vmap_energy, vmap_grad = jax.vmap(self.prior_target_grad_interpolation, in_axes=(0, 0, None, None, None, 0))(x,t, Energy_params, SDE_params, temp, batched_subkey)
         #print("vmap_grad", jnp.mean(jax.lax.stop_gradient(vmap_grad)))
         vmap_grad = jnp.where(jnp.isfinite(vmap_grad), vmap_grad, 0)
+
+        vmap_div_energy, vmap_grad_div = self.get_diversity_log_prob_grad(x,t,SDE_params) 
+        vmap_energy = vmap_energy + vmap_div_energy
+        vmap_grad = vmap_grad + vmap_grad_div
+
         return vmap_energy, vmap_grad, key
     
     def prior_target_grad_interpolation(self, x, t, Energy_params, SDE_params, temp, key):
-        x = jax.lax.stop_gradient(x)
+        x_stopped = jax.lax.stop_gradient(x)
         #interpol = lambda x: self.Energy_Class.calc_energy(x, Energy_params, key)
-        (Energy, key), (grad)  = jax.value_and_grad(self.interpol_func, has_aux=True)( x,t[0], SDE_params, Energy_params, temp, key)
+        (Energy, key), (grad)  = jax.value_and_grad(self.interpol_func, has_aux=True)( x_stopped,t[0], SDE_params, Energy_params, temp, key)
         #grad = jnp.clip(grad, -10**2, 10**2)
         return jnp.expand_dims(Energy, axis = -1), grad
+
+    def interpol_func(self, x, t, SDE_params, Energy_params, temp, key):
+        clipped_temp = jnp.clip(temp, min = 0.0001)
+        beta_interpol = self.compute_energy_interpolation_time(SDE_params, t)
+        Energy_value, key = self.Energy_Class.calc_energy(x, Energy_params, key)
+        log_prior = self.get_log_prior(jax.lax.stop_gradient(SDE_params),x)  ### only stop gradient for log prior but not for beta_interpol or x
+        interpol = (beta_interpol)*log_prior  - (1-beta_interpol)*Energy_value / clipped_temp
+        return interpol, key
+    
+    def get_diversity_log_prob_grad(self, x_batch,t, SDE_params):
+        x_batch = jax.lax.stop_gradient(x_batch)
+        (div_Energy, _), (batched_x_grad) = jax.value_and_grad(self.diversity_log_prob, has_aux=True)(x_batch, t, SDE_params)
+        return div_Energy, batched_x_grad
+    
+    def diversity_log_prob(self, x_batch,t ,SDE_params, eps = 10**-8):
+        div_beta_interpol = self.compute_energy_interpolation_time(SDE_params, t[0], SDE_param_key = "repulsion_interpol_params")
+        distances = jnp.sqrt(jnp.sum((x_batch[:, None, :] - x_batch[None, :, :])**2, axis = -1) + eps)
+        mask = jnp.eye(distances.shape[0])
+        max_value = jax.lax.stop_gradient(jnp.max(distances))
+        masked_distances = jnp.where(mask == 1, max_value+1., distances)
+        div_Energy = jnp.sum(jnp.min(masked_distances, axis = -1)**0.5)**2
+
+        return - self.repulsion_strength*div_Energy*(div_beta_interpol)*(1-div_beta_interpol), (div_beta_interpol)*(1-div_beta_interpol)
+    
+    def compute_energy_interpolation_time(self, SDE_params, t, SDE_param_key = "beta_interpol_params"):
+        step_index = jnp.round(self.n_integration_steps-t*self.n_integration_steps)
+        beta_params = SDE_params[SDE_param_key]
+        beta_activ = nn.softplus(beta_params)
+        where_true = 1*(jnp.arange(0, self.n_integration_steps) < step_index)
+        beta_interpol = 1 - jnp.sum(where_true*beta_activ)/ jnp.sum(beta_activ)
+        return beta_interpol
 
     def get_beta_min_and_max(self, SDE_params):
         if(self.invariance):
@@ -145,7 +182,8 @@ class Base_SDE_Class:
     def interpol_func(self, x, t, SDE_params, Energy_params, temp, key):
         clipped_temp = jnp.clip(temp, min = 0.0001)
         Energy_value, key = self.Energy_Class.calc_energy(x, Energy_params, key)
-        interpol = (t)*self.get_log_prior(SDE_params,x)  - (1-t)*Energy_value / clipped_temp
+        log_prior = self.get_log_prior(jax.lax.stop_gradient(SDE_params),x)
+        interpol = (t)*log_prior  - (1-t)*Energy_value / clipped_temp
         return interpol, key
 
     def simulate_forward_sde(self, x0, t, key, n_integration_steps = 1000):

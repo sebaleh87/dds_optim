@@ -14,8 +14,7 @@ class Bridge_rKL_Loss_Class(Base_SDE_Loss_Class):
         ### TODO check why mean is not learned!
         forward_diff_log_probs = SDE_tracer["forward_diff_log_probs"]
         reverse_log_probs = SDE_tracer["reverse_log_probs"]
-        entropy_loss = jnp.sum(reverse_log_probs, axis = 0)
-        noise_loss = -jnp.sum(forward_diff_log_probs, axis = 0) 
+
         entropy_minus_noise = jnp.sum(reverse_log_probs - forward_diff_log_probs, axis = 0)
 
         x_prior = SDE_tracer["x_prior"]
@@ -29,6 +28,9 @@ class Bridge_rKL_Loss_Class(Base_SDE_Loss_Class):
         res_dict = self.compute_partition_sum(entropy_minus_noise, jnp.zeros_like(entropy_minus_noise), log_prior, Energy)
         log_Z = res_dict["log_Z"]
         Free_Energy, n_eff, NLL = res_dict["Free_Energy"], res_dict["n_eff"], res_dict["NLL"]
+
+        entropy_loss = jnp.mean(jnp.sum(reverse_log_probs, axis = 0) )
+        noise_loss = jnp.mean(-jnp.sum(forward_diff_log_probs, axis = 0))
 
 
         if(self.optim_mode == "optim"):

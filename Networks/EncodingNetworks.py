@@ -17,7 +17,7 @@ def get_sinusoidal_positional_encoding(x, embedding_dim, max_position):
         A 1D tensor of shape (embedding_dim,) representing the
         positional encoding for the given timestep.
     """
-    div_term = jnp.exp(jnp.arange(0, embedding_dim, 2) * (-jnp.log(max_position) / embedding_dim))
+    div_term = jnp.exp(jnp.arange(0, embedding_dim, 1) * (-jnp.log(max_position) / embedding_dim))
     x_pos = jnp.tensordot(x[...,None],div_term[None,:], axes = [[-1],[0]])
     x_sin_embedded = jnp.sin(x_pos)
     x_cos_embedded = jnp.cos(x_pos)
@@ -61,7 +61,7 @@ class EncodingNetwork(nn.Module):
 
         x_encode = nn.Dense(self.feature_dim, kernel_init=nn.initializers.he_normal(),
                                  bias_init=nn.initializers.zeros)(x_in)
-        x = nn.LayerNorm()(x_encode)
+        x_encode = nn.LayerNorm()(x_encode)
         x_encode = nn.relu(x_encode)
         x = jnp.concatenate([ x_encode, t, t_encodings], axis=-1)
 

@@ -1,21 +1,9 @@
-Ideas before vaccation
-does mode covering property happen because time steps with small beta play such a small role?
-finer integration at steps where beta is small, or use importance sampling?
+TODO:
 
-### TODO
-- learn sigma
-- add gradients to score?
-- add clipping hacks?
-- implement log derivative
-- mix diff sampler with adam?
-
-### Thought
-- own sigma for each direction?
-- SDE Entropy can only be increased by increasing sigma in prior?
-- TODO check this by computing the Entropy during Annealing?
+- fix bridge SDE n_eff and Z calculation
+- add repulisve energy interpolation
+- add possibility do do mcmc over time steps
+- sample out of ODE and not out of SDE
 
 
-### IDEA
-### input dependent cosine embeddings
-input ---> batch norm ---> cosine embedding
-input will be normalized --> frequency range can be chosen a priori for example 4 sigma
+-- compare NIS with iterated denoising. would be ablation on mass covering based objective?
