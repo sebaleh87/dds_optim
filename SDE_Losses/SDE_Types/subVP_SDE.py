@@ -13,6 +13,7 @@ class subVP_SDE_Class(Base_SDE_Class):
         self.sigma_sde = 1.
         self.config = SDE_Type_Config
         super().__init__(SDE_Type_Config, Network_Config, Energy_Class)
+        raise NotImplementedError("This class is not up to date")
         ### THIS code assumes that sigma of reference distribution is 1
 
     def get_log_prior(self, SDE_params, x):

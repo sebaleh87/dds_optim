@@ -1,6 +1,8 @@
 import numpy as np
 import ot
 import re
+from matplotlib import pyplot as plt
+import wandb
 
 def DW_energy( x, dim):
     d = dim
@@ -59,6 +61,40 @@ def wasserstein_distance_w2(samples1, samples2, weights1=None, weights2=None):
     
     return np.sqrt(wasserstein_distance)
 
+def plot_dm_samples(samples, energy_list, h=3, w=3):
+    wandb.init(project="DoubleWell", entity="sanokows")
+    plot_samples = samples[:h*w]
+    plt.figure(figsize=(8, 8))
+    for idx, sample in enumerate(plot_samples):
+        plt.subplot(h, w, idx + 1)
+        plt.scatter(sample[:, 0], sample[:, 1])
+        plt.title(f"Sample {idx}")
+    plt.tight_layout()
+    wandb.log({"Samples": wandb.Image(plt)})
+    plt.show()
+
+    # Plot histogram of interatomic distances
+    interatomic_distances = np.sqrt(np.sum((samples[:, None, :, :] - samples[:, :, None, :]) ** 2, axis=-1))
+    interatomic_distances = np.ravel(interatomic_distances)
+    plt.figure(figsize=(10, 5))
+    plt.hist(interatomic_distances.flatten(), bins=100, alpha=0.7, color='blue', density=True)
+    plt.title("Histogram of Interatomic Distances")
+    plt.xlabel("Distance")
+    plt.ylabel("Frequency")
+    wandb.log({"Interatomic Distances Histogram": wandb.Image(plt)})
+
+    # Plot histogram of energy
+    plt.figure(figsize=(10, 5))
+    plt.hist(energy_list, bins=100, alpha=0.7, color='green', density=True)
+    plt.title("Histogram of Energy")
+    plt.xlabel("Energy")
+    plt.ylabel("Frequency")
+    wandb.log({"Energy Histogram": wandb.Image(plt)})
+
+
+    
+
+
 # Example usage
 if __name__ == "__main__":
     # Generate random samples from two distributions
@@ -84,15 +120,16 @@ if __name__ == "__main__":
         for s in split:
             split_el = np.load(f'/system/user/publicwork/sanokows/Denoising_diff_sampler/Data/{s}_split_{el}.npy')
             print(f"Loaded {s} with shape: {split_el.shape}")
-
             samples = split_el.reshape((split_el.shape[0], n_paricles, -1))
             #print(samples)
             #print("mean", np.mean(samples, axis = 0), np.var(samples, axis = 0), np.mean(split_el[:,0:-1:2], axis = 0))
 
             com_samples = samples - np.mean(samples, axis = 1, keepdims=True)
             #print(samples)
-            print(el, "com mean", np.mean(np.mean(com_samples, axis = 0), axis = 0), np.mean(np.var(com_samples, axis = 0), axis = 0))
+            print(el, "com mean", np.mean(np.mean(com_samples, axis = 0), axis = 0), np.mean(np.std(com_samples, axis = 0), axis = 0))
 
+            flattened_com_samples = com_samples.reshape((com_samples.shape[0], -1))
+            print("mean, std before reshape", np.mean(flattened_com_samples), np.mean(np.std(flattened_com_samples, axis = 0)))
             if(el == "DW4"):
                 energy_list = []
                 for com_sample in com_samples:
@@ -101,6 +138,7 @@ if __name__ == "__main__":
                 #print(energy_list)
                 print("DW4 mean energy", np.mean(energy_list), np.std(energy_list))
                 print("ad", np.min(energy_list), np.max(energy_list))
+                plot_dm_samples(com_samples, energy_list)
 
             datas.append(split_el)
 

@@ -36,14 +36,14 @@ class TrainerClass:
         self.n_integration_steps = SDE_Loss_Config["n_integration_steps"]
         self._init_Network()
 
-        if(self.EnergyClass.invariance):
-            self._test_invariance()
+        #if(self.EnergyClass.invariance):
+            #self._test_invariance()
         #self.EnergyClass.plot_properties()
 
     def _init_Network(self):
-        x_init = jnp.ones((1,self.dim_x ,))
-        grad_init = jnp.ones((1,self.dim_x,))
-        Energy_value = jnp.ones((1,1,))
+        x_init = jnp.ones((1,self.dim_x ))
+        grad_init = jnp.ones((1,self.dim_x))
+        Energy_value = jnp.ones((1,1))
         init_carry = jnp.zeros(( 1, self.Network_Config["n_hidden"],))
         in_dict = {"x": x_init, "Energy_value": Energy_value,  "t": jnp.ones((1, 1,)), "grads": grad_init, "hidden_state": [(init_carry, init_carry) for i in range(self.Network_Config["n_layers"])]}
         self.params = self.model.init(random.PRNGKey(self.Network_Config["model_seed"]), in_dict, train = True)
@@ -82,6 +82,12 @@ class TrainerClass:
             in_dict = {"x": x_centered_resh_rot, "Energy_value": Energy_value,  "t": jnp.ones((batch_size, 1,)), "grads": grad_init, "hidden_state": [(init_carry, init_carry) for i in range(self.Network_Config["n_layers"])]}
             out_dict = self.model.apply(self.params, in_dict, train = True)
             score = out_dict["score"]
+
+            x_new = x_centered_resh_rot + score
+            x_new_resh = x_new.reshape((batch_size, self.EnergyClass.n_particles, self.EnergyClass.particle_dim))
+            print("COM", jnp.mean(jnp.mean(x_new_resh, axis = 1, keepdims=True)))
+            print("COM x_in", jnp.mean(jnp.mean(x_centered_resh_rot, axis = 1, keepdims=True)))
+
             rotated_scores.append(score)
 
             resh_scores = score.reshape((batch_size, self.EnergyClass.n_particles, self.EnergyClass.particle_dim))
@@ -151,10 +157,12 @@ class TrainerClass:
 
         pbar = trange(self.num_epochs)
         for epoch in pbar:
+            T_curr = self.AnnealClass.update_temp()
             start_time = time.time()
-            if(epoch % self.Optimizer_Config["epochs_per_eval"] == 0 and epoch):
+            if(epoch % int(self.num_epochs/self.Optimizer_Config["epochs_per_eval"]) == 0 or epoch == 0):
+                ### TODO check why this average is different from the one in teh train loop
                 n_samples = self.config["n_eval_samples"]
-                SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, key, n_integration_steps = self.n_integration_steps, n_states = n_samples)
+                SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, T_curr, key, n_integration_steps = self.n_integration_steps, n_states = n_samples)
                 wandb.log({ f"eval/{key}": np.mean(out_dict[key]) for key in out_dict.keys()}, step=epoch+1)
 
                 if(self.EnergyClass.config["name"] == "DoubleMoon"):
@@ -171,7 +179,6 @@ class TrainerClass:
 
 
 
-            T_curr = self.AnnealClass.update_temp()
             loss_list = []
             for i in range(self.Optimizer_Config["steps_per_epoch"]):
                 start_grad_time = time.time()
@@ -216,7 +223,7 @@ class TrainerClass:
         self.SDE_LossClass.SDE_params = param_dict["SDE_params"]
 
         n_samples = self.config["n_eval_samples"]
-        SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, key, n_integration_steps = self.n_integration_steps, n_states = n_samples)
+        SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, T_curr, key, n_integration_steps = self.n_integration_steps, n_states = n_samples)
         
         #TODO implement EnergyClass dependent eval plots by giving the entire SDE_tracer to the plotting functions and implementing custom plotting functions in each EnergyClass
         if self.EnergyClass.config["name"] == "GaussianMixture":  
@@ -228,6 +235,7 @@ class TrainerClass:
             fig_traj = self.EnergyClass.plot_trajectories(np.array(SDE_tracer["ys"])[:,0:10,:], panel = "best_figs")
             fig_hist = self.EnergyClass.plot_histogram(np.array(SDE_tracer["y_final"]), panel = "best_figs")
             fig_last_samples = self.EnergyClass.plot_last_samples(np.array(SDE_tracer["y_final"]), panel = "best_figs")
+
 
 
         return params

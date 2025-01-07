@@ -21,8 +21,8 @@ class VanillaBaseModelClass(nn.Module):
     @nn.compact
     def __call__(self, in_dict, train = False):
         ### TODO compute embedding here?
+        copy_grads = in_dict["grads"]
         if(self.use_normal):
-            copy_grads = jax.lax.stop_gradient(in_dict["grads"])
             in_dict["grads"] = jnp.zeros_like(in_dict["grads"])
             in_dict["Energy_value"] = jax.lax.stop_gradient(jnp.zeros_like(in_dict["Energy_value"]))
         else:
@@ -35,7 +35,7 @@ class VanillaBaseModelClass(nn.Module):
             scaled_energy_1 = jnp.where(jnp.abs(scaled_energy) >= jnp.exp(-p),  jnp.sign(scaled_energy), -1)
             grad_2 = jnp.where(jnp.abs(grad) >= jnp.exp(-p), jnp.log(jnp.abs(grad) + eps)/p, jnp.exp(p)*grad)
             grad_1 = jnp.where(jnp.abs(grad) >= jnp.exp(-p),  jnp.sign(grad), -1)
-            in_dict["grads"] = jax.lax.stop_gradient(jnp.concatenate([grad_1, grad_2], axis = -1))
+            in_dict["grads"] = jax.lax.stop_gradient(jnp.concatenate([grad_1, grad_2], axis = -1)) ### TODO pay attention once there was a stop gradient, not it on x is before grads are computen
             in_dict["Energy_value"] = jax.lax.stop_gradient(jnp.concatenate([scaled_energy_1, scaled_energy_2], axis = -1))
 
 
@@ -47,7 +47,14 @@ class VanillaBaseModelClass(nn.Module):
         embedding = out_dict["embedding"]
 
         x_dim = in_dict["x"].shape[-1]
-        if(self.SDE_mode == "DiscreteTime_SDE"):
+        if(self.SDE_mode == "Bridge_SDE"):
+            grad = copy_grads
+            score = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
+                                                bias_init=nn.initializers.zeros)(embedding)
+
+            out_dict["score"] = score  + 0.5*grad          
+            return out_dict
+        elif(self.SDE_mode == "DiscreteTime_SDE"):
             mean_x = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
                                                 bias_init=nn.initializers.zeros)(embedding)
             log_var_x = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
@@ -57,7 +64,7 @@ class VanillaBaseModelClass(nn.Module):
             out_dict["log_var"] = log_var_x
             return out_dict
         elif(self.use_interpol_gradient and self.use_normal):
-            grads = copy_grads
+            grads = jax.lax.stop_gradient(copy_grads)
 
             grad_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
                                                 bias_init=nn.initializers.zeros)(embedding)
