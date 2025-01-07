@@ -17,9 +17,26 @@ class VanillaBaseModelClass(nn.Module):
         self.backbone = get_network(self.network_config, self.SDE_Loss_Config)
         self.time_backbone = get_network(self.network_config, self.SDE_Loss_Config)
         self.use_normal = self.SDE_Loss_Config["SDE_Type_Config"]["use_normal"]
+        self.model_mode = self.network_config["model_mode"] # is either normal or latent
         
     @nn.compact
-    def __call__(self, in_dict, train = False):
+    def __call__(self, in_dict, train = False, forw_mode = "diffusion"): # forw_mode is either diffusion, encode, or decode
+        if(self.model_mode == "normal"):
+            return self.normal_forward_pass(in_dict, train = train)
+        elif(self.model_mode == "latent"):
+            if(forw_mode == "diffusion"):
+                return self.latent_forward_pass(in_dict, train = train)
+            elif(forw_mode == "encode"):
+                pass
+            elif(forw_mode == "decode"):
+                pass
+        else:
+            raise ValueError(f"Unknown model_mode: {self.model_mode}")
+
+
+
+
+    def normal_forward_pass(self, in_dict, train = False):
         ### TODO compute embedding here?
         copy_grads = in_dict["grads"]
         if(self.use_normal):
@@ -48,11 +65,12 @@ class VanillaBaseModelClass(nn.Module):
 
         x_dim = in_dict["x"].shape[-1]
         if(self.SDE_mode == "Bridge_SDE"):
+            # follows SEQUENTIAL CONTROLLED LANGEVIN DIFFUSIONS (32)
             grad = copy_grads
             score = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
                                                 bias_init=nn.initializers.zeros)(embedding)
 
-            out_dict["score"] = score  + 0.5*grad          
+            out_dict["score"] = score  + grad /2     
             return out_dict
         elif(self.SDE_mode == "DiscreteTime_SDE"):
             mean_x = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),

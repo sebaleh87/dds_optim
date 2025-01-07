@@ -180,9 +180,9 @@ class TrainerClass:
 
                 if("beta_interpol_params" in self.SDE_LossClass.SDE_params.keys()):
                     beta_interpol_params = self.SDE_LossClass.SDE_params["beta_interpol_params"]
-                    steps = np.arange(0,len(beta_interpol_params))
+                    steps = np.arange(0,len(beta_interpol_params) +1)
 
-                    interpol_time = [self.SDE_LossClass.SDE_type.compute_energy_interpolation_time(self.SDE_LossClass.SDE_params, t/len(beta_interpol_params)) for t in range(len(beta_interpol_params))]
+                    interpol_time = [self.SDE_LossClass.SDE_type.compute_energy_interpolation_time(self.SDE_LossClass.SDE_params, t/len(beta_interpol_params)) for t in range(len(beta_interpol_params) + 1)]
 
                     fig, ax = plt.subplots()
 
@@ -196,13 +196,13 @@ class TrainerClass:
 
                 if("repulsion_interpol_params" in self.SDE_LossClass.SDE_params.keys()):
                     #beta_interpol_params = self.SDE_LossClass.SDE_params["repulsion_interpol_params"]
-                    steps = np.arange(0,len(beta_interpol_params))
+                    steps = np.arange(0,len(beta_interpol_params) +1)
 
-                    interpol_time = [self.SDE_LossClass.SDE_type.compute_energy_interpolation_time(self.SDE_LossClass.SDE_params, t/len(beta_interpol_params), SDE_param_key = "repulsion_interpol_params") for t in range(len(beta_interpol_params))]
+                    interpol_time = np.array([self.SDE_LossClass.SDE_type.compute_energy_interpolation_time(self.SDE_LossClass.SDE_params, t/len(beta_interpol_params), SDE_param_key = "repulsion_interpol_params") for t in range(len(beta_interpol_params) + 1)])
 
                     fig, ax = plt.subplots()
 
-                    ax.plot(steps, interpol_time, label='repulsion_interpol_params')
+                    ax.plot(steps, interpol_time*(1-interpol_time), label='repulsion_interpol_params')
                     ax.set_xlabel('Steps')
                     ax.set_ylabel('repulsion_interpol_params')
                     ax.set_title('repulsion_interpol_params over Steps')
