@@ -162,7 +162,7 @@ class Base_SDE_Loss_Class:
 
         self.SDE_schedule = self._init_lr_schedule(l_max, l_start, lr_min, overall_steps, warmup_steps)
         #clipping is necessary due to lennard jones instabilities
-        optimizer = optax.chain(optax.clip(1.0), optax.add_decayed_weights(weight_decay), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.SDE_schedule(epoch)))
+        optimizer = optax.chain(optax.clip(100.), optax.add_decayed_weights(weight_decay), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.SDE_schedule(epoch)))
         
         return optimizer
     

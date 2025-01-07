@@ -75,23 +75,23 @@ class Base_SDE_Class:
     def sample_prior(self, SDE_params, key, n_states):
         raise NotImplementedError("get_diffusion method not implemented")
     
-    def vmap_prior_target_grad_interpolation(self, x, t, Energy_params, SDE_params, temp, key):
+    def vmap_prior_target_grad_interpolation(self, x, counter, Energy_params, SDE_params, temp, key):
         key, subkey = random.split(key)
         batched_subkey = random.split(subkey, x.shape[0])
-        vmap_energy, vmap_grad = jax.vmap(self.prior_target_grad_interpolation, in_axes=(0, 0, None, None, None, 0))(x,t, Energy_params, SDE_params, temp, batched_subkey)
+        vmap_energy, vmap_grad = jax.vmap(self.prior_target_grad_interpolation, in_axes=(0, 0, None, None, None, 0))(x, counter, Energy_params, SDE_params, temp, batched_subkey)
         #print("vmap_grad", jnp.mean(jax.lax.stop_gradient(vmap_grad)))
         vmap_grad = jnp.where(jnp.isfinite(vmap_grad), vmap_grad, 0)
 
-        vmap_div_energy, vmap_grad_div = self.get_diversity_log_prob_grad(x,t,SDE_params) 
+        vmap_div_energy, vmap_grad_div = self.get_diversity_log_prob_grad(x,counter,SDE_params) 
         vmap_energy = vmap_energy + vmap_div_energy
         vmap_grad = vmap_grad + vmap_grad_div
 
         return vmap_energy, vmap_grad, key
     
-    def prior_target_grad_interpolation(self, x, t, Energy_params, SDE_params, temp, key):
+    def prior_target_grad_interpolation(self, x, counter, Energy_params, SDE_params, temp, key):
         x_stopped = jax.lax.stop_gradient(x)
         #interpol = lambda x: self.Energy_Class.calc_energy(x, Energy_params, key)
-        (Energy, key), (grad)  = jax.value_and_grad(self.interpol_func, has_aux=True)( x_stopped,t[0], SDE_params, Energy_params, temp, key)
+        (Energy, key), (grad)  = jax.value_and_grad(self.interpol_func, has_aux=True)( x_stopped, counter[0], SDE_params, Energy_params, temp, key)
         #grad = jnp.clip(grad, -10**2, 10**2)
         return jnp.expand_dims(Energy, axis = -1), grad
 
@@ -103,13 +103,13 @@ class Base_SDE_Class:
         interpol = (beta_interpol)*log_prior  - (1-beta_interpol)*Energy_value / clipped_temp
         return interpol, key
     
-    def get_diversity_log_prob_grad(self, x_batch,t, SDE_params):
+    def get_diversity_log_prob_grad(self, x_batch, counter, SDE_params):
         x_batch = jax.lax.stop_gradient(x_batch)
-        (div_Energy, _), (batched_x_grad) = jax.value_and_grad(self.diversity_log_prob, has_aux=True)(x_batch, t, SDE_params)
+        (div_Energy, _), (batched_x_grad) = jax.value_and_grad(self.diversity_log_prob, has_aux=True)(x_batch, counter, SDE_params)
         return div_Energy, batched_x_grad
     
-    def diversity_log_prob(self, x_batch,t ,SDE_params, eps = 10**-8):
-        div_beta_interpol = self.compute_energy_interpolation_time(SDE_params, t[0], SDE_param_key = "repulsion_interpol_params")
+    def diversity_log_prob(self, x_batch, counter ,SDE_params, eps = 10**-8):
+        div_beta_interpol = self.compute_energy_interpolation_time(SDE_params, counter[0], SDE_param_key = "repulsion_interpol_params")
         distances = jnp.sqrt(jnp.sum((x_batch[:, None, :] - x_batch[None, :, :])**2, axis = -1) + eps)
         mask = jnp.eye(distances.shape[0])
         max_value = jax.lax.stop_gradient(jnp.max(distances))
@@ -118,8 +118,8 @@ class Base_SDE_Class:
 
         return - self.repulsion_strength*div_Energy*(div_beta_interpol)*(1-div_beta_interpol), (div_beta_interpol)*(1-div_beta_interpol)
     
-    def compute_energy_interpolation_time(self, SDE_params, t, SDE_param_key = "beta_interpol_params"):
-        step_index = jnp.round(self.n_integration_steps-t*self.n_integration_steps)
+    def compute_energy_interpolation_time(self, SDE_params, counter, SDE_param_key = "beta_interpol_params"):
+        step_index = self.n_integration_steps-counter
         beta_params = SDE_params[SDE_param_key]
         beta_activ = nn.softplus(beta_params)
         where_true = 1*(jnp.arange(0, self.n_integration_steps) < step_index)
@@ -223,19 +223,20 @@ class Base_SDE_Class:
         return reverse_out_dict, key
 
     
-    def apply_model(self, model, x, t, params, Energy_params, SDE_params, hidden_state, temp, key):
+    def apply_model(self, model, x, t, counter, params, Energy_params, SDE_params, hidden_state, temp, key):
         t_arr = t*jnp.ones((x.shape[0], 1)) 
+        counter_arr = counter*jnp.ones((x.shape[0], 1)) 
         new_hidden_state = hidden_state
         if(self.use_interpol_gradient):
             if(self.network_has_hidden_state):
-                Energy, grad, key = self.vmap_prior_target_grad_interpolation(x, t_arr, Energy_params, SDE_params, temp, key) 
+                Energy, grad, key = self.vmap_prior_target_grad_interpolation(x, counter_arr, Energy_params, SDE_params, temp, key) 
                 Energy_value = Energy #Energy[...,None]
                 in_dict = {"x": x, "Energy_value": Energy_value, "t": t_arr, "grads": grad, "hidden_state": hidden_state}
                 out_dict = model.apply(params, in_dict, train = True)
                 score = out_dict["score"]
                 new_hidden_state = out_dict["hidden_state"]
             else:
-                Energy, grad, key = self.vmap_prior_target_grad_interpolation(x, t_arr, Energy_params, SDE_params, temp, key) 
+                Energy, grad, key = self.vmap_prior_target_grad_interpolation(x, counter_arr, Energy_params, SDE_params, temp, key) 
                 Energy_value = Energy
                 in_dict = {"x": x, "Energy_value": Energy_value,  "t": t_arr, "grads": grad}
                 out_dict = model.apply(params, in_dict, train = True)
@@ -255,12 +256,12 @@ class Base_SDE_Class:
     def simulate_reverse_sde_scan(self, model, params, Energy_params, SDE_params, temp, key, n_states = 100, x_dim = 2, n_integration_steps = 1000):
 
         def scan_fn(carry, step):
-            x, t, key, carry_dict = carry
+            x, t, counter, key, carry_dict = carry
             # if(jnp.isnan(x).any()):
             #     print("score", x)
             #     raise ValueError("score is nan")
             hidden_state = carry_dict["hidden_state"]
-            score, new_hidden_state, grad, key = self.apply_model(model, x, t, params, Energy_params, SDE_params, hidden_state, temp, key)
+            score, new_hidden_state, grad, key = self.apply_model(model, x, t, counter, params, Energy_params, SDE_params, hidden_state, temp, key)
             carry_dict["hidden_state"] = new_hidden_state
 
             dt = self.reversed_dt_values[step]
@@ -282,7 +283,7 @@ class Base_SDE_Class:
 
             x = reverse_out_dict["x_next"]
             t = reverse_out_dict["t_next"]
-            return (x, t, key, carry_dict), SDE_tracker_step
+            return (x, t, counter + 1, key, carry_dict), SDE_tracker_step
 
         x_prior, key = self.sample_prior(SDE_params, key, n_states)
 
@@ -296,13 +297,14 @@ class Base_SDE_Class:
         # print(jnp.mean(x_prior), jnp.mean(mean))
         t = 1.0
         dt = 1. / n_integration_steps
+        counter = 0
 
         #print("no scan", model.apply(params, x0[0:10], t*jnp.ones((10, 1))))
         init_carry = jnp.zeros((n_states, self.Network_Config["n_hidden"]))
         carry_dict = {"hidden_state": [(init_carry, init_carry)  for i in range(self.Network_Config["n_layers"])]}
-        (x_final, t_final, key, carry_dict), SDE_tracker_steps = jax.lax.scan(
+        (x_final, t_final, counter, key, carry_dict), SDE_tracker_steps = jax.lax.scan(
             scan_fn,
-            (x_prior, t, key, carry_dict),
+            (x_prior, t, counter, key, carry_dict),
             jnp.arange(n_integration_steps)
         )
 
@@ -322,6 +324,34 @@ class Base_SDE_Class:
             "interpolated_grads": SDE_tracker_steps["interpolated_grad"]
 
         }
+
+
+        if(self.Network_Config["model_mode"] == "latent"):
+            # compute decoder and encoder probability
+            ### TODO make sure that the process before is done in latent dim
+            z_final = x_final
+            decode_in_dict = {"z": z_final}
+            decode_out_dict = model.apply(params, decode_in_dict, train = True, forw_mode = "decode")
+            mean_decode = decode_out_dict["mean_x"]
+            log_var_decode = decode_out_dict["log_var_x"]
+            ### todo sample from decoder
+            key, subkey = jax.random.split(key)
+            noise = jax.random.normal(subkey, shape = mean_decode.shape)
+
+            x_final = noise * jnp.exp(0.5*log_var_decode) + mean_decode
+            log_p_decode = jnp.sum(jax.scipy.stats.norm.logpdf(x_final, loc = mean_decode, scale = jnp.exp(0.5*log_var_decode)), axis = -1)
+
+            encode_out_dict = model.apply(params, in_dict, train = True, forw_mode = "encode")
+            mean_decode_z = decode_out_dict["mean_z"]
+            log_var_decode_z = decode_out_dict["log_var_z"]
+            ### TODO evaluate p_encode(z|x)
+            log_p_encode = jnp.sum(jax.scipy.stats.norm.logpdf(z_final, loc = mean_decode_z, scale = jnp.exp(0.5*log_var_decode_z)), axis = -1)
+            
+            latent_SDE_dict = {"log_p_decode": log_p_decode, "log_p_encode": log_p_encode}
+
+            for dict_key in latent_SDE_dict.keys():
+                SDE_tracker[dict_key] = latent_SDE_dict[dict_key]
+
 
         return SDE_tracker, key
     

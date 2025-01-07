@@ -18,6 +18,12 @@ class VanillaBaseModelClass(nn.Module):
         self.time_backbone = get_network(self.network_config, self.SDE_Loss_Config)
         self.use_normal = self.SDE_Loss_Config["SDE_Type_Config"]["use_normal"]
         self.model_mode = self.network_config["model_mode"] # is either normal or latent
+
+        if(self.model_mode == "latent"):
+            self.latent_dim = self.network_config["latent_dim"]
+            self.encode_model = get_network(self.network_config, self.SDE_Loss_Config)
+            self.decode_model = get_network(self.network_config, self.SDE_Loss_Config)
+
         
     @nn.compact
     def __call__(self, in_dict, train = False, forw_mode = "diffusion"): # forw_mode is either diffusion, encode, or decode
@@ -27,17 +33,40 @@ class VanillaBaseModelClass(nn.Module):
             if(forw_mode == "diffusion"):
                 return self.latent_forward_pass(in_dict, train = train)
             elif(forw_mode == "encode"):
-                pass
+                return self.encode(in_dict)
             elif(forw_mode == "decode"):
-                pass
+                return self.decode(in_dict)
+            elif(forw_mode == "init"):
+                return self.latent_forward_pass(in_dict, train = train), self.encode(in_dict), self.decode(in_dict)
         else:
             raise ValueError(f"Unknown model_mode: {self.model_mode}")
 
+    def encode(self, in_dict):
+        in_dict["encoding"] = in_dict["x"]
+        embedding = self.encode_model(in_dict)
+        mean_z = nn.Dense(self.latent_dim, kernel_init=nn.initializers.xavier_normal(),
+                                            bias_init=nn.initializers.zeros)(embedding)
+        log_var_z = nn.Dense(self.latent_dim, kernel_init=nn.initializers.xavier_normal(),
+                                                bias_init=nn.initializers.zeros)(embedding)
 
+        out_dict["mean_z"] = mean_z
+        out_dict["log_var_z"] = log_var_z
+        return out_dict
 
+    def decode(self, in_dict):
+        in_dict["encoding"] = in_dict["z"]
+        embedding = self.encode_model(in_dict)
+        mean_x = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
+                                            bias_init=nn.initializers.zeros)(embedding)
+        log_var_x = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
+                                                bias_init=nn.initializers.zeros)(embedding)
+
+        out_dict["mean_x"] = mean_x
+        out_dict["log_var_x"] = log_var_x
+        return out_dict
 
     def normal_forward_pass(self, in_dict, train = False):
-        ### TODO compute embedding here?
+
         copy_grads = in_dict["grads"]
         if(self.use_normal):
             in_dict["grads"] = jnp.zeros_like(in_dict["grads"])

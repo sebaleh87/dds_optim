@@ -110,7 +110,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
         
         diffusion = self.get_diffusion(SDE_params, x, t)
 
-        dx = jnp.sqrt(2*dt)*diffusion * noise
+        dx = jnp.sqrt(dt)*diffusion * noise
         return dx, key
     
     def compute_reverse_drift(self, diffusion, score, grad):
@@ -146,14 +146,15 @@ class Bridge_SDE_Class(Base_SDE_Class):
         ### since we use discrete time models dt is 1 and t = n_integration_steps (this is different from when we use SDEs formulation)
         dt = 1.
         t = n_integration_steps
+        counter = 0
         def scan_fn(carry, step):
-            x, t, key, carry_dict = carry
+            x, t, counter, key, carry_dict = carry
             # if(jnp.isnan(x).any()):
             #     print("score", x)
             #     raise ValueError("score is nan")
             hidden_state = carry_dict["hidden_state"]
             ### apply model expects t to be in [0, 1] --> divide by n_integration_steps
-            score, new_hidden_state, grad, key = self.apply_model(model, x, t/self.n_integration_steps, params, Energy_params, SDE_params, hidden_state, temp, key)
+            score, new_hidden_state, grad, key = self.apply_model(model, x, t/self.n_integration_steps, counter, params, Energy_params, SDE_params, hidden_state, temp, key)
             carry_dict["hidden_state"] = new_hidden_state
 
             reverse_out_dict, key = self.reverse_sde(SDE_params, score, grad, x, t, dt, key)
@@ -173,7 +174,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
 
             x = reverse_out_dict["x_next"]
             t = reverse_out_dict["t_next"]
-            return (x, t, key, carry_dict), SDE_tracker_step
+            return (x, t, counter+1, key, carry_dict), SDE_tracker_step
 
         x_prior, key = self.sample_prior(SDE_params, key, n_states)
     
@@ -185,15 +186,15 @@ class Bridge_SDE_Class(Base_SDE_Class):
 
         init_carry = jnp.zeros((n_states, self.Network_Config["n_hidden"]))
         carry_dict = {"hidden_state": [(init_carry, init_carry)  for i in range(self.Network_Config["n_layers"])]}
-        (x_final, t_final, key, carry_dict), SDE_tracker_steps = jax.lax.scan(
+        (x_final, t_final, counter, key, carry_dict), SDE_tracker_steps = jax.lax.scan(
             scan_fn,
-            (x_prior, t, key, carry_dict),
+            (x_prior, t, counter, key, carry_dict),
             jnp.arange(n_integration_steps)
         )
 
         ### TODO make last forward pass here
         hidden_state = carry_dict["hidden_state"]
-        score, new_hidden_state, grad, key = self.apply_model(model, x_final, t_final/self.n_integration_steps, params, Energy_params, SDE_params, hidden_state, temp, key)
+        score, new_hidden_state, grad, key = self.apply_model(model, x_final, t_final/self.n_integration_steps, counter, params, Energy_params, SDE_params, hidden_state, temp, key)
         diffusion_final = self.get_diffusion(SDE_params, x_final, t_final)
         reverse_drift_final = self.compute_reverse_drift(diffusion_final, score, grad)
         #carry_dict["hidden_state"] = new_hidden_state
