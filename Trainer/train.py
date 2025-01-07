@@ -182,7 +182,7 @@ class TrainerClass:
                     beta_interpol_params = self.SDE_LossClass.SDE_params["beta_interpol_params"]
                     steps = np.arange(0,len(beta_interpol_params))
 
-                    interpol_time = [self.SDE_LossClass.SDE_type.compute_energy_interpolation_time(self.SDE_LossClass.SDE_params, t) for t in range(len(beta_interpol_params))]
+                    interpol_time = [self.SDE_LossClass.SDE_type.compute_energy_interpolation_time(self.SDE_LossClass.SDE_params, t/len(beta_interpol_params)) for t in range(len(beta_interpol_params))]
 
                     fig, ax = plt.subplots()
 
@@ -192,6 +192,22 @@ class TrainerClass:
                     ax.set_title('Beta Interpolation Parameters over Steps')
                     ax.legend()
                     wandb.log({"fig/Beta_Interpolation_Parameters": wandb.Image(fig)})
+                    plt.close(fig)
+
+                if("repulsion_interpol_params" in self.SDE_LossClass.SDE_params.keys()):
+                    #beta_interpol_params = self.SDE_LossClass.SDE_params["repulsion_interpol_params"]
+                    steps = np.arange(0,len(beta_interpol_params))
+
+                    interpol_time = [self.SDE_LossClass.SDE_type.compute_energy_interpolation_time(self.SDE_LossClass.SDE_params, t/len(beta_interpol_params), SDE_param_key = "repulsion_interpol_params") for t in range(len(beta_interpol_params))]
+
+                    fig, ax = plt.subplots()
+
+                    ax.plot(steps, interpol_time, label='repulsion_interpol_params')
+                    ax.set_xlabel('Steps')
+                    ax.set_ylabel('repulsion_interpol_params')
+                    ax.set_title('repulsion_interpol_params over Steps')
+                    ax.legend()
+                    wandb.log({"fig/repulsion_interpol_params": wandb.Image(fig)})
                     plt.close(fig)
                     
 

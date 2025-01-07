@@ -28,24 +28,9 @@ class Bridge_SDE_Class(Base_SDE_Class):
                         "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
                         "log_sigma": jnp.log(self.sigma_init)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)),
                         "log_sigma_prior": jnp.log(self.sigma_init)* jnp.ones((self.dim_x,)),
-                        "beta_interpol_params": jnp.ones((self.n_integration_steps))}
+                        "beta_interpol_params": jnp.ones((self.n_integration_steps)),
+                        "repulsion_interpol_params": jnp.ones((self.n_integration_steps))}
         return SDE_params
-
-    def interpol_func(self, x, t, SDE_params, Energy_params, temp, key):
-        clipped_temp = jnp.clip(temp, min = 0.0001)
-        beta_interpol = self.compute_energy_interpolation_time(SDE_params, t)
-        Energy_value, key = self.Energy_Class.calc_energy(x, Energy_params, key)
-        log_prior = self.get_log_prior(jax.lax.stop_gradient(SDE_params),x)  ### only stop gradient for log prior but not for beta_interpol or x
-        interpol = (beta_interpol)*log_prior  - (1-beta_interpol)*Energy_value / clipped_temp
-        return interpol, key
-    
-    def compute_energy_interpolation_time(self, SDE_params, t):
-        step_index = self.n_integration_steps-t
-        beta_params = SDE_params["beta_interpol_params"]
-        beta_activ = nn.softplus(beta_params)
-        where_true = 1*(jnp.arange(0, self.n_integration_steps) < step_index)
-        beta_interpol = 1 - jnp.sum(where_true*beta_activ)/ jnp.sum(beta_activ)
-        return beta_interpol
 
     def get_log_prior(self, SDE_params, x):
         mean = self.get_mean_prior(SDE_params)
@@ -65,7 +50,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
         if(self.invariance):
             mean = jnp.zeros((self.dim_x,))
         else:
-            mean = SDE_params["mean"]*jnp.zeros((self.dim_x,))
+            mean = SDE_params["mean"]
         overall_mean = mean 
         return overall_mean
 
@@ -148,7 +133,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
         else:
             x_next = x + reverse_drift_t_g_s * dt  + dx
 
-        log_prob_t_g_s = self.calc_diff_log_prob(x_next, x + reverse_drift_t_g_s*dt, diffusion*jnp.sqrt(dt))
+        log_prob_t_g_s = self.calc_diff_log_prob(x_next, x + reverse_drift_t_g_s*dt, diffusion*jnp.sqrt(dt)) # jnp.sum(jax.scipy.stats.norm.logpdf(dx, loc=0, scale=diffusion*jnp.sqrt(dt)), axis = -1)#
 
 
         ### TODO check at which x drift ref should be evaluated?
@@ -165,7 +150,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
             #     print("score", x)
             #     raise ValueError("score is nan")
             hidden_state = carry_dict["hidden_state"]
-            score, new_hidden_state, grad, key = self.apply_model(model, x, t, params, Energy_params, SDE_params, hidden_state, temp, key)
+            score, new_hidden_state, grad, key = self.apply_model(model, x, t/self.n_integration_steps, params, Energy_params, SDE_params, hidden_state, temp, key)
             carry_dict["hidden_state"] = new_hidden_state
 
             reverse_out_dict, key = self.reverse_sde(SDE_params, score, grad, x, t, dt, key)

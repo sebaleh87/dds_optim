@@ -36,6 +36,7 @@ parser.add_argument("--learn_beta_mode", type=str, default="None", choices=["min
 
 parser.add_argument("--learn_covar", type=bool, default=False, help="learn additional covar of target")
 parser.add_argument("--sigma_init", type=float, default=1., help="init value of sigma")
+parser.add_argument("--repulsion_strength", type=float, default=0., help="repulsion_strength")
 
 parser.add_argument("--disable_jit", type=bool, default=False, help="learn additional covar of target")
 
@@ -51,7 +52,7 @@ parser.add_argument("--beta_max", type=float, default=5.)
 parser.add_argument('--temp_mode', action='store_true', default=True, help='only for discrete time model')
 parser.add_argument('--no-temp_mode', action='store_false', dest='temp_mode', help='')
 
-parser.add_argument("--feature_dim", type=int, default=64)
+parser.add_argument("--feature_dim", type=int, default=124)
 parser.add_argument("--n_hidden", type=int, default=124)
 parser.add_argument("--n_layers", type=int, default=3)
 
@@ -67,8 +68,8 @@ parser.add_argument("--model_seed", type=int, default=0, help="Seed used for mod
 
 #energy function specific args
 parser.add_argument("--Pytheus_challenge", type=int, default=1, choices=[0,1,2,3,4,5], help="Pyhteus Chellange Index")
-parser.add_argument("--Scaling_factor", type=float, default=1.0, help="Scaling factor for Energy Functions")
-parser.add_argument("--Variances", type=float, default=0.05, help="Variances of Gaussian Mixtures before scalling when means ~Unif([-0.5,0.5])")
+parser.add_argument("--Scaling_factor", type=float, default=1., help="Scaling factor for Energy Functions")
+parser.add_argument("--Variances", type=float, default=0.1, help="Variances of Gaussian Mixtures before scalling when means ~Unif([-0.5,0.5])")
 
 
 args = parser.parse_args()
@@ -141,6 +142,7 @@ if(__name__ == "__main__"):
             "use_normal": args.use_normal,
             "learn_covar": args.learn_covar,
             "sigma_init": args.sigma_init,
+            "repulsion_strength": args.repulsion_strength,
         }
         
         SDE_Loss_Config = {
@@ -183,8 +185,11 @@ if(__name__ == "__main__"):
         #np.random.seed(42)
         dim = 2
         num_gaussians = 40
-        mean = (torch.rand((num_gaussians, dim)) - 0.5)*2
-        log_var = torch.ones((num_gaussians, dim)) * np.log(args.Variances) 
+
+        loc_scaling = 40
+        log_var_scaling = 0.1
+        mean = (torch.rand((num_gaussians, dim)) - 0.5)*2*loc_scaling
+        log_var = torch.ones((num_gaussians, dim)) * log_var_scaling
         Energy_Config = {
             "name": "GaussianMixture",
             "dim_x": 2,
