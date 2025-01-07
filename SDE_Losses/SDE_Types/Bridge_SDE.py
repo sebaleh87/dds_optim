@@ -85,7 +85,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
     def beta(self, SDE_params, t):
         t = t/self.n_integration_steps
         beta_min, beta_max = self.get_beta_min_and_max(SDE_params)
-        return beta_min + (beta_max-beta_min)*jnp.cos(jnp.pi/2*(1-t)) 
+        return (beta_min + t * (beta_max - beta_min))#beta_min + (beta_max-beta_min)*jnp.cos(jnp.pi/2*(1-t)) 
 
     def get_diffusion(self, SDE_params, x, t):
         sigma, _ = self.get_SDE_sigma(SDE_params)
@@ -110,7 +110,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
         
         diffusion = self.get_diffusion(SDE_params, x, t)
 
-        dx = diffusion * noise*jnp.sqrt(dt)
+        dx = jnp.sqrt(2*dt)*diffusion * noise
         return dx, key
     
     def compute_reverse_drift(self, diffusion, score, grad):
@@ -121,6 +121,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
         diffusion = self.get_diffusion(SDE_params, x, t)
 
         reverse_drift_t_g_s = self.compute_reverse_drift(diffusion, score, grad) #TODO check is this power of two correct? I think yes because U = diffusion*score
+        x_drift_update = reverse_drift_t_g_s
 
         dx, key = self.sample_noise(SDE_params, x, t, dt, key)
 
@@ -129,11 +130,11 @@ class Bridge_SDE_Class(Base_SDE_Class):
             #reverse_drift = self.subtract_COM(reverse_drift)
 
         if(self.stop_gradient):
-            x_next = jax.lax.stop_gradient(x + reverse_drift_t_g_s*dt  + dx)
+            x_next = jax.lax.stop_gradient(x + x_drift_update*dt  + dx)
         else:
-            x_next = x + reverse_drift_t_g_s * dt  + dx
+            x_next = x + x_drift_update * dt  + dx
 
-        log_prob_t_g_s = self.calc_diff_log_prob(x_next, x + reverse_drift_t_g_s*dt, diffusion*jnp.sqrt(dt)) # jnp.sum(jax.scipy.stats.norm.logpdf(dx, loc=0, scale=diffusion*jnp.sqrt(dt)), axis = -1)#
+        log_prob_t_g_s = self.calc_diff_log_prob(x_next, x + x_drift_update*dt, diffusion*jnp.sqrt(dt)) # jnp.sum(jax.scipy.stats.norm.logpdf(dx, loc=0, scale=diffusion*jnp.sqrt(dt)), axis = -1)#
 
 
         ### TODO check at which x drift ref should be evaluated?
@@ -142,6 +143,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
 
 
     def simulate_reverse_sde_scan(self, model, params, Energy_params, SDE_params, temp, key, n_states = 100, x_dim = 2, n_integration_steps = 1000):
+        ### since we use discrete time models dt is 1 and t = n_integration_steps (this is different from when we use SDEs formulation)
         dt = 1.
         t = n_integration_steps
         def scan_fn(carry, step):
@@ -150,6 +152,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
             #     print("score", x)
             #     raise ValueError("score is nan")
             hidden_state = carry_dict["hidden_state"]
+            ### apply model expects t to be in [0, 1] --> divide by n_integration_steps
             score, new_hidden_state, grad, key = self.apply_model(model, x, t/self.n_integration_steps, params, Energy_params, SDE_params, hidden_state, temp, key)
             carry_dict["hidden_state"] = new_hidden_state
 
@@ -190,12 +193,12 @@ class Bridge_SDE_Class(Base_SDE_Class):
 
         ### TODO make last forward pass here
         hidden_state = carry_dict["hidden_state"]
-        score, new_hidden_state, grad, key = self.apply_model(model, x_final, t_final, params, Energy_params, SDE_params, hidden_state, temp, key)
+        score, new_hidden_state, grad, key = self.apply_model(model, x_final, t_final/self.n_integration_steps, params, Energy_params, SDE_params, hidden_state, temp, key)
         diffusion_final = self.get_diffusion(SDE_params, x_final, t_final)
         reverse_drift_final = self.compute_reverse_drift(diffusion_final, score, grad)
         #carry_dict["hidden_state"] = new_hidden_state
 
-        xs = jnp.concatenate([x_prior[None, :], SDE_tracker_steps["xs"]], axis = 0)
+        xs = jnp.concatenate([SDE_tracker_steps["xs"], x_final[None, :]], axis = 0)
         interpol_grads = jnp.concatenate([SDE_tracker_steps["interpolated_grad"], grad[None, :]], axis = 0)
         #hidden_states = jnp.concatenate([ SDE_tracker_steps["hidden_state"], hidden_state[None, :]], axis = 0)
         diffusions = jnp.concatenate([SDE_tracker_steps["diffusions"], diffusion_final[None, :]], axis = 0)

@@ -97,7 +97,7 @@ class Base_SDE_Class:
 
     def interpol_func(self, x, t, SDE_params, Energy_params, temp, key):
         clipped_temp = jnp.clip(temp, min = 0.0001)
-        beta_interpol = self.compute_energy_interpolation_time(SDE_params, t)
+        beta_interpol = self.compute_energy_interpolation_time(SDE_params, t, SDE_param_key = "beta_interpol_params")
         Energy_value, key = self.Energy_Class.calc_energy(x, Energy_params, key)
         log_prior = self.get_log_prior(jax.lax.stop_gradient(SDE_params),x)  ### only stop gradient for log prior but not for beta_interpol or x
         interpol = (beta_interpol)*log_prior  - (1-beta_interpol)*Energy_value / clipped_temp

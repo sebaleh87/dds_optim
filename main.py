@@ -36,7 +36,7 @@ parser.add_argument("--learn_beta_mode", type=str, default="None", choices=["min
 
 parser.add_argument("--learn_covar", type=bool, default=False, help="learn additional covar of target")
 parser.add_argument("--sigma_init", type=float, default=1., help="init value of sigma")
-parser.add_argument("--repulsion_strength", type=float, default=0., help="repulsion_strength")
+parser.add_argument("--repulsion_strength", type=float, default=0., help="repulsion_strength >= 0")
 
 parser.add_argument("--disable_jit", type=bool, default=False, help="learn additional covar of target")
 
@@ -111,6 +111,7 @@ if(__name__ == "__main__"):
         "n_hidden": args.n_hidden,
         "n_layers": args.n_layers,
         "model_seed": args.model_seed,
+        "model_mode": "normal"
     }
 
     if("Discrete_Time_rKL_Loss" in args.SDE_Loss):
