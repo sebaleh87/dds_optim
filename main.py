@@ -18,8 +18,9 @@ parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=
                                                                                  "Bridge_rKL", "Bridge_LogVarLoss",
                                                                                 "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam"], help="select loss function")
 parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE", "VE_SDE", "Bridge_SDE"], help="select SDE type, subVP_SDE is currently deprecated")
-parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "GaussianMixtureToy", "Rastrigin", "LennardJones", "DoubleWell_iter", "DoubleWell_Richter",
-                                                                                     "MexicanHat", "Pytheus", "WavePINN_latent", "WavePINN_hyperparam", "DoubleMoon"], help="EnergyClass")
+parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "GaussianMixtureToy", "Rastrigin", "LennardJones", "DoubleWellEquivariant", "DoubleWell",
+                                                                                      "Pytheus", "WavePINN_latent", "WavePINN_hyperparam", "DoubleMoon"], help="EnergyClass")
+parser.add_argument("--n_particles", type=int, default=2, help="the dimension can be controlled for some problems")
 parser.add_argument("--T_start", type=float, default=1., help="Starting Temperature")
 parser.add_argument("--T_end", type=float, default=0., help="End Temperature")
 parser.add_argument("--anneal_lam", type=float, default=10., help="Strech anneal schedule; not possible for linear schedule")
@@ -41,6 +42,7 @@ parser.add_argument("--learn_beta_mode", type=str, default="None", choices=["min
 parser.add_argument("--learn_covar", type=bool, default=False, help="learn additional covar of target")
 parser.add_argument("--sigma_init", type=float, default=1., help="init value of sigma")
 parser.add_argument("--repulsion_strength", type=float, default=0., help="repulsion_strength >= 0")
+parser.add_argument("--sigma_scale_factor", type=float, default=0., help="amount of noise for off policy sampling")
 
 parser.add_argument("--disable_jit", type=bool, default=False, help="learn additional covar of target")
 
@@ -138,6 +140,11 @@ if(__name__ == "__main__"):
             "minib_time_steps": args.minib_time_steps,
         }
     else:
+        if(args.sigma_scale_factor != 0 and (args.SDE_Loss != "LogVariance_Loss" and args.SDE_Loss != "Bridge_LogVarLoss")):
+            print(args.SDE_Loss)
+            print(args.SDE_Loss != "LogVariance_Loss" or args.SDE_Loss != "Bridge_LogVarLoss")
+            raise ValueError("sigma_scale_factor only implemented for LogVariance_Loss")
+
         SDE_Type_Config = {
             "name": args.SDE_Type,
             "beta_min": args.beta_min,
@@ -149,6 +156,7 @@ if(__name__ == "__main__"):
             "learn_covar": args.learn_covar,
             "sigma_init": args.sigma_init,
             "repulsion_strength": args.repulsion_strength,
+            "sigma_scale_factor": args.sigma_scale_factor,
         }
         
         SDE_Loss_Config = {
@@ -189,7 +197,7 @@ if(__name__ == "__main__"):
         n_eval_samples = 10000
         torch.manual_seed(0)
         #np.random.seed(42)
-        dim = 2
+        dim = args.n_particles
         num_gaussians = 40
 
         loc_scaling = 40
@@ -198,22 +206,18 @@ if(__name__ == "__main__"):
         log_var = torch.ones((num_gaussians, dim)) * log_var_scaling
         Energy_Config = {
             "name": "GaussianMixture",
-            "dim_x": 2,
+            "dim_x": dim,
             "means": mean,
             "variances": torch.exp(log_var),
             "weights": [1/num_gaussians for i in range(num_gaussians)],
             "num_modes": num_gaussians
         }
     elif(args.Energy_Config == "Rastrigin"):
+        dim = args.n_particles
         Energy_Config = {
             "name": "Rastrigin",
-            "dim_x": 2,
+            "dim_x": dim,
             "shift": 5.0
-        }
-    elif(args.Energy_Config == "MexicanHat"):
-        Energy_Config = {
-            "name": "MexicanHat",
-            "dim_x": 2,
         }
     elif(args.Energy_Config == "Pytheus"):
         n_eval_samples = 100
@@ -226,7 +230,7 @@ if(__name__ == "__main__"):
     elif("LennardJones" in args.Energy_Config):
         n_eval_samples = 1000
         Network_Config["base_name"] = "EGNN"
-        N = 13
+        N = args.n_particles
         out_dim = 3
         Network_Config["n_particles"] = N
         Network_Config["out_dim"] = out_dim 
@@ -235,7 +239,7 @@ if(__name__ == "__main__"):
             "N": N,
             "dim_x": N*out_dim,
         }
-    elif("DoubleWell_iter" in args.Energy_Config):
+    elif("DoubleWellEquivariant" in args.Energy_Config):
         Network_Config["base_name"] = "EGNN"
         N = 4
         out_dim = 2
@@ -246,8 +250,8 @@ if(__name__ == "__main__"):
             "N": N,
             "dim_x": N*out_dim,
         }
-    elif("DoubleWell_Richter" in args.Energy_Config):
-        N = 5
+    elif("DoubleWell" in args.Energy_Config):
+        N = args.n_particles
         Energy_Config = {
             "name": args.Energy_Config,
             "d": N,

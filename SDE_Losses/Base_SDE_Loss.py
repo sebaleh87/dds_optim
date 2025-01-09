@@ -70,7 +70,7 @@ class Base_SDE_Loss_Class:
 
     @partial(jax.jit, static_argnums=(0,))
     def loss_fn(self, params, Energy_params, SDE_params, T_curr, key):
-        loss, key = self.compute_loss( params, Energy_params, SDE_params, key, n_integration_steps = self.n_integration_steps, n_states = self.batch_size, temp = T_curr, x_dim = self.EnergyClass.dim_x)
+        loss, key = self.compute_loss( params, Energy_params, SDE_params, key, n_integration_steps = self.n_integration_steps, n_states = self.batch_size, temp = T_curr)
         return loss, key
 
     def update_step(self, params, opt_state, key, T_curr):
@@ -173,9 +173,9 @@ class Base_SDE_Loss_Class:
         shifted_samples, energy_key =  self.EnergyClass.scale_samples(X_samples, SDE_params, energy_key)
         return shifted_samples
 
-    @partial(jax.jit, static_argnums=(0,), static_argnames=("n_integration_steps", "n_states"))
-    def simulate_reverse_sde_scan(self, params, Energy_params, SDE_params, temp, key, n_states = 100, n_integration_steps = 1000):    #TODO change name! this one also applies scaling!
-        SDE_tracer, key = self.SDE_type.simulate_reverse_sde_scan(self.model, params, Energy_params, SDE_params, temp, key, n_states = n_states, x_dim = self.EnergyClass.dim_x, n_integration_steps = n_integration_steps)
+    @partial(jax.jit, static_argnums=(0,), static_argnames=("n_integration_steps", "n_states", "sample_mode"))
+    def simulate_reverse_sde_scan(self, params, Energy_params, SDE_params, temp, key, sample_mode = "train", n_states = 100, n_integration_steps = 1000):    #TODO change name! this one also applies scaling!
+        SDE_tracer, key = self.SDE_type.simulate_reverse_sde_scan(self.model, params, Energy_params, SDE_params, temp, key, n_states = n_states, sample_mode = sample_mode, n_integration_steps = n_integration_steps)
         loss, out_dict = self.evaluate_loss(params, Energy_params, SDE_params, SDE_tracer, key)     #TODO add not implemented template class for self.evaluate_loss
         key, subkey = jax.random.split(key)                                                 
         batched_key = jax.random.split(subkey, n_states)
@@ -206,9 +206,9 @@ class Base_SDE_Loss_Class:
         res_dict = {"Free_Energy": Free_Energy, "normed_weights": normed_weights, "log_Z": log_Z, "n_eff": n_eff, "NLL": NLL}
         return res_dict
 
-    @partial(jax.jit, static_argnums=(0,), static_argnames=("n_integration_steps", "n_states", "x_dim"))  
-    def compute_loss(self, params, Energy_params, SDE_params, key, n_integration_steps = 100, n_states = 10, temp = 1.0, x_dim = 2):
-        SDE_tracer, key = self.SDE_type.simulate_reverse_sde_scan(self.model , params, Energy_params, SDE_params, temp, key, n_integration_steps = n_integration_steps, n_states = n_states, x_dim = x_dim)
+    @partial(jax.jit, static_argnums=(0,), static_argnames=("n_integration_steps", "n_states"))  
+    def compute_loss(self, params, Energy_params, SDE_params, key, n_integration_steps = 100, n_states = 10, temp = 1.0):
+        SDE_tracer, key = self.SDE_type.simulate_reverse_sde_scan(self.model , params, Energy_params, SDE_params, temp, key, n_integration_steps = n_integration_steps, n_states = n_states)
         loss, out_dict = self.evaluate_loss(params, Energy_params, SDE_params, SDE_tracer, key, temp = temp)
         out_dict["x_final"] = SDE_tracer["x_final"]
         out_dict["losses/SDE_loss"] = loss
