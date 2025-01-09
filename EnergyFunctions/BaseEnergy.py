@@ -67,9 +67,9 @@ class EnergyModelClass:
     
     def plot_properties(self):
         if(self.dim_x == 2):
-            self.plot_2_D_properties()
+            return self.plot_2_D_properties()
         elif(self.dim_x == 1):
-            self.plot_1d_properties()
+            return self.plot_1d_properties()
         else:
             pass
 
@@ -159,21 +159,20 @@ class EnergyModelClass:
 
     def plot_trajectories(self, Xs, panel = "fig"):
         if(self.dim_x == 2):
-            self.plot_2_D_trajectories(Xs, panel = panel)
+            return {"trajectories": self.plot_2_D_trajectories(Xs, panel = panel)}
         elif(self.dim_x == 1):
-            self.plot_1_D_trajectories(Xs, panel = panel)
+            return {"trajectories": self.plot_1_D_trajectories(Xs, panel = panel)}
         else:
             pass
 
     def plot_last_samples(self, Xs, panel = "fig"):
         if(self.dim_x == 2):
-            self.plot_2_D_last_samples(Xs, panel = panel)
+            return {"last_samples": self.plot_2_D_last_samples(Xs, panel = panel)}
         elif(self.dim_x == 1):
             pass
         elif( hasattr(self, 'n_particles')):
             data = self.load_data()
-            self.plot_interatomic_distances(Xs, data, panel=panel)
-            self.plot_energy_histogram(Xs, data, panel=panel)
+            return {"interatomic_distances": self.plot_interatomic_distances(Xs, data, panel=panel), "energy_histogram": self.plot_energy_histogram(Xs, data, panel=panel)}
         else:
             pass
 
@@ -198,8 +197,10 @@ class EnergyModelClass:
         plt.ylabel("Density")
         plt.legend()
         
-        wandb.log({f"{panel}/Energy_Landscape": wandb.Image(fig)})
+        wfig = wandb.Image(fig)
+        #wandb.log({f"{panel}/Energy_Landscape": wandb.Image(fig)})
         plt.close()
+        return wfig
 
 
     def load_data(self):
@@ -251,17 +252,18 @@ class EnergyModelClass:
 
         # Log the figure using wandb
         wfig = wandb.Image(fig)
-        wandb.log({f"{panel}/energy_gt_histogram": wfig})
+        #wandb.log({f"{panel}/energy_gt_histogram": wfig})
         plt.close()
+        return wfig
 
 
 
 
     def plot_histogram(self, Xs, panel = "fig"):
         if(self.dim_x == 2):
-            self.plot_2_D_histogram(Xs, panel = panel)
+            return {"sample_histogram": self.plot_2_D_histogram(Xs, panel = panel)}
         elif(self.dim_x == 1):
-            self.plot_1_D_histogram(Xs, panel = panel)
+            return {"sample_histogram": self.plot_1_D_histogram(Xs, panel = panel)}
         else:
             pass
     
@@ -276,7 +278,7 @@ class EnergyModelClass:
         ax.set_title('1D Trajectories Over Time')
         ax.grid(True)
 
-        wandb.log({f"{panel}/1d_trajectories": wandb.Image(fig)})
+        #wandb.log({f"{panel}/1d_trajectories": wandb.Image(fig)})
         plt.close()
         return wandb.Image(fig)
 
@@ -317,9 +319,9 @@ class EnergyModelClass:
         plt.grid(True)
 
         wfig = wandb.Image(fig)
-        wandb.log({f"{panel}/trajectories": wfig})
+        #wandb.log({f"{panel}/trajectories": wfig})
         plt.close()
-        return fig
+        return wfig
     
     def plot_2_D_last_samples(self, Xs, panel = "fig"):
         fig = plt.figure(figsize=(10, 6))
@@ -351,7 +353,7 @@ class EnergyModelClass:
         plt.ylim(self.y_min, self.y_max)
 
         wfig = wandb.Image(fig)
-        wandb.log({f"{panel}/last_samples": wfig})
+        #wandb.log({f"{panel}/last_samples": wfig})
         plt.close()
         return wfig
 
@@ -376,7 +378,7 @@ class EnergyModelClass:
 
         # Log the figure using wandb
         wfig = wandb.Image(fig)
-        wandb.log({f"{panel}/1d_histogram": wfig})
+        #wandb.log({f"{panel}/1d_histogram": wfig})
         plt.close()
         return wfig
 
@@ -422,6 +424,6 @@ class EnergyModelClass:
 
         # Log the figure using wandb
         wfig = wandb.Image(fig)
-        wandb.log({f"{panel}/2d_histogram": wfig})
+        #wandb.log({f"{panel}/2d_histogram": wfig})
         plt.close()
         return wfig

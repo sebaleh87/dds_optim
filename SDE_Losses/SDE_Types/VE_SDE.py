@@ -80,29 +80,31 @@ class VE_SDE_Class(Base_SDE_Class):
             return log_pdf
     
 
-    def sample_prior(self, SDE_params, key, n_states):
+    def sample_prior(self, SDE_params, key, n_states, sigma_scale_factor = 1.):
         key, subkey = random.split(key)
         prior_mean = self.get_mean_prior(SDE_params)
         if(self.invariance):
-            overall_sigma = self.return_prior_covar(SDE_params)
+            overall_sigma = self.return_prior_covar(SDE_params, sigma_scale_factor = sigma_scale_factor)
             x_prior = random.normal(subkey, shape=(n_states, self.dim_x))*overall_sigma[None, :] + prior_mean[None, :]
         elif(not self.learn_covar):
-            prior_sigma = self.return_prior_covar(SDE_params)
+            prior_sigma = self.return_prior_covar(SDE_params, sigma_scale_factor = sigma_scale_factor)
             x_prior = random.normal(subkey, shape=(n_states, self.dim_x))*prior_sigma[None, :] + prior_mean[None, :]
         else:
-            overall_covar = self.return_prior_covar(SDE_params)
+            overall_covar = self.return_prior_covar(SDE_params, sigma_scale_factor = sigma_scale_factor)
             x_prior = jax.random.multivariate_normal(subkey, prior_mean, overall_covar, (n_states,))
         return x_prior, key
     
-    def return_prior_covar(self, SDE_params):
+    def return_prior_covar(self, SDE_params, sigma_scale_factor = 1.):
         if(self.learn_covar):
             if(self.invariance):
                 sigma, sigma_t = self.get_SDE_sigma(SDE_params)
+                sigma = sigma*sigma_scale_factor
                 alpha = self.beta_int(SDE_params, 1)
                 overall_sigma = jnp.sqrt(2*sigma**2*alpha + sigma_t**2)
                 return overall_sigma
             else:
                 sigma, covar = self.get_SDE_sigma(SDE_params)
+                sigma = sigma*sigma_scale_factor
                 alpha = self.beta_int(SDE_params, 1)
                 factor = alpha[:, None] + alpha[None, :]
                 overall_covar = factor*jnp.diag(sigma**2) + covar
@@ -110,11 +112,13 @@ class VE_SDE_Class(Base_SDE_Class):
         else:
             if(self.invariance):
                 sigma, sigma_t = self.get_SDE_sigma(SDE_params)
+                sigma = sigma*sigma_scale_factor
                 alpha = self.beta_int(SDE_params, 1)
                 overall_sigma = jnp.sqrt(2*sigma**2*alpha )
                 return overall_sigma
             else:
                 sigma, covar = self.get_SDE_sigma(SDE_params)
+                sigma = sigma*sigma_scale_factor
                 alpha = self.beta_int(SDE_params, 1)
                 factor = 2*alpha
                 overall_covar = jnp.sqrt(factor)*sigma 

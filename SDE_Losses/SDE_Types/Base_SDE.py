@@ -46,6 +46,7 @@ class Base_SDE_Class:
         self.sigma_init = config["sigma_init"]
         self.learn_covar = config["learn_covar"]
         self.repulsion_strength = config["repulsion_strength"]
+        self.sigma_scale_factor = config["sigma_scale_factor"]
 
     def weightening(self, t):
         SDE_params = self.get_SDE_params()
@@ -77,7 +78,7 @@ class Base_SDE_Class:
     def get_log_prior(self, x):
         raise NotImplementedError("get_diffusion method not implemented")
     
-    def sample_prior(self, SDE_params, key, n_states):
+    def sample_prior(self, SDE_params, key, n_states, sigma_scale_factor = 1.):
         raise NotImplementedError("get_diffusion method not implemented")
     
     def vmap_prior_target_grad_interpolation(self, x, counter, Energy_params, SDE_params, temp, key):
@@ -144,6 +145,12 @@ class Base_SDE_Class:
             beta_max = beta_min + beta_delta
             return beta_min, beta_max
 
+    def return_sigma_scale_factor(self, scale_strength, key):
+        key, subkey = random.split(key)
+        sigma_scale_factor = 1+(jax.random.normal(subkey)*scale_strength)**2
+        return sigma_scale_factor, key
+
+
     def get_diffusion(self, SDE_params, x, t):
         """
         Method to get the diffusion term of the SDE.
@@ -205,9 +212,9 @@ class Base_SDE_Class:
         x_cernered = shifted_x.reshape(x.shape)
         return x_cernered
     
-    def reverse_sde(self, SDE_params, score, x, t, dt, key):
+    def reverse_sde(self, SDE_params, score, x, t, dt, sigma_scale_factor, key):
         forward_drift = self.get_drift(SDE_params, x, t)
-        diffusion = self.get_diffusion(SDE_params, x, t)
+        diffusion = self.get_diffusion(SDE_params, x, t)*sigma_scale_factor
 
         reverse_drift = diffusion**2*score - forward_drift #TODO check is this power of two correct? I think yes because U = diffusion*score
 
@@ -259,7 +266,13 @@ class Base_SDE_Class:
             score = out_dict["score"]
         return score, new_hidden_state, grad, key
     
-    def simulate_reverse_sde_scan(self, model, params, Energy_params, SDE_params, temp, key, n_states = 100, x_dim = 2, n_integration_steps = 1000):
+    def simulate_reverse_sde_scan(self, model, params, Energy_params, SDE_params, temp, key, n_states = 100, sample_mode = "train", n_integration_steps = 1000):
+        if(sample_mode == "train"):
+            sigma_scale_factor, key = self.return_sigma_scale_factor(self.sigma_scale_factor, key)
+        elif(sample_mode == "val"):
+            sigma_scale_factor = self.sigma_scale_factor**2 + 1 ### todo check if this is the expectation value
+        else:
+            sigma_scale_factor = 1.
 
         def scan_fn(carry, step):
             x, t, counter, key, carry_dict = carry
@@ -271,7 +284,7 @@ class Base_SDE_Class:
             carry_dict["hidden_state"] = new_hidden_state
 
             dt = self.reversed_dt_values[step]
-            reverse_out_dict, key = self.reverse_sde(SDE_params, score, x, t, dt, key)
+            reverse_out_dict, key = self.reverse_sde(SDE_params, score, x, t, dt, sigma_scale_factor, key)
 
             SDE_tracker_step = {
             "interpolated_grad": grad,
@@ -290,8 +303,9 @@ class Base_SDE_Class:
             x = reverse_out_dict["x_next"]
             t = reverse_out_dict["t_next"]
             return (x, t, counter + 1, key, carry_dict), SDE_tracker_step
+    
 
-        x_prior, key = self.sample_prior(SDE_params, key, n_states)
+        x_prior, key = self.sample_prior(SDE_params, key, n_states, sigma_scale_factor = sigma_scale_factor)
 
         if(self.stop_gradient):
             x_prior = jax.lax.stop_gradient(x_prior)

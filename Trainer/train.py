@@ -150,8 +150,23 @@ class TrainerClass:
 
 
     def _init_wandb(self):
-        wandb.init(project=f"DDS_{self.EnergyClass.__class__.__name__}_{self.config['project_name']}", config=self.config)
+        wandb.init(project=f"DDS_{self.EnergyClass.__class__.__name__}_{self.config['project_name']}_dim_{self.EnergyClass.dim_x}", config=self.config)
         self.wandb_id = wandb.run.name
+
+    def plot_figures(self, SDE_tracer, epoch, sample_mode = "train"):
+        overall_dict = {}
+        fig_traj_dict = self.EnergyClass.plot_trajectories(np.array(SDE_tracer["ys"])[:,0:10,:])
+        fig_hist_dict = self.EnergyClass.plot_histogram(np.array(SDE_tracer["y_final"]))
+        fig_last_samples_dict = self.EnergyClass.plot_last_samples(np.array(SDE_tracer["y_final"]))
+
+        if(fig_traj_dict != None):
+            overall_dict.update(fig_traj_dict)
+        if(fig_hist_dict != None):
+            overall_dict.update(fig_hist_dict)
+        if(fig_last_samples_dict != None):
+            overall_dict.update(fig_last_samples_dict)
+
+        wandb.log({f"figs_{sample_mode}/{key}": overall_dict[key] for key in overall_dict}, step=epoch+1)
 
     def train(self):
 
@@ -165,19 +180,19 @@ class TrainerClass:
             T_curr = self.AnnealClass.update_temp()
             start_time = time.time()
             if(epoch % int(self.num_epochs/self.Optimizer_Config["epochs_per_eval"]) == 0 or epoch == 0):
-                ### TODO check why this average is different from the one in teh train loop
-                n_samples = self.config["n_eval_samples"]
-                SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, T_curr, key, n_integration_steps = self.n_integration_steps, n_states = n_samples)
-                wandb.log({ f"eval/{key}": np.mean(out_dict[key]) for key in out_dict.keys()}, step=epoch+1)
+                ### TODO plot here also samples where more nosie is used
+                sampling_modes = [ "val", "eval"]
+                for sample_mode in sampling_modes:
+                    n_samples = self.config["n_eval_samples"]
+                    SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, T_curr, key, sample_mode = sample_mode, n_integration_steps = self.n_integration_steps, n_states = n_samples)
+                    wandb.log({ f"eval_{sample_mode}/{key}": np.mean(out_dict[key]) for key in out_dict.keys()}, step=epoch+1)
 
-                if(self.EnergyClass.config["name"] == "DoubleMoon"):
-                    n_samples = 5
-                    self.EnergyClass.visualize_models(out_dict["X_0"][0:n_samples])
+                    self.plot_figures(SDE_tracer, epoch, sample_mode = sample_mode)
 
-                fig_traj = self.EnergyClass.plot_trajectories(np.array(SDE_tracer["ys"])[:,0:10,:])
-                fig_hist = self.EnergyClass.plot_histogram(np.array(SDE_tracer["y_final"]))
-                fig_last_samples = self.EnergyClass.plot_last_samples(np.array(SDE_tracer["y_final"]))
-                figs = {"figs/best_trajectories": fig_traj, "figs/best_histogram": fig_hist, "figs/best_last_samples": fig_last_samples}
+                    if(self.EnergyClass.config["name"] == "DoubleMoon"):
+                        n_samples = 5
+                        self.EnergyClass.visualize_models(out_dict["X_0"][0:n_samples])
+
                 Energy_values = self.SDE_LossClass.vmap_Energy_function(SDE_tracer["y_final"])
 
                 self.check_improvement(params, Best_Energy_value_ever, np.min(Energy_values), "Energy", epoch=epoch+1)
@@ -261,18 +276,9 @@ class TrainerClass:
         self.SDE_LossClass.SDE_params = param_dict["SDE_params"]
 
         n_samples = self.config["n_eval_samples"]
-        SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, T_curr, key, n_integration_steps = self.n_integration_steps, n_states = n_samples)
+        SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, T_curr, key, sample_mode = "eval", n_integration_steps = self.n_integration_steps, n_states = n_samples)
         
-        #TODO implement EnergyClass dependent eval plots by giving the entire SDE_tracer to the plotting functions and implementing custom plotting functions in each EnergyClass
-        if self.EnergyClass.config["name"] == "GaussianMixture":  
-            #xs/x_final are the unscaled, effective model outputs      
-            fig_traj = self.EnergyClass.plot_trajectories(np.array(SDE_tracer["xs"])[:,0:10,:], panel = "best_figs")
-            fig_hist = self.EnergyClass.plot_histogram(np.array(SDE_tracer["x_final"]), panel = "best_figs")
-            fig_last_samples = self.EnergyClass.plot_last_samples(np.array(SDE_tracer["x_final"]), panel = "best_figs")
-        else:
-            fig_traj = self.EnergyClass.plot_trajectories(np.array(SDE_tracer["ys"])[:,0:10,:], panel = "best_figs")
-            fig_hist = self.EnergyClass.plot_histogram(np.array(SDE_tracer["y_final"]), panel = "best_figs")
-            fig_last_samples = self.EnergyClass.plot_last_samples(np.array(SDE_tracer["y_final"]), panel = "best_figs")
+        self.plot_figures(SDE_tracer, epoch)
 
 
 

@@ -64,25 +64,25 @@ class Bridge_SDE_Class(Base_SDE_Class):
             sigma = jnp.exp(SDE_params["log_sigma"])
             return sigma
 
-    def sample_prior(self, SDE_params, key, n_states):
+    def sample_prior(self, SDE_params, key, n_states, sigma_scale_factor = 1.):
         key, subkey = random.split(key)
         prior_mean = self.get_mean_prior(SDE_params)
         if(self.invariance):
-            overall_sigma = self.return_prior_covar(SDE_params)
+            overall_sigma = self.return_prior_covar(SDE_params, sigma_scale_factor = sigma_scale_factor)
             x_prior = random.normal(subkey, shape=(n_states, self.dim_x))*overall_sigma[None, :] + prior_mean[None, :]
         else:
-            prior_sigma = self.return_prior_covar(SDE_params)
+            prior_sigma = self.return_prior_covar(SDE_params, sigma_scale_factor = sigma_scale_factor)
             x_prior = random.normal(subkey, shape=(n_states, self.dim_x))*prior_sigma[None, :] + prior_mean[None, :]
         return x_prior, key    
     
-    def return_prior_covar(self, SDE_params):
+    def return_prior_covar(self, SDE_params, sigma_scale_factor = 1.):
         if(self.invariance):
             sigma = jnp.exp(SDE_params["log_sigma_prior"])*jnp.ones((self.dim_x,))
-            overall_sigma = sigma
+            overall_sigma = sigma*sigma_scale_factor
             return overall_sigma
         else:
             sigma = jnp.exp(SDE_params["log_sigma_prior"])
-            return sigma
+            return sigma*sigma_scale_factor
 
     def beta(self, SDE_params, t):
         t = t/self.n_integration_steps
@@ -119,10 +119,11 @@ class Bridge_SDE_Class(Base_SDE_Class):
         reverse_drift = diffusion**2*score
         return reverse_drift
     
-    def reverse_sde(self, SDE_params, score, grad, x, t, dt, key):
+    def reverse_sde(self, SDE_params, score, grad, x, t, dt, key, sigma_scale_factor = 1.):
         diffusion = self.get_diffusion(SDE_params, x, t)
+        scaled_diffusion = diffusion*sigma_scale_factor
 
-        reverse_drift_t_g_s = self.compute_reverse_drift(diffusion, score, grad) #TODO check is this power of two correct? I think yes because U = diffusion*score
+        reverse_drift_t_g_s = self.compute_reverse_drift(scaled_diffusion, score, grad) #TODO check is this power of two correct? I think yes because U = diffusion*score
         x_drift_update = reverse_drift_t_g_s
 
         dx, key = self.sample_noise(SDE_params, x, t, dt, key)
@@ -133,10 +134,10 @@ class Bridge_SDE_Class(Base_SDE_Class):
 
         if(self.stop_gradient):
             x_next = jax.lax.stop_gradient(x + x_drift_update*dt  + dx)
+            log_prob_t_g_s = self.calc_diff_log_prob(x_next, x + x_drift_update*dt, diffusion*jnp.sqrt(dt))
         else:
             x_next = x + x_drift_update * dt  + dx
-
-        log_prob_t_g_s = self.calc_diff_log_prob(x_next, x + x_drift_update*dt, diffusion*jnp.sqrt(dt)) # jnp.sum(jax.scipy.stats.norm.logpdf(dx, loc=0, scale=diffusion*jnp.sqrt(dt)), axis = -1)#
+            log_prob_t_g_s = self.calc_diff_log_prob(x_next, x + x_drift_update*dt, diffusion*jnp.sqrt(dt)) # jnp.sum(jax.scipy.stats.norm.logpdf(dx, loc=0, scale=diffusion*jnp.sqrt(dt)), axis = -1)#
 
 
         ### TODO check at which x drift ref should be evaluated?
@@ -144,11 +145,18 @@ class Bridge_SDE_Class(Base_SDE_Class):
         return reverse_out_dict, key
 
 
-    def simulate_reverse_sde_scan(self, model, params, Energy_params, SDE_params, temp, key, n_states = 100, x_dim = 2, n_integration_steps = 1000):
+    def simulate_reverse_sde_scan(self, model, params, Energy_params, SDE_params, temp, key, n_states = 100, sample_mode = "train", n_integration_steps = 1000):
         ### since we use discrete time models dt is 1 and t = n_integration_steps (this is different from when we use SDEs formulation)
         dt = 1.
         t = n_integration_steps
         counter = 0
+        if(sample_mode == "train"):
+            sigma_scale_factor, key = self.return_sigma_scale_factor(self.sigma_scale_factor, key)
+        elif(sample_mode == "val"):
+            sigma_scale_factor = self.sigma_scale_factor**2 + 1 ### todo check if this is the expectation value
+        else:
+            sigma_scale_factor = 1.
+
         def scan_fn(carry, step):
             x, t, counter, key, carry_dict = carry
             # if(jnp.isnan(x).any()):
@@ -159,7 +167,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
             score, new_hidden_state, grad, key = self.apply_model(model, x, t/self.n_integration_steps, counter, params, Energy_params, SDE_params, hidden_state, temp, key)
             carry_dict["hidden_state"] = new_hidden_state
 
-            reverse_out_dict, key = self.reverse_sde(SDE_params, score, grad, x, t, dt, key)
+            reverse_out_dict, key = self.reverse_sde(SDE_params, score, grad, x, t, dt, key, sigma_scale_factor= sigma_scale_factor)
 
             SDE_tracker_step = {
             "interpolated_grad": grad,
@@ -178,7 +186,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
             t = reverse_out_dict["t_next"]
             return (x, t, counter+1, key, carry_dict), SDE_tracker_step
 
-        x_prior, key = self.sample_prior(SDE_params, key, n_states)
+        x_prior, key = self.sample_prior(SDE_params, key, n_states, sigma_scale_factor = sigma_scale_factor)
     
         if(self.stop_gradient):
             x_prior = jax.lax.stop_gradient(x_prior)
