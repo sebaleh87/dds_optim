@@ -36,12 +36,29 @@ class Reverse_KL_Loss_Class(Base_SDE_Loss_Class):
         R_diff = jnp.sum(dts*f  , axis = 0)
         mean_R_diff = jnp.mean(R_diff)
 
-        if(self.optim_mode == "optim"):
-            loss = temp*(mean_R_diff + mean_log_prior) + mean_Energy
-        elif(self.optim_mode == "equilibrium"):
-            loss = (mean_R_diff + mean_log_prior) + mean_Energy/temp
+        if(not self.Network_Config["model_mode"] == "latent"):
+            if(self.optim_mode == "optim"):
+                loss = temp*(mean_R_diff + mean_log_prior) + mean_Energy
+            elif(self.optim_mode == "equilibrium"):
+                loss = (mean_R_diff + mean_log_prior) + mean_Energy/temp
+            else:
+                raise ValueError(f"Unknown optim_mode: {self.optim}")
         else:
-            raise ValueError(f"Unknown optim_mode: {self.optim}")
+            log_prob_decoder = SDE_tracer["log_p_decode"]
+            log_prob_encoder = SDE_tracer["log_p_encode"]
+
+            rKL_VAE = (log_prob_decoder - log_prob_encoder)
+            mean_rKL_VAE = jnp.mean(rKL_VAE)
+
+            if(self.optim_mode == "optim"):
+                loss = temp*(mean_R_diff + mean_log_prior + mean_rKL_VAE) + mean_Energy
+            elif(self.optim_mode == "equilibrium"):
+                loss = (mean_R_diff + mean_log_prior + mean_rKL_VAE) + mean_Energy/temp
+            else:
+                raise ValueError(f"Unknown optim_mode: {self.optim}")
+            
+            R_diff = R_diff + rKL_VAE
+
         
         Entropy = -(mean_R_diff + mean_log_prior)
 

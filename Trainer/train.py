@@ -47,7 +47,11 @@ class TrainerClass:
         Energy_value = jnp.ones((1,1))
         init_carry = jnp.zeros(( 1, self.Network_Config["n_hidden"],))
         in_dict = {"x": x_init, "Energy_value": Energy_value,  "t": jnp.ones((1, 1,)), "grads": grad_init, "hidden_state": [(init_carry, init_carry) for i in range(self.Network_Config["n_layers"])]}
-        self.params = self.model.init(random.PRNGKey(self.Network_Config["model_seed"]), in_dict, train = True)
+        
+        if(self.Network_Config["model_mode"] == "latent"):
+            in_dict["z"] = jnp.ones((1,self.Network_Config["latent_dim"] ))
+        
+        self.params = self.model.init(random.PRNGKey(self.Network_Config["model_seed"]), in_dict, train = True, forw_mode = "init")
         self.opt_state = self.SDE_LossClass.optimizer.init(self.params)
 
         num_params = sum(x.size for x in jax.tree_util.tree_leaves(self.params))

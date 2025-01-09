@@ -11,6 +11,6 @@ class BaseModel(nn.Module):
         self.model = select_base_network(self.network_config, self.SDE_Loss_Config)
         
     @nn.compact
-    def __call__(self, in_dict, train = False):
-        return self.model.__call__(in_dict, train = train)
+    def __call__(self, in_dict, train = False, forw_mode = "diffusion"):
+        return self.model.__call__(in_dict, train = train, forw_mode = forw_mode)
         

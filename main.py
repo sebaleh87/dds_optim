@@ -10,11 +10,14 @@ import torch
 
 parser = argparse.ArgumentParser(description="Denoising Diffusion Sampler")
 parser.add_argument("--GPU", type=int, default=6, help="GPU id to use")
+parser.add_argument("--model_mode", type=str, default="normal", choices = ["normal", "latent"], help="normal training or latent diffusion")
+parser.add_argument("--latent_dim", type=int, default=None)
+
 parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=["Reverse_KL_Loss","LogVariance_Loss", "LogVariance_Loss_MC", 
                                                                                  "LogVariance_Loss_with_grad", "LogVariance_Loss_weighted",
                                                                                  "Bridge_rKL", "Bridge_LogVarLoss",
                                                                                 "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam"], help="select loss function")
-parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE", "VE_SDE", "Bridge_SDE"], help="GPU id to use")
+parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE", "VE_SDE", "Bridge_SDE"], help="select SDE type, subVP_SDE is currently deprecated")
 parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "GaussianMixtureToy", "Rastrigin", "LennardJones", "DoubleWell_iter", "DoubleWell_Richter",
                                                                                      "MexicanHat", "Pytheus", "WavePINN_latent", "WavePINN_hyperparam", "DoubleMoon"], help="EnergyClass")
 parser.add_argument("--T_start", type=float, default=1., help="Starting Temperature")
@@ -28,10 +31,11 @@ parser.add_argument("--project_name", type=str, default="")
 parser.add_argument("--minib_time_steps", type=int, default=20)
 parser.add_argument("--batch_size", type=int, default=200)
 parser.add_argument("--lr", type=float, default=0.001)
-parser.add_argument("--lr_schedule", type=str, choices = ["cosine", "const"], default = "cosine")
+parser.add_argument("--lr_schedule", type=str, choices = ["cosine", "const"], default = "const")
 parser.add_argument("--Energy_lr", type=float, default=0.0)
 parser.add_argument("--SDE_lr", type=float, default=10**-5)
 parser.add_argument("--SDE_weight_decay", type=float, default=0.)
+parser.add_argument("--clip_value", type=float, default=100., help = "clip value of sde param gradients")
 parser.add_argument("--learn_beta_mode", type=str, default="None", choices=["min_and_max", "max", "None"], help="learn beta min and max, lin interp in-between")
 
 parser.add_argument("--learn_covar", type=bool, default=False, help="learn additional covar of target")
@@ -44,7 +48,7 @@ parser.add_argument("--N_anneal", type=int, default=1000)
 parser.add_argument("--N_warmup", type=int, default=0)
 parser.add_argument("--steps_per_epoch", type=int, default=10)
 
-parser.add_argument("--update_params_mode", type=str, choices = ["all_in_one", "DKL"], default="all_in_one")
+parser.add_argument("--update_params_mode", type=str, choices = ["all_in_one", "DKL"], default="all_in_one", help="keep all_in_one as default. This is currently not used")
 parser.add_argument("--epochs_per_eval", type=int, default=50)
 
 parser.add_argument("--beta_min", type=float, default=0.05)
@@ -56,11 +60,11 @@ parser.add_argument("--feature_dim", type=int, default=124)
 parser.add_argument("--n_hidden", type=int, default=124)
 parser.add_argument("--n_layers", type=int, default=3)
 
-parser.add_argument('--use_interpol_gradient', action='store_true', default=True, help='gradient of energy function is added to the score')
-parser.add_argument('--no-use_interpol_gradient', dest='use_interpol_gradient', action='store_false', help='gradient of energy function is added not to the score')
+parser.add_argument('--use_interpol_gradient', action='store_true', default=True, help='use gradient of energy function to parameterize the score')
+parser.add_argument('--no-use_interpol_gradient', dest='use_interpol_gradient', action='store_false', help='dont use gradient of energy function to parameterize the score')
 
-parser.add_argument('--use_normal', action='store_true', default=False, help='gradient of energy function is added to the score')
-parser.add_argument('--no-use_normal', dest='use_normal', action='store_false', help='gradient of energy function is not added to the score')
+parser.add_argument('--use_normal', action='store_true', default=False, help='gradient of energy function is added to the score as in Denoising Diffusion Samplers')
+parser.add_argument('--no-use_normal', dest='use_normal', action='store_false', help='if false parameterize energy function gradient as in Learning to learn by gradient descent by gradient descent')
 
 parser.add_argument("--SDE_time_mode", type=str, default="Discrete_Time", choices=["Discrete_Time", "Continuous_Time"], help="SDE Time Mode")
 parser.add_argument("--Network_Type", type=str, default="FeedForward", choices=["FourierNetwork", "FeedForward", "LSTMNetwork"], help="SDE Time Mode")
@@ -101,6 +105,7 @@ if(__name__ == "__main__"):
         "steps_per_epoch": args.steps_per_epoch,
         "epochs_per_eval": args.epochs_per_eval,
         "SDE_weight_decay": args.SDE_weight_decay,
+        "clip_value": args.clip_value,
         "lr_schedule": args.lr_schedule,
     }
 
@@ -111,7 +116,7 @@ if(__name__ == "__main__"):
         "n_hidden": args.n_hidden,
         "n_layers": args.n_layers,
         "model_seed": args.model_seed,
-        "model_mode": "normal"
+        "model_mode": args.model_mode
     }
 
     if("Discrete_Time_rKL_Loss" in args.SDE_Loss):
@@ -273,6 +278,14 @@ if(__name__ == "__main__"):
     else:
         raise ValueError("Energy Config not found")
     Energy_Config["scaling"] = args.Scaling_factor
+
+    Network_Config["x_dim"] = Energy_Config["dim_x"]
+    if(Network_Config["model_mode"] == "latent"):
+        SDE_Type_Config["use_interpol_gradient"] = False
+        if(args.latent_dim == None):
+            raise ValueError("Latent dim not defined")
+        else:
+            Network_Config["latent_dim"] = args.latent_dim
 
     Anneal_Config = {
         "name": args.AnnealSchedule,

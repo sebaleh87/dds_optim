@@ -8,13 +8,12 @@ from .Base_SDE import Base_SDE_Class
 
 class subVP_SDE_Class(Base_SDE_Class):
     def __init__(self, SDE_Type_Config, Network_Config, Energy_Class):
+        raise ValueError("This class is not implemented yet")
         self.beta_min = SDE_Type_Config["beta_min"]
         self.beta_max = SDE_Type_Config["beta_max"]
         self.sigma_sde = 1.
         self.config = SDE_Type_Config
         super().__init__(SDE_Type_Config, Network_Config, Energy_Class)
-        raise NotImplementedError("This class is not up to date")
-        ### THIS code assumes that sigma of reference distribution is 1
 
     def get_log_prior(self, SDE_params, x):
         sigma = jnp.exp(SDE_params["log_sigma"])
