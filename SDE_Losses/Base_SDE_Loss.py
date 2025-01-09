@@ -8,6 +8,7 @@ from .MovAverage import MovAvrgCalculator
 class Base_SDE_Loss_Class:
     def __init__(self, SDE_config, Optimizer_Config, Energy_Class, Network_Config, model, lr_factor = 1.):
         SDE_Type_Config = SDE_config["SDE_Type_Config"]
+        self.Network_Config = Network_Config
         self.Optimizer_Config = Optimizer_Config
         self.SDE_type = get_SDE_Type_Class(SDE_Type_Config, Network_Config, Energy_Class)
         
@@ -34,8 +35,6 @@ class Base_SDE_Loss_Class:
         self.SDE_lr = Optimizer_Config["SDE_lr"]
         self.SDE_params_optimizer = self.init_SDE_params_optimizer()
         self.SDE_params_state = self.SDE_params_optimizer.init(self.SDE_params)
-
-
 
         alpha = 0.01
         self.MovAvrgCalculator = MovAvrgCalculator.MovAvrgCalculator(alpha)
@@ -153,16 +152,20 @@ class Base_SDE_Loss_Class:
         return optimizer
     
     def init_SDE_params_optimizer(self):
-        l_start = 1e-10
+        if(self.SDE_lr == 0.):
+            l_start = 0.
+        else:
+            l_start = 1e-10
         l_max = self.SDE_lr
         lr_min = l_max/10
         overall_steps = self.Optimizer_Config["epochs"]*self.Optimizer_Config["steps_per_epoch"]*self.lr_factor
         warmup_steps = int(0.1 * overall_steps)
         weight_decay = self.Optimizer_Config["SDE_weight_decay"]
+        clip_value = self.Optimizer_Config["clip_value"]
 
         self.SDE_schedule = self._init_lr_schedule(l_max, l_start, lr_min, overall_steps, warmup_steps)
-        #clipping is necessary due to lennard jones instabilities
-        optimizer = optax.chain(optax.clip(100.), optax.add_decayed_weights(weight_decay), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.SDE_schedule(epoch)))
+        #clipping is necessary due to lennard jones instabilities for some energy functions
+        optimizer = optax.chain(optax.clip(clip_value), optax.add_decayed_weights(weight_decay), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.SDE_schedule(epoch)))
         
         return optimizer
     

@@ -22,7 +22,6 @@ class LogVariance_Loss_Class(Base_SDE_Loss_Class):
         # print("diff", score - score2)
         x_prior = jax.lax.stop_gradient(SDE_tracer["x_prior"])
         x_last = jax.lax.stop_gradient(SDE_tracer["x_final"])
-        x_dim = x_last.shape[-1]
         
         log_prior = self.vmap_get_log_prior(SDE_params, x_prior)
         mean_log_prior = jnp.mean(log_prior)
@@ -41,12 +40,27 @@ class LogVariance_Loss_Class(Base_SDE_Loss_Class):
         Entropy = -(mean_R_diff + mean_log_prior)
 
         #obs = temp*R_diff + temp*S+ temp*log_prior+ Energy
-        if(self.optim_mode == "optim"):
-            obs = temp*(R_diff + S+ log_prior) + Energy
-        elif(self.optim_mode == "equilibrium"):
-            obs = (R_diff + S+ log_prior) + Energy/temp
+        if(not self.Network_Config["model_mode"] == "latent"):
+            if(self.optim_mode == "optim"):
+                obs = temp*(R_diff + S+ log_prior) + Energy
+            elif(self.optim_mode == "equilibrium"):
+                obs = (R_diff + S+ log_prior) + Energy/temp
+            else:
+                raise ValueError(f"Unknown optim_mode: {self.optim}")
         else:
-            raise ValueError(f"Unknown optim_mode: {self.optim}")
+            log_prob_decoder = SDE_tracer["log_p_decode"]
+            log_prob_encoder = SDE_tracer["log_p_encode"]
+
+            rKL_VAE = (log_prob_decoder - log_prob_encoder)
+
+            if(self.optim_mode == "optim"):
+                obs = temp*(R_diff + S+ log_prior + rKL_VAE) + Energy
+            elif(self.optim_mode == "equilibrium"):
+                obs = (R_diff + S+ log_prior + rKL_VAE) + Energy/temp
+            else:
+                raise ValueError(f"Unknown optim_mode: {self.optim}")
+            
+            R_diff = R_diff + rKL_VAE
 
         log_var_loss = jnp.mean((obs)**2) - jnp.mean(obs)**2#jnp.var(obs)#jnp.mean((obs)**2) - jnp.mean(obs)**2
 

@@ -22,7 +22,7 @@ class EGNNBaseClass(nn.Module):
         self.particle_dim = self.network_config["out_dim"]
         
     @nn.compact
-    def __call__(self, in_dict, train = False):
+    def __call__(self, in_dict, train = False, forw_mode = "diffusion"):
         ### TODO rewrite code so that __call__ is allways applied with vmap
         if(self.use_normal):
             copy_grads = jax.lax.stop_gradient(in_dict["grads"])

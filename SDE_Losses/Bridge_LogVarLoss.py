@@ -32,13 +32,13 @@ class Bridge_LogVarLoss_Class(Base_SDE_Loss_Class):
         elif(self.optim_mode == "equilibrium"):
             obs = entropy_minus_noise + Energy/temp + log_prior
 
-        log_var_loss = jnp.var(obs)
+        log_var_loss = jnp.mean((obs)**2) - jnp.mean(obs)**2#jnp.var(obs)
 
         res_dict = self.compute_partition_sum(entropy_minus_noise, jnp.zeros_like(entropy_minus_noise), log_prior, Energy)
         log_Z = res_dict["log_Z"]
         Free_Energy, n_eff, NLL = res_dict["Free_Energy"], res_dict["n_eff"], res_dict["NLL"]
 
-        Entropy = jnp.mean(entropy_loss) + jnp.mean(log_prior)
+        Entropy = jnp.mean(entropy_loss) #+ jnp.mean(log_prior)
 
         return log_var_loss, {"loss": log_var_loss, "losses/log_var": log_var_loss, "Entropy": Entropy, "Free_Energy_at_T=1": Free_Energy, "log_Z_at_T=1": log_Z, "n_eff": n_eff, "mean_energy": mean_Energy, 
                       "best_Energy": jnp.min(Energy), "noise_loss": noise_loss, "entropy_loss": entropy_loss, "key": key, "X_0": x_last, 

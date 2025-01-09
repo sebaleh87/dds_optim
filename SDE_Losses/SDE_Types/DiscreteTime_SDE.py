@@ -9,6 +9,7 @@ import numpy as np
 class DiscreteTime_SDE_Class(Base_SDE_Class):
 
     def __init__(self, SDE_Type_Config, Network_Config, Energy_Class) -> None:
+        raise ValueError("This class is not implemented yet")
         self.stop_gradient = False
         self.n_diff_steps = SDE_Type_Config["n_diff_steps"]
         self.temp_mode = SDE_Type_Config["temp_mode"]
@@ -16,6 +17,7 @@ class DiscreteTime_SDE_Class(Base_SDE_Class):
         SDE_Type_Config["use_interpol_gradient"] = False
         self.config = SDE_Type_Config
         super().__init__(SDE_Type_Config, Network_Config, Energy_Class)
+
     
     def get_log_prior(self, x):
         return jax.scipy.stats.norm.logpdf(x, loc=0, scale=1)

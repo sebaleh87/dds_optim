@@ -24,12 +24,14 @@ class Bridge_SDE_Class(Base_SDE_Class):
             "log_sigma_prior": jnp.log(self.sigma_init)}
 
         else:
+            rand_weights = jax.random.normal(random.PRNGKey(0), shape=(self.n_integration_steps,))
+            rand_weights_repulse = jax.random.normal(random.PRNGKey(0), shape=(self.n_integration_steps,))
             SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"] - self.config["beta_min"])* jnp.ones((self.dim_x,)), 
                         "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
                         "log_sigma": jnp.log(self.sigma_init)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)),
                         "log_sigma_prior": jnp.log(self.sigma_init)* jnp.ones((self.dim_x,)),
-                        "beta_interpol_params": jnp.ones((self.n_integration_steps)),
-                        "repulsion_interpol_params": jnp.ones((self.n_integration_steps))}
+                        "beta_interpol_params": rand_weights,
+                        "repulsion_interpol_params": rand_weights_repulse}
         return SDE_params
 
     def get_log_prior(self, SDE_params, x):

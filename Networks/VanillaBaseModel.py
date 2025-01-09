@@ -19,6 +19,7 @@ class VanillaBaseModelClass(nn.Module):
         self.use_normal = self.SDE_Loss_Config["SDE_Type_Config"]["use_normal"]
         self.model_mode = self.network_config["model_mode"] # is either normal or latent
 
+        self.x_dim = self.network_config["x_dim"]
         if(self.model_mode == "latent"):
             self.latent_dim = self.network_config["latent_dim"]
             self.encode_model = get_network(self.network_config, self.SDE_Loss_Config)
@@ -31,19 +32,20 @@ class VanillaBaseModelClass(nn.Module):
             return self.normal_forward_pass(in_dict, train = train)
         elif(self.model_mode == "latent"):
             if(forw_mode == "diffusion"):
-                return self.latent_forward_pass(in_dict, train = train)
+                return self.normal_forward_pass(in_dict, train = train)
             elif(forw_mode == "encode"):
                 return self.encode(in_dict)
             elif(forw_mode == "decode"):
                 return self.decode(in_dict)
             elif(forw_mode == "init"):
-                return self.latent_forward_pass(in_dict, train = train), self.encode(in_dict), self.decode(in_dict)
+                return self.normal_forward_pass(in_dict, train = train), self.encode(in_dict), self.decode(in_dict)
         else:
             raise ValueError(f"Unknown model_mode: {self.model_mode}")
 
     def encode(self, in_dict):
         in_dict["encoding"] = in_dict["x"]
-        embedding = self.encode_model(in_dict)
+        out_dict = self.encode_model(in_dict)
+        embedding = out_dict["embedding"]
         mean_z = nn.Dense(self.latent_dim, kernel_init=nn.initializers.xavier_normal(),
                                             bias_init=nn.initializers.zeros)(embedding)
         log_var_z = nn.Dense(self.latent_dim, kernel_init=nn.initializers.xavier_normal(),
@@ -55,10 +57,11 @@ class VanillaBaseModelClass(nn.Module):
 
     def decode(self, in_dict):
         in_dict["encoding"] = in_dict["z"]
-        embedding = self.encode_model(in_dict)
-        mean_x = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
+        out_dict = self.encode_model(in_dict)
+        embedding = out_dict["embedding"]
+        mean_x = nn.Dense(self.x_dim, kernel_init=nn.initializers.xavier_normal(),
                                             bias_init=nn.initializers.zeros)(embedding)
-        log_var_x = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
+        log_var_x = nn.Dense(self.x_dim, kernel_init=nn.initializers.xavier_normal(),
                                                 bias_init=nn.initializers.zeros)(embedding)
 
         out_dict["mean_x"] = mean_x
@@ -68,10 +71,11 @@ class VanillaBaseModelClass(nn.Module):
     def normal_forward_pass(self, in_dict, train = False):
 
         copy_grads = in_dict["grads"]
-        if(self.use_normal):
+        if(self.use_normal or self.SDE_mode == "Bridge_SDE"):
             in_dict["grads"] = jnp.zeros_like(in_dict["grads"])
             in_dict["Energy_value"] = jnp.zeros_like(in_dict["Energy_value"])
         else:
+            ### parametrization as in Learning to learn by gradient descent by gradient descent
             grad = in_dict["grads"]
             Energy = jnp.zeros_like(in_dict["Energy_value"])
             eps = 10**-10
@@ -93,13 +97,28 @@ class VanillaBaseModelClass(nn.Module):
         embedding = out_dict["embedding"]
 
         x_dim = in_dict["x"].shape[-1]
-        if(self.SDE_mode == "Bridge_SDE"):
+        if(self.SDE_mode == "Bridge_SDE" and self.use_normal):
             # follows SEQUENTIAL CONTROLLED LANGEVIN DIFFUSIONS (32)
             grad = copy_grads
             score = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
                                                 bias_init=nn.initializers.zeros)(embedding)
 
             out_dict["score"] = score  + grad /2     
+            return out_dict
+        elif(self.SDE_mode == "Bridge_SDE" and not self.use_normal):
+            grads = copy_grads
+
+            grad_drift = nn.Dense(x_dim, kernel_init=nn.initializers.zeros,
+                                                bias_init=nn.initializers.zeros)(embedding)
+            
+            correction_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
+                                                bias_init=nn.initializers.zeros)(embedding)
+            
+            grad_score = grad_drift * jnp.clip(grads, -10**2, 10**2) #* nn.softplus(interpolated_grad) 
+            correction_grad_score = correction_drift + grad_score
+            score = jnp.clip(correction_grad_score, -10**4, 10**4 )
+
+            out_dict["score"] = score
             return out_dict
         elif(self.SDE_mode == "DiscreteTime_SDE"):
             mean_x = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),

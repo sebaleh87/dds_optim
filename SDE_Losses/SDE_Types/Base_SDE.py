@@ -13,10 +13,15 @@ class Base_SDE_Class:
         self.config = config
         self.stop_gradient = False
         self.Energy_Class = Energy_Class
-        self.dim_x = self.Energy_Class.dim_x
         self.use_interpol_gradient = config["use_interpol_gradient"]
         self.n_integration_steps = config["n_integration_steps"]
         self.Network_Config = Network_Config
+
+        if(self.Network_Config["model_mode"] == "latent"):
+            self.dim_x = self.Network_Config["latent_dim"]
+        else:
+            self.dim_x = self.Network_Config["x_dim"]
+
         if("LSTM" in Network_Config["name"]):
             self.network_has_hidden_state = True
         else:
@@ -95,11 +100,12 @@ class Base_SDE_Class:
         #grad = jnp.clip(grad, -10**2, 10**2)
         return jnp.expand_dims(Energy, axis = -1), grad
 
-    def interpol_func(self, x, t, SDE_params, Energy_params, temp, key):
+    def interpol_func(self, x, counter, SDE_params, Energy_params, temp, key):
         clipped_temp = jnp.clip(temp, min = 0.0001)
-        beta_interpol = self.compute_energy_interpolation_time(SDE_params, t, SDE_param_key = "beta_interpol_params")
+        beta_interpol = self.compute_energy_interpolation_time(SDE_params, counter, SDE_param_key = "beta_interpol_params")
         Energy_value, key = self.Energy_Class.calc_energy(x, Energy_params, key)
-        log_prior = self.get_log_prior(jax.lax.stop_gradient(SDE_params),x)  ### only stop gradient for log prior but not for beta_interpol or x
+        log_prior_params = jax.lax.stop_gradient(SDE_params)
+        log_prior = self.get_log_prior(log_prior_params,x)  ### only stop gradient for log prior but not for beta_interpol or x
         interpol = (beta_interpol)*log_prior  - (1-beta_interpol)*Energy_value / clipped_temp
         return interpol, key
     
@@ -114,7 +120,7 @@ class Base_SDE_Class:
         mask = jnp.eye(distances.shape[0])
         max_value = jax.lax.stop_gradient(jnp.max(distances))
         masked_distances = jnp.where(mask == 1, max_value+1., distances)
-        div_Energy = jnp.sum(jnp.min(masked_distances, axis = -1)**0.5)**2
+        div_Energy = - jnp.sum(jnp.min(masked_distances, axis = -1)**0.5)**2
 
         return - self.repulsion_strength*div_Energy*(div_beta_interpol)*(1-div_beta_interpol), (div_beta_interpol)*(1-div_beta_interpol)
     
@@ -123,7 +129,7 @@ class Base_SDE_Class:
         beta_params = SDE_params[SDE_param_key]
         beta_activ = nn.softplus(beta_params)
         where_true = 1*(jnp.arange(0, self.n_integration_steps) < step_index)
-        beta_interpol = 1 - jnp.sum(where_true*beta_activ)/ jnp.sum(beta_activ)
+        beta_interpol = jnp.sum(where_true*beta_activ)/ jnp.sum(beta_activ)
         return beta_interpol
 
     def get_beta_min_and_max(self, SDE_params):
@@ -337,17 +343,23 @@ class Base_SDE_Class:
             ### todo sample from decoder
             key, subkey = jax.random.split(key)
             noise = jax.random.normal(subkey, shape = mean_decode.shape)
-
             x_final = noise * jnp.exp(0.5*log_var_decode) + mean_decode
+
+            if(self.stop_gradient):
+                x_final = jax.lax.stop_gradient(x_final)
+
             log_p_decode = jnp.sum(jax.scipy.stats.norm.logpdf(x_final, loc = mean_decode, scale = jnp.exp(0.5*log_var_decode)), axis = -1)
 
+            in_dict = {"x": x_final}
             encode_out_dict = model.apply(params, in_dict, train = True, forw_mode = "encode")
-            mean_decode_z = decode_out_dict["mean_z"]
-            log_var_decode_z = decode_out_dict["log_var_z"]
+            mean_decode_z = encode_out_dict["mean_z"]
+            log_var_decode_z = encode_out_dict["log_var_z"]
+
             ### TODO evaluate p_encode(z|x)
             log_p_encode = jnp.sum(jax.scipy.stats.norm.logpdf(z_final, loc = mean_decode_z, scale = jnp.exp(0.5*log_var_decode_z)), axis = -1)
             
-            latent_SDE_dict = {"log_p_decode": log_p_decode, "log_p_encode": log_p_encode}
+            xs_updated = jnp.concatenate([SDE_tracker_steps["xs"], x_final[None, ...]], axis = 0)
+            latent_SDE_dict = {"log_p_decode": log_p_decode, "log_p_encode": log_p_encode, "x_final": x_final, "xs": xs_updated}
 
             for dict_key in latent_SDE_dict.keys():
                 SDE_tracker[dict_key] = latent_SDE_dict[dict_key]

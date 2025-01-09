@@ -5,6 +5,7 @@ import jax.numpy as jnp
 import numpy as np
 from .Base_SDE import Base_SDE_Class
 
+### Variance Exploding SDE implemented with the framework from IMPROVED SAMPLING VIA LEARNED DIFFUSIONS
 class VE_SDE_Class(Base_SDE_Class):
     def __init__(self, SDE_Type_Config, Network_Config, Energy_Class):
         self.beta_min = SDE_Type_Config["beta_min"]
