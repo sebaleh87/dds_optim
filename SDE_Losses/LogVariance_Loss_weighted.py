@@ -3,6 +3,9 @@ import jax
 from jax import numpy as jnp
 from functools import partial
 
+
+
+### Version that uses importance weights wrt the forward diffusion process in log var loss, did not seem to work well
 class LogVariance_Loss_weighted_Class(Base_SDE_Loss_Class):
 
     def __init__(self, SDE_config, Optimizer_Config,  EnergyClass, Network_Config, model):
@@ -54,7 +57,7 @@ class LogVariance_Loss_weighted_Class(Base_SDE_Loss_Class):
         res_dict = self.compute_partition_sum(R_diff, S, log_prior, Energy)
         normed_weights = jax.lax.stop_gradient(res_dict["normed_weights"])
 
-        log_var_loss = jnp.mean(normed_weights*(obs)**2) - jnp.mean(normed_weights*obs)**2 + jnp.mean((obs)**2) - jnp.mean(obs)**2#jnp.var(normed_weights*obs)#jnp.mean((obs)**2) - jnp.mean(obs)**2
+        log_var_loss = jnp.mean(normed_weights*(obs)**2) - jnp.mean(normed_weights*obs)**2#jnp.var(normed_weights*obs)#jnp.mean((obs)**2) - jnp.mean(obs)**2
 
         log_Z = res_dict["log_Z"]
         Free_Energy, n_eff, NLL = res_dict["Free_Energy"], res_dict["n_eff"], res_dict["NLL"]

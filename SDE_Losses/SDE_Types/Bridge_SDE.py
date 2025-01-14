@@ -9,7 +9,7 @@ import wandb
 from matplotlib import pyplot as plt
 from .Base_SDE import Base_SDE_Class
 
-
+### Bridge as in SEQUENTIAL CONTROLLED LANGEVIN DIFFUSIONS
 class Bridge_SDE_Class(Base_SDE_Class):
     def __init__(self, SDE_Type_Config, Network_Config, Energy_Class):
         super().__init__(SDE_Type_Config, Network_Config, Energy_Class)
@@ -84,10 +84,15 @@ class Bridge_SDE_Class(Base_SDE_Class):
             sigma = jnp.exp(SDE_params["log_sigma_prior"])
             return sigma*sigma_scale_factor
 
-    def beta(self, SDE_params, t):
+    def beta(self, SDE_params, t, frac = 0.2):
         t = t/self.n_integration_steps
         beta_min, beta_max = self.get_beta_min_and_max(SDE_params)
-        return (beta_min + t * (beta_max - beta_min))#beta_min + (beta_max-beta_min)*jnp.cos(jnp.pi/2*(1-t)) 
+        ### Todo use cosine schedule with warmup here?
+        return beta_max#(beta_min + t * (beta_max - beta_min))
+        # lin_up = (beta_max + t/frac * (beta_min - beta_max))
+        # cos_shedule = beta_min + (beta_max-beta_min)*jnp.cos(jnp.pi/2*(1-t-frac)/(1-frac)) 
+        # return jnp.where(t > 1- frac, lin_up, cos_shedule)
+        # return beta_min + (beta_max-beta_min)*jnp.cos(jnp.pi/2*(1-t)) #(beta_min + t * (beta_max - beta_min))#beta_min + (beta_max-beta_min)*jnp.cos(jnp.pi/2*(1-t)) 
 
     def get_diffusion(self, SDE_params, x, t):
         sigma, _ = self.get_SDE_sigma(SDE_params)
@@ -134,14 +139,14 @@ class Bridge_SDE_Class(Base_SDE_Class):
 
         if(self.stop_gradient):
             x_next = jax.lax.stop_gradient(x + x_drift_update*dt  + dx)
-            log_prob_t_g_s = self.calc_diff_log_prob(x_next, x + x_drift_update*dt, diffusion*jnp.sqrt(dt))
+            #log_prob_t_g_s = self.calc_diff_log_prob(x_next, x + x_drift_update*dt, diffusion*jnp.sqrt(dt))
         else:
             x_next = x + x_drift_update * dt  + dx
-            log_prob_t_g_s = self.calc_diff_log_prob(x_next, x + x_drift_update*dt, diffusion*jnp.sqrt(dt)) # jnp.sum(jax.scipy.stats.norm.logpdf(dx, loc=0, scale=diffusion*jnp.sqrt(dt)), axis = -1)#
+            #log_prob_t_g_s = self.calc_diff_log_prob(x_next, x + x_drift_update*dt, diffusion*jnp.sqrt(dt)) # jnp.sum(jax.scipy.stats.norm.logpdf(dx, loc=0, scale=diffusion*jnp.sqrt(dt)), axis = -1)#
 
 
         ### TODO check at which x drift ref should be evaluated?
-        reverse_out_dict = {"x_next": x_next, "t_next": t - dt, "diffusion": diffusion, "reverse_drift": reverse_drift_t_g_s, "reverse_log_prob": log_prob_t_g_s, "dx": dx}
+        reverse_out_dict = {"x_next": x_next, "t_next": t - dt, "diffusion": diffusion, "reverse_drift": reverse_drift_t_g_s, "dx": dx} #"reverse_log_prob": log_prob_t_g_s
         return reverse_out_dict, key
 
 
@@ -175,7 +180,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
             "xs": x,
             "ts": t,
             "diffusions": reverse_out_dict["diffusion"],
-            "reverse_log_probs": reverse_out_dict["reverse_log_prob"],
+            #"reverse_log_probs": reverse_out_dict["reverse_log_prob"],
             "reverse_drifts": reverse_out_dict["reverse_drift"],
             "dts": dt,
             "key": key,
@@ -217,13 +222,18 @@ class Bridge_SDE_Class(Base_SDE_Class):
 
         x_prev = xs[:-1]
         x_next = xs[1:]
+        diffusion_prev = diffusions[0:-1]
         diffusion_next = diffusions[1:]
         grads_next = interpol_grads[1:]
-        reverse_drifts = reverse_drifts[1:]
+        reverse_drifts_next = reverse_drifts[1:]
+        reverse_drifts_prev = reverse_drifts[0:-1]
 
-        forward_drift = (diffusion_next**2*grads_next - reverse_drifts)
+        forward_drift = (diffusion_next**2*grads_next - reverse_drifts_next)
         x_pos_next = x_next + forward_drift*dt
 
+
+        ## TODO compute forward log probs here
+        reverse_diff_log_probs = jax.vmap(self.calc_diff_log_prob, in_axes=(0, 0, 0))(x_next, x_prev + reverse_drifts_prev*dt, diffusion_prev*jnp.sqrt(dt))
         forward_diff_log_probs = jax.vmap(self.calc_diff_log_prob, in_axes=(0, 0, 0))(x_prev, x_pos_next, diffusion_next*jnp.sqrt(dt))
 
 
@@ -232,7 +242,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
             "xs": SDE_tracker_steps["xs"],
             "ts": SDE_tracker_steps["ts"],
             "forward_diff_log_probs": forward_diff_log_probs,
-            "reverse_log_probs": SDE_tracker_steps["reverse_log_probs"],
+            "reverse_log_probs": reverse_diff_log_probs,
             "dts": SDE_tracker_steps["dts"],
             "x_final": x_final,
             "x_prior": x_prior,

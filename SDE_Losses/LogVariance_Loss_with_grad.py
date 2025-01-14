@@ -3,6 +3,8 @@ import jax
 from jax import numpy as jnp
 from functools import partial
 
+
+### version of log var loss that does not use stop gradient at the expectation
 class LogVariance_Loss_with_grad_Class(Base_SDE_Loss_Class):
 
     def __init__(self, SDE_config, Optimizer_Config,  EnergyClass, Network_Config, model):

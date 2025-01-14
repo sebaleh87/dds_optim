@@ -56,7 +56,7 @@ class Base_SDE_Loss_Class:
 
     def _init_lr_schedule(self, l_max, l_start, lr_min, overall_steps, warmup_steps):
         if(self.lr_schedule == "const"):
-            lr_scheudule_func = lambda step: constant_lr(step, l_max = self.Optimizer_Config["lr"])
+            lr_scheudule_func = lambda step: constant_lr(step, l_max = l_max)
         elif(self.lr_schedule == "cosine"):
             lr_scheudule_func = lambda step: learning_rate_schedule(step, l_max, l_start, lr_min, overall_steps, warmup_steps)
         else:

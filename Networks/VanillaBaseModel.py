@@ -146,14 +146,19 @@ class VanillaBaseModelClass(nn.Module):
             return out_dict
         elif(self.use_interpol_gradient and not self.use_normal):
             #print(jnp.mean(grad), jnp.mean(in_dict["grads"]))
-            correction_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
-                                                bias_init=nn.initializers.zeros)(embedding)
-            
-            correction_grad_score = correction_drift 
-            score = jnp.clip(correction_grad_score, -10**4, 10**4 )
-            out_dict["score"] = score
+            if(self.network_config["name"] == "ADAMNetwork"):
+                score = embedding
+                out_dict["score"] = score            
+                return out_dict
+            else:
+                correction_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
+                                                    bias_init=nn.initializers.zeros)(embedding)
+                
+                correction_grad_score = correction_drift 
+                score = jnp.clip(correction_grad_score, -10**4, 10**4 )
+                out_dict["score"] = score
 
-            return out_dict
+                return out_dict
         else:
             score = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
                                                 bias_init=nn.initializers.zeros)(embedding)
