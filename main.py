@@ -69,7 +69,7 @@ parser.add_argument('--use_normal', action='store_true', default=False, help='gr
 parser.add_argument('--no-use_normal', dest='use_normal', action='store_false', help='if false parameterize energy function gradient as in Learning to learn by gradient descent by gradient descent')
 
 parser.add_argument("--SDE_time_mode", type=str, default="Discrete_Time", choices=["Discrete_Time", "Continuous_Time"], help="SDE Time Mode")
-parser.add_argument("--Network_Type", type=str, default="FeedForward", choices=["FourierNetwork", "FeedForward", "LSTMNetwork"], help="SDE Time Mode")
+parser.add_argument("--Network_Type", type=str, default="FeedForward", choices=["FourierNetwork", "FeedForward", "LSTMNetwork", "ADAMNetwork"], help="SDE Time Mode")
 parser.add_argument("--model_seed", type=int, default=0, help="Seed used for model init")
 
 #energy function specific args

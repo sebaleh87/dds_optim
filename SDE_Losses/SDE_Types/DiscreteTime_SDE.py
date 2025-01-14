@@ -9,7 +9,7 @@ import numpy as np
 class DiscreteTime_SDE_Class(Base_SDE_Class):
 
     def __init__(self, SDE_Type_Config, Network_Config, Energy_Class) -> None:
-        raise ValueError("This class is not implemented yet")
+        raise ValueError("This class is stale")
         self.stop_gradient = False
         self.n_diff_steps = SDE_Type_Config["n_diff_steps"]
         self.temp_mode = SDE_Type_Config["temp_mode"]

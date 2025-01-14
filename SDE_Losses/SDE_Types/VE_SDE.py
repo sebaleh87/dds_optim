@@ -24,13 +24,22 @@ class VE_SDE_Class(Base_SDE_Class):
                 "beta_interpol_params": jnp.ones((self.n_integration_steps)),
                 "repulsion_interpol_params": jnp.ones((self.n_integration_steps))}
 
-        else:
+        elif(True):
             SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"] - self.config["beta_min"])* jnp.ones((self.dim_x,)), 
                         "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
                         "log_sigma": jnp.log(self.sigma_init)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)), 
                          "B": -10*jnp.ones((self.dim_x,self.dim_x)) + jnp.diag((jnp.log(self.sigma_init)+10.)*jnp.ones((self.dim_x,))),
                         "beta_interpol_params": jnp.ones((self.n_integration_steps)),
                         "repulsion_interpol_params": jnp.ones((self.n_integration_steps))}
+        else:
+        ### TODO use signature --> key, out_dim, parametrization = (Network, parameters) (temperature)
+            SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"] - self.config["beta_min"])* jnp.ones((self.dim_x,)), 
+                "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
+                "log_sigma": jnp.log(self.sigma_init)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)), 
+                    "B": -10*jnp.ones((self.dim_x,self.dim_x)) + jnp.diag((jnp.log(self.sigma_init)+10.)*jnp.ones((self.dim_x,))),
+                "beta_interpol_params": jnp.ones((self.n_integration_steps)),
+                "repulsion_interpol_params": jnp.ones((self.n_integration_steps))}
+        
         return SDE_params
 
     def get_mean_prior(self, SDE_params):

@@ -62,7 +62,8 @@ class LogVariance_Loss_Class(Base_SDE_Loss_Class):
             
             R_diff = R_diff + rKL_VAE
 
-        log_var_loss = jnp.mean((obs)**2) - jnp.mean(obs)**2#jnp.var(obs)#jnp.mean((obs)**2) - jnp.mean(obs)**2
+        #log_var_loss = jnp.mean((obs)**2) - jnp.mean(obs)**2#jnp.var(obs)#jnp.mean((obs)**2) - jnp.mean(obs)**2
+        log_var_loss = jnp.mean((obs - jnp.mean(obs))**2)
 
         res_dict = self.compute_partition_sum(R_diff, S, log_prior, Energy)
         log_Z = res_dict["log_Z"]

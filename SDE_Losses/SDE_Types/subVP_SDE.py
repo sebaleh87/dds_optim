@@ -8,7 +8,7 @@ from .Base_SDE import Base_SDE_Class
 
 class subVP_SDE_Class(Base_SDE_Class):
     def __init__(self, SDE_Type_Config, Network_Config, Energy_Class):
-        raise ValueError("This class is not implemented yet")
+        raise ValueError("This class is stale")
         self.beta_min = SDE_Type_Config["beta_min"]
         self.beta_max = SDE_Type_Config["beta_max"]
         self.sigma_sde = 1.
