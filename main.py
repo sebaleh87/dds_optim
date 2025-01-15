@@ -18,8 +18,10 @@ parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=
                                                                                  "Bridge_rKL", "Bridge_LogVarLoss",
                                                                                 "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam"], help="select loss function")
 parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE", "VE_SDE", "Bridge_SDE"], help="select SDE type, subVP_SDE is currently deprecated")
-parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "GaussianMixtureToy", "Rastrigin", "LennardJones", "DoubleWellEquivariant", "DoubleWell",
-                                                                                      "Pytheus", "WavePINN_latent", "WavePINN_hyperparam", "DoubleMoon"], help="EnergyClass")
+parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "GaussianMixtureToy", "Rastrigin", "LennardJones", 
+                                                                                     "DoubleWellEquivariant", "DoubleWell", "Sonar",
+                                                                                      "Pytheus", "WavePINN_latent", "WavePINN_hyperparam", "DoubleMoon",
+                                                                                      "Banana", "Brownian", "Lorenz"], help="EnergyClass")
 parser.add_argument("--n_particles", type=int, default=2, help="the dimension can be controlled for some problems")
 parser.add_argument("--T_start", type=float, default=1., help="Starting Temperature")
 parser.add_argument("--T_end", type=float, default=0., help="End Temperature")
@@ -86,7 +88,7 @@ if(__name__ == "__main__"):
         os.environ["CUDA_VISIBLE_DEVICES"]=f"{str(args.GPU)}"
 
     #disable JIT compilation
-
+    #jax.config.update("jax_enable_x64", True)
     if(args.disable_jit):
         jax.config.update("jax_disable_jit", True)
         jax.config.update("jax_debug_nans", True)
@@ -278,7 +280,13 @@ if(__name__ == "__main__"):
             "d_out": 1,
         }
         n_eval_samples = 10
-    
+    elif("Sonar" in args.Energy_Config or "Banana" in args.Energy_Config or "Brownian" in args.Energy_Config or "Lorenz" in args.Energy_Config):
+        from EnergyFunctions.EnergyData.BrownianData import load_model_gym
+        _, dim = load_model_gym(args.Energy_Config)
+        Energy_Config = {
+            "name": args.Energy_Config,
+            "dim_x": dim
+        }
     else:
         raise ValueError("Energy Config not found")
     Energy_Config["scaling"] = args.Scaling_factor

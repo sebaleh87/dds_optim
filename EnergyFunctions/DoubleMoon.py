@@ -56,7 +56,7 @@ class DoubleMoonClass(EnergyModelClass):
         data += noise * jax.random.normal(jax.random.PRNGKey(0), data.shape)
 
         labels = jnp.concatenate([jnp.zeros((n_samples_per_moon,1)), jnp.ones((n_samples_per_moon, 1))], axis = 0)
-
+        # should data be standarized?
         return data, labels
     
     def get_random_data_sample(self, batch_size, key):

@@ -34,16 +34,14 @@ class Bridge_LogVarLoss_Class(Base_SDE_Loss_Class):
 
         #log_var_loss = jnp.mean((obs)**2) - jnp.mean(obs)**2#jnp.var(obs)
         log_var_loss = jnp.mean((obs - jnp.mean(obs))**2)
-        
-        res_dict = self.compute_partition_sum(entropy_minus_noise, jnp.zeros_like(entropy_minus_noise), log_prior, Energy)
-        log_Z = res_dict["log_Z"]
-        Free_Energy, n_eff, NLL = res_dict["Free_Energy"], res_dict["n_eff"], res_dict["NLL"]
 
-        Entropy = jnp.mean(entropy_loss) #+ jnp.mean(log_prior)
-
-        return log_var_loss, {"loss": log_var_loss, "losses/log_var": log_var_loss, "Entropy": Entropy, "Free_Energy_at_T=1": Free_Energy, "log_Z_at_T=1": log_Z, "n_eff": n_eff, "mean_energy": mean_Energy, 
+        Entropy = jnp.mean(entropy_loss)
+        log_dict = {"loss": log_var_loss, "losses/log_var": log_var_loss, "Entropy": Entropy, "mean_energy": mean_Energy, 
                       "best_Energy": jnp.min(Energy), "noise_loss": noise_loss, "entropy_loss": entropy_loss, "key": key, "X_0": x_last, 
                       "sigma": jnp.exp(SDE_params["log_sigma"]),"beta_min": jnp.exp(SDE_params["log_beta_min"]),
                         "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": SDE_params["mean"], "sigma_prior": jnp.exp(SDE_params["log_sigma_prior"])
                         }
+        log_dict = self.compute_partition_sum(entropy_minus_noise, jnp.zeros_like(entropy_minus_noise), log_prior, Energy, log_dict)
+
+        return log_var_loss, log_dict
     

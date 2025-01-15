@@ -193,7 +193,7 @@ class Base_SDE_Loss_Class:
     def evaluate_loss(self, params, Energy_params, SDE_params, SDE_tracer, key, temp = 1.0):
         raise NotImplementedError("Not implemented yet")
     
-    def compute_partition_sum(self, R_diff, S, log_prior, Energy):
+    def compute_partition_sum(self, R_diff, S, log_prior, Energy, rec_dict):
         Z_estim = R_diff + S + log_prior + Energy
         log_Z = jnp.mean(-Z_estim)
         Free_Energy = -log_Z
@@ -203,8 +203,12 @@ class Base_SDE_Loss_Class:
         n_eff = 1/(jnp.sum(normed_weights**2)*Z_estim.shape[0])
 
         NLL = -jnp.mean(R_diff + S + log_prior) 
-        res_dict = {"Free_Energy": Free_Energy, "normed_weights": normed_weights, "log_Z": log_Z, "n_eff": n_eff, "NLL": NLL}
-        return res_dict
+
+        ELBO = jnp.mean(log_weights)
+        EUBO = jnp.mean(normed_weights*(log_weights))
+        res_dict = {"Free_Energy_at_T=1": Free_Energy, "normed_weights": normed_weights, "log_Z_at_T=1": log_Z, "n_eff": n_eff, "NLL": NLL, "ELBO_at_T=1": ELBO, "EUBO_at_T=1": EUBO}
+        rec_dict.update(res_dict)
+        return rec_dict
 
     @partial(jax.jit, static_argnums=(0,), static_argnames=("n_integration_steps", "n_states"))  
     def compute_loss(self, params, Energy_params, SDE_params, key, n_integration_steps = 100, n_states = 10, temp = 1.0):
