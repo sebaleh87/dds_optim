@@ -154,7 +154,7 @@ class TrainerClass:
 
 
     def _init_wandb(self):
-        wandb.init(project=f"DDS_{self.EnergyClass.__class__.__name__}_{self.config['project_name']}_dim_{self.EnergyClass.dim_x}", config=self.config)
+        wandb.init(project=f"DDS_{self.EnergyClass.config['name']}_{self.config['project_name']}_dim_{self.EnergyClass.dim_x}", config=self.config)
         self.wandb_id = wandb.run.name
 
     def plot_figures(self, SDE_tracer, epoch, sample_mode = "train"):
@@ -284,8 +284,7 @@ class TrainerClass:
         
         self.plot_figures(SDE_tracer, epoch)
 
-
-
+        wandb.finish()
         return params
     
     def check_improvement(self, params, best_metric_ever, metric, metric_name, epoch,figs = None):
