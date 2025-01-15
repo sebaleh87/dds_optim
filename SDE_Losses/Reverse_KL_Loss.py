@@ -63,15 +63,12 @@ class Reverse_KL_Loss_Class(Base_SDE_Loss_Class):
         Entropy = -(mean_R_diff + mean_log_prior)
 
         #print("RKL LOss", mean_R_diff, mean_log_prior, beta*mean_Energy)
-
-        res_dict = self.compute_partition_sum(R_diff, S, log_prior, Energy)
-        log_Z = res_dict["log_Z"]
-        Free_Energy, n_eff, NLL = res_dict["Free_Energy"], res_dict["n_eff"], res_dict["NLL"]
-
-        return loss, {"mean_energy": mean_Energy, "Free_Energy_at_T=1": Free_Energy, "Entropy": Entropy, "R_diff": R_diff, "likelihood_ratio": jnp.mean(loss), 
+        log_dict = {"mean_energy": mean_Energy, "Entropy": Entropy, "R_diff": R_diff, "likelihood_ratio": jnp.mean(loss), 
                       "key": key, "X_0": x_last, "mean_X_prior": jnp.mean(x_prior), #"std_X_prior": jnp.mean(jnp.std(x_prior, axis = 0)), 
                        "sigma": jnp.exp(SDE_params["log_sigma"]),
-                      "beta_min": jnp.exp(SDE_params["log_beta_min"]), "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": SDE_params["mean"]
-                      , "log_Z_at_T=1": log_Z, "n_eff": n_eff, "NLL": NLL}
+                      "beta_min": jnp.exp(SDE_params["log_beta_min"]), "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": SDE_params["mean"]}
+        log_dict = self.compute_partition_sum(R_diff, S, log_prior, Energy, log_dict)
+
+        return loss, log_dict
 
 

@@ -65,17 +65,16 @@ class LogVariance_Loss_Class(Base_SDE_Loss_Class):
         #log_var_loss = jnp.mean((obs)**2) - jnp.mean(obs)**2#jnp.var(obs)#jnp.mean((obs)**2) - jnp.mean(obs)**2
         log_var_loss = jnp.mean((obs - jnp.mean(obs))**2)
 
-        res_dict = self.compute_partition_sum(R_diff, S, log_prior, Energy)
-        log_Z = res_dict["log_Z"]
-        Free_Energy, n_eff, NLL = res_dict["Free_Energy"], res_dict["n_eff"], res_dict["NLL"]
+        log_dict = {"mean_energy": mean_Energy, "Entropy": Entropy, "R_diff": R_diff, 
+                      "key": key, "X_0": x_last, "mean_X_prior": jnp.mean(x_prior), "std_X_prior": jnp.mean(jnp.std(x_prior, axis = 0)), 
+                       "sigma": jnp.exp(SDE_params["log_sigma"]),
+                      "beta_min": jnp.exp(SDE_params["log_beta_min"]), "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": SDE_params["mean"]
+                        }
+        log_dict = self.compute_partition_sum(R_diff, S, log_prior, Energy, log_dict)
 
         # print("X-last", x_last.mean())
         # print("score", jax.lax.stop_gradient(score).mean())
         # print("Energy", jax.lax.stop_gradient(Energy).mean())
         # print("log_var_loss", jax.lax.stop_gradient(log_var_loss).mean())
 
-        return log_var_loss, {"mean_energy": mean_Energy, "Free_Energy_at_T=1": Free_Energy, "log_Z_at_T=1": log_Z, "n_eff": n_eff, "Entropy": Entropy, "R_diff": R_diff, 
-                      "key": key, "X_0": x_last, "mean_X_prior": jnp.mean(x_prior), "std_X_prior": jnp.mean(jnp.std(x_prior, axis = 0)), 
-                       "sigma": jnp.exp(SDE_params["log_sigma"]),
-                      "beta_min": jnp.exp(SDE_params["log_beta_min"]), "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": SDE_params["mean"]
-                        , "NLL": NLL}
+        return log_var_loss, log_dict

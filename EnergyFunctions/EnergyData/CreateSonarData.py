@@ -4,6 +4,7 @@ import requests
 import numpy as np
 import jax
 from jax import numpy as jnp
+import pickle
 
 # Function to download the dataset
 def download_sonar_dataset():
@@ -35,6 +36,10 @@ def load_sonar_dataset(file_path):
     column_names = [f"Feature_{i+1}" for i in range(60)] + ["Label"]
     data = pd.read_csv(file_path, header=None, names=column_names)
     print(f"Dataset loaded with shape: {data.shape}")
+    data = data.to_numpy()
+    data = np.array(data[:, 0:-1], dtype=np.float32)
+    data = (data-np.mean(data, axis = 0, keepdims=True))/np.std(data, axis = 0, keepdims=True)
+
     return data
 
 
@@ -46,9 +51,17 @@ def compute_energy(data, labels, parameters):
     energy = -log_prior - log_bernoulli
     return energy
 
+def load_pickle():
+    current_folder = os.path.dirname(os.path.abspath(__file__))
+    with open(f'{current_folder}/sonar/sonar_full.pkl', 'rb') as f:
+        X, Y = pickle.load(f)
+    Y = (Y + 1) // 2
+    return X,Y
+
 # Main execution
 if __name__ == "__main__":
     import os 
+    X,Y = load_pickle()
     os.environ["CUDA_VISIBLE_DEVICES"]=f"{0}"
     # Define the folder to save the dataset
     folder = "datasets"

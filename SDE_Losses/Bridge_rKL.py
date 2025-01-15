@@ -25,10 +25,6 @@ class Bridge_rKL_Loss_Class(Base_SDE_Loss_Class):
         Energy, key = self.EnergyClass.vmap_calc_energy(x_last, Energy_params, key)
         mean_Energy = jnp.mean(Energy)
 
-        res_dict = self.compute_partition_sum(entropy_minus_noise, jnp.zeros_like(entropy_minus_noise), log_prior, Energy)
-        log_Z = res_dict["log_Z"]
-        Free_Energy, n_eff, NLL = res_dict["Free_Energy"], res_dict["n_eff"], res_dict["NLL"]
-
         entropy_loss = jnp.mean(jnp.sum(reverse_log_probs, axis = 0) )
         noise_loss = jnp.mean(-jnp.sum(forward_diff_log_probs, axis = 0))
 
@@ -37,9 +33,14 @@ class Bridge_rKL_Loss_Class(Base_SDE_Loss_Class):
             loss = jnp.mean(temp*entropy_minus_noise + Energy + temp*log_prior)
         elif(self.optim_mode == "equilibrium"):
             loss = jnp.mean(entropy_minus_noise + Energy/temp + log_prior)
-        return loss, {"loss": loss, "Free_Energy_at_T=1": Free_Energy, "log_Z_at_T=1": log_Z, "n_eff": n_eff, "mean_energy": mean_Energy, 
+
+        log_dict = {"loss": loss, "mean_energy": mean_Energy, 
                       "best_Energy": jnp.min(Energy), "noise_loss": noise_loss, "entropy_loss": entropy_loss, "key": key, "X_0": x_last, 
                       "sigma": jnp.exp(SDE_params["log_sigma"]),"beta_min": jnp.exp(SDE_params["log_beta_min"]),
                         "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": SDE_params["mean"], "sigma_prior": jnp.exp(SDE_params["log_sigma_prior"])
                         }
+
+        log_dict = self.compute_partition_sum(entropy_minus_noise, jnp.zeros_like(entropy_minus_noise), log_prior, Energy, log_dict)
+
+        return loss, log_dict
     
