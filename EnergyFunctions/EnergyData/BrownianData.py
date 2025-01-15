@@ -18,8 +18,17 @@ def load_model_gym(model='banana'):
 	return log_prob_model, dim
 
 if(__name__ == "__main__"):
-    # Load the model
-    log_prob_model, dim = load_model_gym(model='brownian')
-    log_probs = log_prob_model(jnp.ones((dim, )))
-    print(log_probs)
-    # Set the random seed
+	# Load the model
+	import os
+	import jax
+
+	os.environ["CUDA_VISIBLE_DEVICES"]=f"{0}"
+
+    #disable JIT compilation
+	#jax.config.update("jax_enable_x64", True)
+	log_prob_model, dim = load_model_gym(model='Brownian')
+
+	for k in np.linspace(-40,0, 100):
+		log_probs = log_prob_model(k*jnp.ones((dim, )))
+		print("k = ", k, "log_probs", log_probs)
+	# Set the random seed

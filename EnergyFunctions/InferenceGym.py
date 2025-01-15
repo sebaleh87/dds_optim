@@ -8,14 +8,6 @@ import inference_gym.using_jax as gym
 
 class InferenceGymClass(EnergyModelClass):
     def __init__(self, config):
-        """
-        Initialize the Funnel distribution (Neal, 2003).
-        The distribution is defined as:
-        x1 ~ N(0, η²)
-        xi ~ N(0, exp(x1)) for i = 2,...,dim
-        
-        :param config:
-        """
         super().__init__(config)
 
         self.name = config["name"]
@@ -44,6 +36,10 @@ class InferenceGymClass(EnergyModelClass):
         :param x: Input array of shape (..., dim)
         :return: Energy value (scalar)
         """
+        if(self.name == "Brownian"):
+            clipped_x = jnp.clip(x[0:2], min = -10)
+            x = x.at[0:2].set(clipped_x)
 
-        return -self.log_prob_model(x)
+        log_prob = self.log_prob_model(x)
+        return -log_prob
     
