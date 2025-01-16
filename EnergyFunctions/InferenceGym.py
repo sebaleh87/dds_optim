@@ -37,7 +37,9 @@ class InferenceGymClass(EnergyModelClass):
         :return: Energy value (scalar)
         """
         if(self.name == "Brownian"):
-            clipped_x = jnp.clip(x[0:2], min = -10)
+            min_val = -10
+            #clipped_x = jnp.clip(x[0:2], min = -10)
+            clipped_x = jnp.where(x[0:2] < min_val, jax.nn.leaky_relu(x[0:2] - min_val), x[0:2])
             x = x.at[0:2].set(clipped_x)
 
         log_prob = self.log_prob_model(x)
