@@ -21,7 +21,7 @@ parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE",
 parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "GaussianMixtureToy", "Rastrigin", "LennardJones", 
                                                                                      "DoubleWellEquivariant", "DoubleWell", "Sonar",
                                                                                       "Pytheus", "WavePINN_latent", "WavePINN_hyperparam", "DoubleMoon",
-                                                                                      "Banana", "Brownian", "Lorenz"], help="EnergyClass")
+                                                                                      "Banana", "Brownian", "Lorenz", "Seeds"], help="EnergyClass")
 parser.add_argument("--n_particles", type=int, default=2, help="the dimension can be controlled for some problems")
 parser.add_argument("--T_start", type=float, default=1., help="Starting Temperature")
 parser.add_argument("--T_end", type=float, default=0., help="End Temperature")
@@ -251,6 +251,12 @@ if(__name__ == "__main__"):
             "name": args.Energy_Config,
             "N": N,
             "dim_x": N*out_dim,
+        }
+    elif(args.Energy_Config == "Seeds"):
+        Energy_Config = {
+            "name": "Seeds",
+            "dim_x": 26,  # The Seeds model has 26 parameters
+            "scaling": args.Scaling_factor
         }
     elif("DoubleWell" in args.Energy_Config):
         N = args.n_particles
