@@ -183,7 +183,7 @@ class TrainerClass:
         for epoch in pbar:
             T_curr = self.AnnealClass.update_temp()
             start_time = time.time()
-            if(epoch % int(self.num_epochs/self.Optimizer_Config["epochs_per_eval"]) == 0 or epoch == 0):
+            if((epoch % int(self.num_epochs/self.Optimizer_Config["epochs_per_eval"]) == 0 or epoch == 0) and not self.config["disable_jit"]):
                 ### TODO plot here also samples where more nosie is used
                 sampling_modes = [ "val", "eval"]
                 for sample_mode in sampling_modes:
@@ -289,7 +289,7 @@ class TrainerClass:
     
     def check_improvement(self, params, best_metric_ever, metric, metric_name, epoch,figs = None):
         best_metric_value = metric
-        if(best_metric_value < best_metric_ever):
+        if(best_metric_value < best_metric_ever or epoch==0):
             best_metric_ever = best_metric_value
 
             param_dict = self.SDE_LossClass.get_param_dict(params)

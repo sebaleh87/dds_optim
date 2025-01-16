@@ -3,6 +3,8 @@ import jax
 from jax import numpy as jnp
 from functools import partial
 
+#see Sequential Controlled Langevin Diffusions (18)
+
 class Bridge_LogVarLoss_Class(Base_SDE_Loss_Class):
 
     def __init__(self, SDE_config, Optimizer_Config,  EnergyClass, Network_Config, model):
