@@ -134,21 +134,21 @@ if(__name__ == "__main__"):
 
             if("Discrete_Time_rKL_Loss" in args.SDE_Loss):
 
-            SDE_Type_Config = {
-                "name": "DiscreteTime_SDE", 
-                "n_diff_steps": args.n_integration_steps,
-                "temp_mode": args.temp_mode,
-                "n_integration_steps": args.n_integration_steps,
-                "SDE_weightening": args.SDE_weightening,
-                "use_normal": False
-            }
-            
-            SDE_Loss_Config = {
-                "name": args.SDE_Loss, # Reverse_KL_Loss, LogVariance_Loss
-                "SDE_Type_Config": SDE_Type_Config,
-                "batch_size": args.batch_size,
-                "n_integration_steps": args.n_integration_steps,
-                "minib_time_steps": args.minib_time_steps,
+                SDE_Type_Config = {
+                    "name": "DiscreteTime_SDE", 
+                    "n_diff_steps": args.n_integration_steps,
+                    "temp_mode": args.temp_mode,
+                    "n_integration_steps": args.n_integration_steps,
+                    "SDE_weightening": args.SDE_weightening,
+                    "use_normal": False
+                }
+                
+                SDE_Loss_Config = {
+                    "name": args.SDE_Loss, # Reverse_KL_Loss, LogVariance_Loss
+                    "SDE_Type_Config": SDE_Type_Config,
+                    "batch_size": args.batch_size,
+                    "n_integration_steps": args.n_integration_steps,
+                    "minib_time_steps": args.minib_time_steps,
             }
         else:
             #modified sampling distributions are only applicable for certain losses
@@ -331,5 +331,5 @@ if(__name__ == "__main__"):
             "disable_jit": args.disable_jit
         }
 
-            trainer = TrainerClass(base_config)
-            trainer.train()
+        trainer = TrainerClass(base_config)
+        trainer.train()
