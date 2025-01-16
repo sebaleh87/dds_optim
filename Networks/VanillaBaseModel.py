@@ -130,6 +130,8 @@ class VanillaBaseModelClass(nn.Module):
             out_dict["log_var"] = log_var_x
             return out_dict
         elif(self.use_interpol_gradient and self.use_normal):
+            #this follows http://arxiv.org/abs/2302.13834 equation (88)
+            
             grads = copy_grads
 
             grad_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
