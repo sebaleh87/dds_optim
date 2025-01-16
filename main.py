@@ -36,17 +36,20 @@ parser.add_argument("--batch_size", type=int, default=200)
 parser.add_argument( "--lr", type=float, default=[0.001], nargs="+")
 parser.add_argument("--lr_schedule", type=str, choices = ["cosine", "const"], default = "const")
 parser.add_argument("--Energy_lr", type=float, default=0.0)
-parser.add_argument( "--SDE_lr", type=float, default=[0.001], nargs="+")
+parser.add_argument("--SDE_lr", type=float, default=[0.001], nargs="+")
 parser.add_argument("--SDE_weight_decay", type=float, default=0.)
 parser.add_argument("--clip_value", type=float, default=100., help = "clip value of sde param gradients")
 parser.add_argument("--learn_beta_mode", type=str, default="None", choices=["min_and_max", "max", "None"], help="learn beta min and max, lin interp in-between")
 
-parser.add_argument("--learn_covar", type=bool, default=False, help="learn additional covar of target")
+parser.add_argument("--learn_covar", action='store_true', default=False, help="learn additional covar of target")
 parser.add_argument("--sigma_init", type=float, default=1., help="init value of sigma")
 parser.add_argument("--repulsion_strength", type=float, default=0., help="repulsion_strength >= 0")
-parser.add_argument("--sigma_scale_factor", type=float, default=0., help="amount of noise for off policy sampling")
 
-parser.add_argument("--disable_jit", type=bool, default=False, help="disable jit for debugging")
+parser.add_argument('--use_off_policy', action='store_true', default=False, help='use off policy sampling')
+parser.add_argument('--no-use_off_policy', dest='use_off_policy', action='store_false', help='dont use off policy sampling')
+parser.add_argument("--sigma_scale_factor", type=float, default=0., help="amount of noise for off policy sampling, 0 has no effect = no-use_off_policy")
+
+parser.add_argument("--disable_jit", action='store_true', default=False, help="disable jit for debugging")
 
 parser.add_argument("--N_anneal", type=int, default=1000)
 parser.add_argument("--N_warmup", type=int, default=0)
@@ -146,10 +149,9 @@ if(__name__ == "__main__"):
                 "minib_time_steps": args.minib_time_steps,
             }
         else:
-            if(args.sigma_scale_factor != 0 and (args.SDE_Loss != "LogVariance_Loss" and args.SDE_Loss != "Bridge_LogVarLoss")):
-                print(args.SDE_Loss)
-                print(args.SDE_Loss != "LogVariance_Loss" or args.SDE_Loss != "Bridge_LogVarLoss")
-                raise ValueError("sigma_scale_factor only implemented for LogVariance_Loss")
+            #modified sampling distributions are only applicable for certain losses
+            if(args.use_off_policy and (args.SDE_Loss != "LogVariance_Loss" and args.SDE_Loss != "Bridge_LogVarLoss")):
+                raise ValueError("Off policy only implemented for LogVariance_Loss")
 
             SDE_Type_Config = {
                 "name": args.SDE_Type,
@@ -163,6 +165,8 @@ if(__name__ == "__main__"):
                 "sigma_init": args.sigma_init,
                 "repulsion_strength": args.repulsion_strength,
                 "sigma_scale_factor": args.sigma_scale_factor,
+                "batch_size": args.batch_size,
+                "use_off_policy": args.use_off_policy
             }
             
             SDE_Loss_Config = {
@@ -319,12 +323,11 @@ if(__name__ == "__main__"):
             "SDE_Loss_Config": SDE_Loss_Config,
             "Optimizer_Config": Optimizer_Config,
             "Network_Config": Network_Config,
-
-        "num_epochs": epochs,
-        "n_eval_samples": n_eval_samples,
-        "project_name": args.project_name,
-        "disable_jit": args.disable_jit
-    }
+            "num_epochs": epochs,
+            "n_eval_samples": n_eval_samples,
+            "project_name": args.project_name,
+            "disable_jit": args.disable_jit
+        }
 
         trainer = TrainerClass(base_config)
         trainer.train()
