@@ -20,6 +20,14 @@ Additionally install Pytheus:
 pip install pytheusQ
 ```
 
+For Seeds dataset support, install additional packages:
+```
+pip install numpyro==0.16.1
+pip install --upgrade jax==0.4.37
+pip install tensorflow-probability[tf]==0.25.0
+pip install inference-gym==0.0.4
+```
+
 #Start experiment on Rasragin Problem
 ```
 python main.py --SDE_Loss Discrete_Time_rKL_Loss --Energy_Config Rastrigin --n_integration_steps 10 --T_start 15 --batch_size 200 --lr 0.002
@@ -29,3 +37,15 @@ python main.py --SDE_Loss Discrete_Time_rKL_Loss --Energy_Config Rastrigin --n_i
 ```
 python main.py main.py --SDE_Loss Discrete_Time_rKL_Loss --Energy_Config Pytheus --n_integration_steps 10 --T_start 0.5 --batch_size 400 --lr 0.001 --N_anneal 1000 --feature_dim 0 --n_hidden 200
 ```
+
+	
+3:16 PM
+
+
+
+
+
+
+
+
+python main.py --SDE_Loss LogVariance_Loss --Energy_Config Seeds --n_integration_steps 100 --T_start 4.1 --T_end 1. --batch_size 48 --lr 0.0005 --Energy_lr 0.0 --SDE_lr 0.0005 --N_anneal 12000 --feature_dim 64 --n_hidden 64 --GPU 0 --beta_max 5. --use_interpol_gradient --Network_Type FeedForward --project_name iter --no-use_normal 
