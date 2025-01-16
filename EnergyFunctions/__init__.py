@@ -16,7 +16,7 @@ from .InferenceGym import InferenceGymClass
 Energy_Registry = {"GaussianMixture": GaussianMixtureClass, "MexicanHat": MexicanHatClass, "Rastrigin": RastriginClass, "Pytheus": PytheusEnergyClass,
                 "WavePINN_hyperparam": WavePINN_hyperparam_Class, "WavePINN_latent": WavePINN_latent_Class, "LennardJones": LennardJonesClass,
                 "DoubleWellEquivariant": DoubleWellEquivariantClass, "DoubleWell": DoubleWellClass, "DoubleMoon": DoubleMoonClass, "Sonar": SonarClass,
-                "Lorenz": InferenceGymClass, "Brownian": InferenceGymClass, "Banana": InferenceGymClass}
+                "Lorenz": InferenceGymClass, "Brownian": InferenceGymClass, "Banana": InferenceGymClass, "Seeds": InferenceGymClass}
 
 
 
