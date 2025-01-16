@@ -154,7 +154,7 @@ class TrainerClass:
 
 
     def _init_wandb(self):
-        wandb.init(project=f"DDS_{self.EnergyClass.__class__.__name__}_{self.config['project_name']}_dim_{self.EnergyClass.dim_x}", config=self.config)
+        wandb.init(project=f"DDS_{self.EnergyClass.config['name']}_{self.config['project_name']}_dim_{self.EnergyClass.dim_x}", config=self.config)
         self.wandb_id = wandb.run.name
 
     def plot_figures(self, SDE_tracer, epoch, sample_mode = "train"):
@@ -183,7 +183,7 @@ class TrainerClass:
         for epoch in pbar:
             T_curr = self.AnnealClass.update_temp()
             start_time = time.time()
-            if(epoch % int(self.num_epochs/self.Optimizer_Config["epochs_per_eval"]) == 0 or epoch == 0):
+            if((epoch % int(self.num_epochs/self.Optimizer_Config["epochs_per_eval"]) == 0 or epoch == 0) and not self.config["disable_jit"]):
                 ### TODO plot here also samples where more nosie is used
                 sampling_modes = [ "val", "eval"]
                 for sample_mode in sampling_modes:
@@ -284,13 +284,12 @@ class TrainerClass:
         
         self.plot_figures(SDE_tracer, epoch)
 
-
-
+        wandb.finish()
         return params
     
     def check_improvement(self, params, best_metric_ever, metric, metric_name, epoch,figs = None):
         best_metric_value = metric
-        if(best_metric_value < best_metric_ever):
+        if(best_metric_value < best_metric_ever or epoch==0):
             best_metric_ever = best_metric_value
 
             param_dict = self.SDE_LossClass.get_param_dict(params)
