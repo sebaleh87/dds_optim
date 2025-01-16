@@ -13,7 +13,7 @@ parser.add_argument("--GPU", type=int, default=6, help="GPU id to use")
 parser.add_argument("--model_mode", type=str, default="normal", choices = ["normal", "latent"], help="normal training or latent diffusion")
 parser.add_argument("--latent_dim", type=int, default=None)
 
-parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=["Reverse_KL_Loss","LogVariance_Loss", "LogVariance_Loss_MC", 
+parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=["Reverse_KL_Loss","Reverse_KL_Loss_stop_grad","LogVariance_Loss", "LogVariance_Loss_MC", 
                                                                                  "LogVariance_Loss_with_grad", "LogVariance_Loss_weighted",
                                                                                  "Bridge_rKL", "Bridge_LogVarLoss",
                                                                                 "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam"], help="select loss function")
@@ -46,7 +46,7 @@ parser.add_argument("--sigma_init", type=float, default=1., help="init value of 
 parser.add_argument("--repulsion_strength", type=float, default=0., help="repulsion_strength >= 0")
 parser.add_argument("--sigma_scale_factor", type=float, default=0., help="amount of noise for off policy sampling")
 
-parser.add_argument("--disable_jit", type=bool, default=False, help="learn additional covar of target")
+parser.add_argument("--disable_jit", type=bool, default=False, help="disable jit for debugging")
 
 parser.add_argument("--N_anneal", type=int, default=1000)
 parser.add_argument("--N_warmup", type=int, default=0)
@@ -92,7 +92,7 @@ if(__name__ == "__main__"):
     #jax.config.update("jax_enable_x64", True)
     if(args.disable_jit):
         jax.config.update("jax_disable_jit", True)
-        jax.config.update("jax_debug_nans", True)
+        # jax.config.update("jax_debug_nans", True)
 
     # if(args.lr/args.SDE_lr  < 5):
     #     print("Warning: args.lr/args.SDE_lr  < 5, emperically this ratio is too high")
@@ -320,11 +320,11 @@ if(__name__ == "__main__"):
             "Optimizer_Config": Optimizer_Config,
             "Network_Config": Network_Config,
 
-            "num_epochs": epochs,
-            "n_eval_samples": n_eval_samples,
-            "project_name": args.project_name
-            
-        }
+        "num_epochs": epochs,
+        "n_eval_samples": n_eval_samples,
+        "project_name": args.project_name,
+        "disable_jit": args.disable_jit
+    }
 
         trainer = TrainerClass(base_config)
         trainer.train()
