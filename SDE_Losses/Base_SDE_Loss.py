@@ -57,8 +57,10 @@ class Base_SDE_Loss_Class:
     def _init_lr_schedule(self, l_max, l_start, lr_min, overall_steps, warmup_steps):
         if(self.lr_schedule == "const"):
             lr_scheudule_func = lambda step: constant_lr(step, l_max = l_max)
+        elif(self.lr_schedule == "cosine_warmup"):
+            lr_scheudule_func = lambda step: cos_warmup_learning_rate_schedule(step, l_max, l_start, lr_min, overall_steps, warmup_steps)
         elif(self.lr_schedule == "cosine"):
-            lr_scheudule_func = lambda step: learning_rate_schedule(step, l_max, l_start, lr_min, overall_steps, warmup_steps)
+            lr_scheudule_func = lambda step: cosine_learning_rate_schedule(step, l_max, l_start, lr_min, overall_steps, 0)
         else:
             raise ValueError(f"Unknown lr_schedule: {self.lr_schedule}")
 
@@ -284,7 +286,12 @@ class Base_SDE_Loss_Class:
 def constant_lr(step, l_max = 1e-4):
     return l_max
 
-def learning_rate_schedule(step, l_max = 1e-4, l_start = 1e-5, lr_min = 1e-4, overall_steps = 1000, warmup_steps = 100):
+def cosine_learning_rate_schedule(step, l_max = 1e-4, l_start = 1e-5, lr_min = 1e-4, overall_steps = 1000, warmup_steps = 0):
+    cosine_decay = lambda step: optax.cosine_decay_schedule(init_value=(l_max - lr_min), decay_steps=overall_steps - warmup_steps)(step) + lr_min
+
+    return cosine_decay(step - warmup_steps)
+
+def cos_warmup_learning_rate_schedule(step, l_max = 1e-4, l_start = 1e-5, lr_min = 1e-4, overall_steps = 1000, warmup_steps = 100):
     cosine_decay = lambda step: optax.cosine_decay_schedule(init_value=(l_max - lr_min), decay_steps=overall_steps - warmup_steps)(step) + lr_min
 
     return jnp.where(step < warmup_steps, l_start + (l_max - l_start) * (step / warmup_steps), cosine_decay(step - warmup_steps))
