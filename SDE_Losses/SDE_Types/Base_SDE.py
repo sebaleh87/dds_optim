@@ -89,9 +89,9 @@ class Base_SDE_Class:
         #print("vmap_grad", jnp.mean(jax.lax.stop_gradient(vmap_grad)))
         vmap_grad = jnp.where(jnp.isfinite(vmap_grad), vmap_grad, 0)
 
-        vmap_div_energy, vmap_grad_div = self.get_diversity_log_prob_grad(x,counter,SDE_params) 
-        vmap_energy = vmap_energy + vmap_div_energy
-        vmap_grad = vmap_grad + vmap_grad_div
+        #vmap_div_energy, vmap_grad_div = self.get_diversity_log_prob_grad(x,counter,SDE_params) 
+        vmap_energy = vmap_energy #+ vmap_div_energy
+        vmap_grad = vmap_grad #+ vmap_grad_div
 
         return vmap_energy, vmap_grad, key
     
@@ -146,7 +146,7 @@ class Base_SDE_Class:
             beta_max = beta_min + beta_delta
             return beta_min, beta_max
 
-    def return_sigma_scale_factor(self, scale_strength, shape, key):
+    def return_sigma_scale_factor(self, scale_strength, key):
         key, subkey = random.split(key)
         #TODO the following distribution produces heavy outliers! Fat tail distribution
         if scale_strength:
@@ -272,6 +272,7 @@ class Base_SDE_Class:
         return score, new_hidden_state, grad, key
     
     def simulate_reverse_sde_scan(self, model, params, Energy_params, SDE_params, temp, key, n_states = 100, sample_mode = "train", n_integration_steps = 1000):
+
         if self.config['use_off_policy']:    
             if(sample_mode == "train"):
                 shape= [self.config['batch_size'], self.dim_x]

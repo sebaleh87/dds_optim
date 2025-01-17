@@ -6,8 +6,8 @@ from functools import partial
 import inference_gym.using_jax as gym
 import numpyro
 from jax.flatten_util import ravel_pytree
-from .EnergyData import LogisticRegressionData as model_lr
 from .EnergyData import SeedsData as model_seeds
+from .EnergyData.SeedsData import load_model_other
 
 class InferenceGymClass(EnergyModelClass):
     def __init__(self, config):
@@ -17,8 +17,8 @@ class InferenceGymClass(EnergyModelClass):
         self.name = config["name"]
         
         # Handle different model types
-        if self.name in ['Log_sonar', 'Log_ionosphere', 'Seeds']:
-            self.log_prob_model, self.dim_x = self.load_model_other(self.name)
+        if self.name in ['Sonar', 'Ionosphere', 'Seeds']:
+            self.log_prob_model, self.dim_x = self.load_model_numpyro(self.name)
         else:
             self.log_prob_model, self.dim_x = self.load_model_gym(self.name)
 
@@ -38,20 +38,8 @@ class InferenceGymClass(EnergyModelClass):
         dim = target.event_shape[0]
         return log_prob_model, dim
 
-    def load_model_other(self, model='Seeds'):
-        if model == 'Log_sonar':
-            pass
-        elif model == 'Log_ionosphere':
-            pass
-        elif model == 'Seeds':
-            model, model_args = model_seeds.load_model()
-        
-        rng_key = jax.random.PRNGKey(1)
-        model_param_info, potential_fn, constrain_fn, _ = numpyro.infer.util.initialize_model(rng_key, model, model_args=model_args)
-        params_flat, unflattener = ravel_pytree(model_param_info[0])
-        log_prob_model = lambda z: -1. * potential_fn(unflattener(z))
-        dim = params_flat.shape[0]
-        return log_prob_model, dim
+    def load_model_numpyro(self, model='Seeds'):
+        return load_model_other(model)
 
     @partial(jax.jit, static_argnums=(0,))
     def energy_function(self, x):
@@ -62,7 +50,9 @@ class InferenceGymClass(EnergyModelClass):
         :return: Energy value (scalar)
         """
         if(self.name == "Brownian"):
-            clipped_x = jnp.clip(x[0:2], min = -10)
+            min_val = -10
+            #clipped_x = jnp.clip(x[0:2], min = -10)
+            clipped_x = jnp.where(x[0:2] < min_val, jax.nn.leaky_relu(x[0:2] - min_val), x[0:2])
             x = x.at[0:2].set(clipped_x)
 
         return -self.log_prob_model(x)

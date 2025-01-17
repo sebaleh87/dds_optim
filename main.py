@@ -1,11 +1,5 @@
-from EnergyFunctions import Rastrigin
-import jax
-from jax import config as jax_config
-import os
-from Trainer.train import TrainerClass
 import argparse
-import numpy as np
-import torch
+import os
 ### TODO make seperate run configs for discrete time and continuous time
 
 parser = argparse.ArgumentParser(description="Denoising Diffusion Sampler")
@@ -21,7 +15,7 @@ parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE",
 parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "GaussianMixtureToy", "Rastrigin", "LennardJones", 
                                                                                      "DoubleWellEquivariant", "DoubleWell", "Sonar",
                                                                                       "Pytheus", "WavePINN_latent", "WavePINN_hyperparam", "DoubleMoon",
-                                                                                      "Banana", "Brownian", "Lorenz", "Seeds"], help="EnergyClass")
+                                                                                      "Banana", "Brownian", "Lorenz", "Seeds", "Ionosphere", "Sonar"], help="EnergyClass")
 parser.add_argument("--n_particles", type=int, default=2, help="the dimension can be controlled for some problems")
 parser.add_argument("--T_start", type=float, default=[1.], nargs="+" ,  help="Starting Temperature")
 parser.add_argument("--T_end", type=float, default=0., help="End Temperature")
@@ -88,9 +82,19 @@ args = parser.parse_args()
 if(__name__ == "__main__"):
 
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   # see issue #152
-    if args.GPU !=-1:                              # GPU -1 means select GPU via env var in command line
+    if args.GPU != -1:                              # GPU -1 means select GPU via env var in command line
         os.environ["CUDA_VISIBLE_DEVICES"]=f"{str(args.GPU)}"
 
+
+    # importing after set visible devices seems to be important! othervice all gpus remain visible
+    import jax
+    from jax import config as jax_config
+    import torch
+    from Trainer.train import TrainerClass
+    import numpy as np
+
+    devices = jax.local_devices()
+    print(devices)
     #disable JIT compilation
     #jax.config.update("jax_enable_x64", True)
     if(args.disable_jit):
@@ -297,6 +301,14 @@ if(__name__ == "__main__"):
                     "name": args.Energy_Config,
                     "dim_x": dim
                 }
+            elif("Seeds" in args.Energy_Config or "Ionosphere" in args.Energy_Config or "Sonar" in args.Energy_Config):
+                from EnergyFunctions.EnergyData.SeedsData import load_model_other
+                _, dim = load_model_other(args.Energy_Config)
+                Energy_Config = {
+                    "name": args.Energy_Config,
+                    "dim_x": dim
+                }
+
             else:
                 raise ValueError("Energy Config not found")
             Energy_Config["scaling"] = args.Scaling_factor
@@ -318,7 +330,6 @@ if(__name__ == "__main__"):
                 "lam": 10.
             }
 
-
         base_config = {
             "EnergyConfig": Energy_Config,
             "Anneal_Config": Anneal_Config,
@@ -333,3 +344,4 @@ if(__name__ == "__main__"):
 
         trainer = TrainerClass(base_config)
         trainer.train()
+

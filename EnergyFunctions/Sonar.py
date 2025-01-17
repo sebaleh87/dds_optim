@@ -25,7 +25,7 @@ class SonarClass(EnergyModelClass):
 
     def load_sonar_dataset(self):
         current_folder = os.path.dirname(os.path.abspath(__file__))
-        with open(f'{current_folder}/EnergyData/sonar/sonar_full.pkl', 'rb') as f:
+        with open(f'{current_folder}/EnergyData/Datasets/sonar_full.pkl', 'rb') as f:
             X, Y = pickle.load(f)
         Y = (Y + 1) // 2
         return X, Y

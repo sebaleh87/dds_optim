@@ -11,7 +11,7 @@ def download_sonar_dataset():
     # URL of the dataset
     current_folder = os.path.dirname(os.path.abspath(__file__))
     save_folder = os.path.join(current_folder, "sonar")
-    url = "https://archive.ics.uci.edu/ml/machine-learning-databases/undocumented/connectionist-bench/sonar/sonar.all-data"
+    url = "https://archive.ics.uci.edu/ml/machine-learning-databases/undocumented/connectionist-bench/Datasets/sonar.all-data"
     
     # Create the folder if it doesn't exist
     os.makedirs(save_folder, exist_ok=True)
@@ -53,7 +53,7 @@ def compute_energy(data, labels, parameters):
 
 def load_pickle():
     current_folder = os.path.dirname(os.path.abspath(__file__))
-    with open(f'{current_folder}/sonar/sonar_full.pkl', 'rb') as f:
+    with open(f'{current_folder}/Datasets/sonar_full.pkl', 'rb') as f:
         X, Y = pickle.load(f)
     Y = (Y + 1) // 2
     return X,Y
