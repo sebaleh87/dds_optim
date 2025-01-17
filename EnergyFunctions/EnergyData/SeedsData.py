@@ -3,7 +3,11 @@
 import numpyro
 import numpyro.distributions as dist
 import jax.numpy as np
-
+import jax
+import jax
+import numpyro
+from jax.flatten_util import ravel_pytree
+from .LogisticRegression import load_model_lr
 
 data = {"R": [10, 23, 23, 26, 17, 5, 53, 55, 32, 46, 10, 8, 10, 8, 23, 0, 3, 22, 15, 32, 3],
 		"N": [39, 62, 81, 51, 39, 6, 74, 72, 51, 79, 13, 16, 30, 28, 45, 4, 12, 41, 30, 51, 7.],
@@ -30,6 +34,21 @@ def load_model():
 			r = numpyro.sample('r', dist.BinomialLogits(logits, N), obs = R)
 	model_args = (R,)
 	return model, model_args
+
+def load_model_other(model_name='Seeds'):
+	if model_name == 'Sonar':
+		model, model_args = load_model_lr(model_name)
+	elif model_name == 'Ionosphere':
+		model, model_args = load_model_lr(model_name)
+	elif model_name == 'Seeds':
+		model, model_args = load_model(model_name)
+	
+	rng_key = jax.random.PRNGKey(1)
+	model_param_info, potential_fn, constrain_fn, _ = numpyro.infer.util.initialize_model(rng_key, model, model_args=model_args)
+	params_flat, unflattener = ravel_pytree(model_param_info[0])
+	log_prob_model = lambda z: -1. * potential_fn(unflattener(z))
+	dim = params_flat.shape[0]
+	return log_prob_model, dim
 
 if __name__ == "__main__":
 

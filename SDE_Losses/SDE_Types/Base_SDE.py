@@ -88,9 +88,9 @@ class Base_SDE_Class:
         #print("vmap_grad", jnp.mean(jax.lax.stop_gradient(vmap_grad)))
         vmap_grad = jnp.where(jnp.isfinite(vmap_grad), vmap_grad, 0)
 
-        vmap_div_energy, vmap_grad_div = self.get_diversity_log_prob_grad(x,counter,SDE_params) 
-        vmap_energy = vmap_energy + vmap_div_energy
-        vmap_grad = vmap_grad + vmap_grad_div
+        #vmap_div_energy, vmap_grad_div = self.get_diversity_log_prob_grad(x,counter,SDE_params) 
+        vmap_energy = vmap_energy #+ vmap_div_energy
+        vmap_grad = vmap_grad #+ vmap_grad_div
 
         return vmap_energy, vmap_grad, key
     
@@ -145,9 +145,9 @@ class Base_SDE_Class:
             beta_max = beta_min + beta_delta
             return beta_min, beta_max
 
-    def return_sigma_scale_factor(self, scale_strength, shape, key):
+    def return_sigma_scale_factor(self, scale_strength, key):
         key, subkey = random.split(key)
-        sigma_scale_factor = 1+(jax.random.normal(subkey, shape)*scale_strength)**2
+        sigma_scale_factor = 1+(jax.random.normal(subkey)*scale_strength)**2
         return sigma_scale_factor, key
 
 
@@ -267,7 +267,9 @@ class Base_SDE_Class:
         return score, new_hidden_state, grad, key
     
     def simulate_reverse_sde_scan(self, model, params, Energy_params, SDE_params, temp, key, n_states = 100, sample_mode = "train", n_integration_steps = 1000):
-        if(sample_mode == "val"):
+        if(sample_mode == "train"):
+            sigma_scale_factor, key = self.return_sigma_scale_factor(self.sigma_scale_factor, key)        
+        elif(sample_mode == "val"):
             sigma_scale_factor = self.sigma_scale_factor**2 + 1 ### todo check if this is the expectation value
         else:
             sigma_scale_factor = 1.
@@ -282,9 +284,6 @@ class Base_SDE_Class:
             carry_dict["hidden_state"] = new_hidden_state
 
             dt = self.reversed_dt_values[step]
-
-            if(sample_mode == "train"):
-                sigma_scale_factor, key = self.return_sigma_scale_factor(self.sigma_scale_factor, x.shape, key)
             
             reverse_out_dict, key = self.reverse_sde(SDE_params, score, x, t, dt, sigma_scale_factor, key)
 

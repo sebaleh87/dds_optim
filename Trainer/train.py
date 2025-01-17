@@ -50,6 +50,8 @@ class TrainerClass:
         else:
             init_carry = jnp.zeros(( 1, self.dim_x,))
 
+
+        ###TODO if energy value and grads are not used it should not allocate parameters!!!!
         in_dict = {"x": x_init, "Energy_value": Energy_value,  "t": jnp.ones((1, 1,)), "grads": grad_init, "hidden_state": [(init_carry, init_carry) for i in range(self.Network_Config["n_layers"])]}
         
         if(self.Network_Config["model_mode"] == "latent"):
