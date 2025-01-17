@@ -47,6 +47,7 @@ class Base_SDE_Class:
         self.learn_covar = config["learn_covar"]
         self.repulsion_strength = config["repulsion_strength"]
         self.sigma_scale_factor = config["sigma_scale_factor"]
+        # self.noise_scale_factor = config["noise_scale_factor"]
 
     def weightening(self, t):
         SDE_params = self.get_SDE_params()
@@ -147,9 +148,13 @@ class Base_SDE_Class:
 
     def return_sigma_scale_factor(self, scale_strength, key):
         key, subkey = random.split(key)
-        sigma_scale_factor = 1+(jax.random.normal(subkey)*scale_strength)**2
+        #TODO the following distribution produces heavy outliers! Fat tail distribution
+        if scale_strength:
+            sigma_scale_factor = 1+(jax.random.normal(subkey, shape)*scale_strength)**2
+        else:
+            sigma_scale_factor = 1.
         return sigma_scale_factor, key
-
+    
 
     def get_diffusion(self, SDE_params, x, t):
         """
@@ -214,7 +219,7 @@ class Base_SDE_Class:
     
     def reverse_sde(self, SDE_params, score, x, t, dt, sigma_scale_factor, key):
         forward_drift = self.get_drift(SDE_params, x, t)
-        diffusion = self.get_diffusion(SDE_params, x, t)*sigma_scale_factor
+        diffusion = self.get_diffusion(SDE_params, x, t) * sigma_scale_factor
 
         reverse_drift = diffusion**2*score - forward_drift #TODO check is this power of two correct? I think yes because U = diffusion*score
 
@@ -267,25 +272,27 @@ class Base_SDE_Class:
         return score, new_hidden_state, grad, key
     
     def simulate_reverse_sde_scan(self, model, params, Energy_params, SDE_params, temp, key, n_states = 100, sample_mode = "train", n_integration_steps = 1000):
-        if(sample_mode == "train"):
-            sigma_scale_factor, key = self.return_sigma_scale_factor(self.sigma_scale_factor, key)        
-        elif(sample_mode == "val"):
-            sigma_scale_factor = self.sigma_scale_factor**2 + 1 ### todo check if this is the expectation value
+
+        if self.config['use_off_policy']:    
+            if(sample_mode == "train"):
+                shape= [self.config['batch_size'], self.dim_x]
+                sigma_scale, key = self.return_sigma_scale_factor(self.sigma_scale_factor, shape, key)
+            elif(sample_mode == "val"):
+                sigma_scale = self.sigma_scale_factor**2 + 1    #this is the mode, not the expectation value
+            else:
+                sigma_scale = 1.
         else:
-            sigma_scale_factor = 1.
+            sigma_scale = 1.
 
         def scan_fn(carry, step):
             x, t, counter, key, carry_dict = carry
-            # if(jnp.isnan(x).any()):
-            #     print("score", x)
-            #     raise ValueError("score is nan")
             hidden_state = carry_dict["hidden_state"]
             score, new_hidden_state, grad, key = self.apply_model(model, x, t, counter, params, Energy_params, SDE_params, hidden_state, temp, key)
             carry_dict["hidden_state"] = new_hidden_state
 
             dt = self.reversed_dt_values[step]
             
-            reverse_out_dict, key = self.reverse_sde(SDE_params, score, x, t, dt, sigma_scale_factor, key)
+            reverse_out_dict, key = self.reverse_sde(SDE_params, score, x, t, dt, sigma_scale, key)
 
             SDE_tracker_step = {
             "interpolated_grad": grad,
@@ -306,7 +313,9 @@ class Base_SDE_Class:
             return (x, t, counter + 1, key, carry_dict), SDE_tracker_step
     
 
-        x_prior, key = self.sample_prior(SDE_params, key, n_states, sigma_scale_factor = sigma_scale_factor)
+        x_prior, key = self.sample_prior(SDE_params, key, n_states, sigma_scale_factor = sigma_scale)
+        if x_prior.shape[0]==1:
+            x_prior = x_prior.squeeze(axis=0)
 
         if(self.stop_gradient):
             x_prior = jax.lax.stop_gradient(x_prior)
