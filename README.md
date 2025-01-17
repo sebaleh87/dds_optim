@@ -20,26 +20,25 @@ Additionally install Pytheus:
 pip install pytheusQ
 ```
 
-For Seeds dataset support, install additional packages:
+#### Brownian good config
 ```
-pip install numpyro==0.16.1
-pip install --upgrade jax==0.4.37
-pip install tensorflow-probability[tf]==0.25.0
-pip install inference-gym==0.0.4
+main.py --SDE_Loss Reverse_KL_Loss --Energy_Config Brownian --n_integration_steps 100 --T_start 1. --T_end 1. --batch_size 1000 --lr 0.0002 --Energy_lr 0.0 --SDE_lr  0.0001 --N_anneal 6000 --feature_dim 64 --n_hidden 128 --GPU 1 --beta_max 1. --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type VE_SDE --repulsion_strength 0.0 --sigma_init 0.1
 ```
 
-#Start experiment on Rasragin Problem
+### Seeds good config
 ```
-python main.py --SDE_Loss Discrete_Time_rKL_Loss --Energy_Config Rastrigin --n_integration_steps 10 --T_start 15 --batch_size 200 --lr 0.002
-```
-
-# Experiment on Pytheus
-```
-python main.py main.py --SDE_Loss Discrete_Time_rKL_Loss --Energy_Config Pytheus --n_integration_steps 10 --T_start 0.5 --batch_size 400 --lr 0.001 --N_anneal 1000 --feature_dim 0 --n_hidden 200
+main.py --SDE_Loss Reverse_KL_Loss --Energy_Config Seeds --n_integration_steps 100 --T_start 1. --T_end 1. --batch_size 300 --lr 0.0003 --Energy_lr 0.0 --SDE_lr 0.0001 --N_anneal 6000 --feature_dim 64 --n_hidden 128 --GPU 1 --beta_max 1. --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type VE_SDE --repulsion_strength 0.0 --sigma_init 0.1
 ```
 
-	
-3:16 PM
+### Lorenz good config
+```
+main.py --SDE_Loss Reverse_KL_Loss --Energy_Config Lorenz --n_integration_steps 100 --T_start 6.01 --T_end 1. --batch_size 250 --lr 0.001 --Energy_lr 0.0 --SDE_lr 0.001 --N_anneal 6000 --feature_dim 64 --n_hidden 128 --GPU 1 --beta_max 1. --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type VE_SDE --repulsion_strength 0.0
+```
+
+### Ionosphere good config
+```
+main.py --SDE_Loss Reverse_KL_Loss --Energy_Config Ionosphere --n_integration_steps 100 --T_start 1. --T_end 1. --batch_size 1000 --lr 0.0003 --Energy_lr 0.0 --SDE_lr 0.0001 --N_anneal 6000 --feature_dim 64 --n_hidden 128 --GPU 1 --beta_max 1. --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type VE_SDE --repulsion_strength 0.0 --sigma_init 0.1
+```
 
 
 
