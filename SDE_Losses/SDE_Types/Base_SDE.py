@@ -80,7 +80,19 @@ class Base_SDE_Class:
         raise NotImplementedError("get_diffusion method not implemented")
     
     def sample_prior(self, SDE_params, key, n_states, sigma_scale_factor = 1.):
-        raise NotImplementedError("get_diffusion method not implemented")
+        key, subkey = random.split(key)
+        prior_mean = self.get_mean_prior(SDE_params)
+        if(self.invariance):
+            overall_sigma = self.return_prior_covar(SDE_params, sigma_scale_factor = sigma_scale_factor)
+            x_prior = random.normal(subkey, shape=(n_states, self.dim_x))*overall_sigma + prior_mean
+        elif(not self.learn_covar):
+            prior_sigma = self.return_prior_covar(SDE_params, sigma_scale_factor = sigma_scale_factor)
+            x_prior = random.normal(subkey, shape=(n_states, self.dim_x))*prior_sigma + prior_mean
+        else:
+            overall_covar = self.return_prior_covar(SDE_params, sigma_scale_factor = sigma_scale_factor)
+            x_prior = jax.random.multivariate_normal(subkey, prior_mean, overall_covar, (n_states,))
+        return x_prior, key
+    
     
     def vmap_prior_target_grad_interpolation(self, x, counter, Energy_params, SDE_params, temp, key):
         key, subkey = random.split(key)
@@ -146,7 +158,7 @@ class Base_SDE_Class:
             beta_max = beta_min + beta_delta
             return beta_min, beta_max
 
-    def return_sigma_scale_factor(self, scale_strength, key):
+    def return_sigma_scale_factor(self, scale_strength, shape, key):
         key, subkey = random.split(key)
         #TODO the following distribution produces heavy outliers! Fat tail distribution
         if scale_strength:
@@ -216,10 +228,14 @@ class Base_SDE_Class:
         shifted_x = resh_x - jnp.mean(resh_x, axis = 1, keepdims=True)
         x_cernered = shifted_x.reshape(x.shape)
         return x_cernered
+
+    def get_scaled_diffusion(self, SDE_params, x, t, sigma_scale_factor):
+        diffusion = self.get_diffusion(SDE_params, x, t) * sigma_scale_factor
+        return diffusion
     
     def reverse_sde(self, SDE_params, score, x, t, dt, sigma_scale_factor, key):
         forward_drift = self.get_drift(SDE_params, x, t)
-        diffusion = self.get_diffusion(SDE_params, x, t) * sigma_scale_factor
+        diffusion = self.get_scaled_diffusion(SDE_params, x, t, sigma_scale_factor)
 
         reverse_drift = diffusion**2*score - forward_drift #TODO check is this power of two correct? I think yes because U = diffusion*score
 
@@ -272,17 +288,17 @@ class Base_SDE_Class:
         return score, new_hidden_state, grad, key
     
     def simulate_reverse_sde_scan(self, model, params, Energy_params, SDE_params, temp, key, n_states = 100, sample_mode = "train", n_integration_steps = 1000):
-
+        
+        shape= [n_states, self.dim_x]
         if self.config['use_off_policy']:    
             if(sample_mode == "train"):
-                shape= [self.config['batch_size'], self.dim_x]
                 sigma_scale, key = self.return_sigma_scale_factor(self.sigma_scale_factor, shape, key)
             elif(sample_mode == "val"):
-                sigma_scale = self.sigma_scale_factor**2 + 1    #this is the mode, not the expectation value
+                sigma_scale = (self.sigma_scale_factor**2 + 1)*jnp.ones_like(shape)    #this is the mode, not the expectation value
             else:
-                sigma_scale = 1.
+                sigma_scale = 1.*jnp.ones(shape)
         else:
-            sigma_scale = 1.
+            sigma_scale = 1.*jnp.ones(shape)
 
         def scan_fn(carry, step):
             x, t, counter, key, carry_dict = carry
@@ -314,8 +330,6 @@ class Base_SDE_Class:
     
 
         x_prior, key = self.sample_prior(SDE_params, key, n_states, sigma_scale_factor = sigma_scale)
-        if x_prior.shape[0]==1:
-            x_prior = x_prior.squeeze(axis=0)
 
         if(self.stop_gradient):
             x_prior = jax.lax.stop_gradient(x_prior)

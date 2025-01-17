@@ -28,7 +28,7 @@ parser.add_argument("--project_name", type=str, default="")
 parser.add_argument("--minib_time_steps", type=int, default=20)
 parser.add_argument("--batch_size", type=int, default=200)
 parser.add_argument( "--lr", type=float, default=[0.001], nargs="+")
-parser.add_argument("--lr_schedule", type=str, choices = ["cosine", "const"], default = "const")
+parser.add_argument("--lr_schedule", type=str, choices = ["cosine", "const", "cosine_warmup"], default = "cosine")
 parser.add_argument("--Energy_lr", type=float, default=0.0)
 parser.add_argument("--SDE_lr", type=float, default=[0.001], nargs="+")
 parser.add_argument("--SDE_weight_decay", type=float, default=0.)
@@ -158,6 +158,9 @@ if(__name__ == "__main__"):
             #modified sampling distributions are only applicable for certain losses
             if(args.use_off_policy and (args.SDE_Loss != "LogVariance_Loss" and args.SDE_Loss != "Bridge_LogVarLoss")):
                 raise ValueError("Off policy only implemented for LogVariance_Loss")
+
+            if(not args.use_off_policy and args.sigma_scale_factor != 0):
+                raise ValueError("Sigma scale factor != 0 and use_off_policy is off")
 
             SDE_Type_Config = {
                 "name": args.SDE_Type,
@@ -294,7 +297,7 @@ if(__name__ == "__main__"):
                     "d_out": 1,
                 }
                 n_eval_samples = 10
-            elif("Sonar" in args.Energy_Config or "Banana" in args.Energy_Config or "Brownian" in args.Energy_Config or "Lorenz" in args.Energy_Config):
+            elif("Banana" in args.Energy_Config or "Brownian" in args.Energy_Config or "Lorenz" in args.Energy_Config):
                 from EnergyFunctions.EnergyData.BrownianData import load_model_gym
                 _, dim = load_model_gym(args.Energy_Config)
                 Energy_Config = {

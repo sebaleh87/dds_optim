@@ -15,37 +15,24 @@ class VP_SDE_Class(Base_SDE_Class):
         super().__init__(SDE_Type_Config, Network_Config, Energy_Class)
 
 
-    def get_log_prior(self, SDE_params, x):
+    def get_log_prior(self, SDE_params, x, sigma_scale_factor = 1.):
         mean = self.get_mean_prior(SDE_params)
 
         if(self.invariance):
-            overall_sigma = self.return_prior_covar(SDE_params)
+            overall_sigma = self.return_prior_covar(SDE_params, sigma_scale_factor = sigma_scale_factor)
             log_pdf_vec = jax.scipy.stats.norm.logpdf(x, loc=mean, scale=overall_sigma) + 0.5*jnp.log(2 * jnp.pi * overall_sigma)/overall_sigma.shape[0]*self.Energy_Class.particle_dim
             log_pdf = jnp.sum(log_pdf_vec, axis = -1)
             return log_pdf
         if(not self.learn_covar):
-            sigma= self.return_prior_covar(SDE_params)
+            sigma= self.return_prior_covar(SDE_params, sigma_scale_factor = sigma_scale_factor)
             log_pdf_vec = jax.scipy.stats.norm.logpdf(x, loc=mean, scale=sigma) 
             log_pdf = jnp.sum(log_pdf_vec, axis = -1)
             return log_pdf
         else:
-            overall_covar = self.return_prior_covar(SDE_params)
+            overall_covar = self.return_prior_covar(SDE_params, sigma_scale_factor = sigma_scale_factor)
             log_pdf = jax.scipy.stats.multivariate_normal.logpdf(x, mean, overall_covar)
             return log_pdf
 
-    def sample_prior(self, SDE_params, key, n_states, sigma_scale_factor = 1.):
-        key, subkey = random.split(key)
-        prior_mean = self.get_mean_prior(SDE_params)
-        if(self.invariance):
-            overall_sigma = self.return_prior_covar(SDE_params, sigma_scale_factor = sigma_scale_factor)
-            x_prior = random.normal(subkey, shape=(n_states, self.dim_x))*overall_sigma[None, :] + prior_mean[None, :]
-        elif(not self.learn_covar):
-            prior_sigma = self.return_prior_covar(SDE_params, sigma_scale_factor = sigma_scale_factor)
-            x_prior = random.normal(subkey, shape=(n_states, self.dim_x))*prior_sigma[None, :] + prior_mean[None, :]
-        else:
-            overall_covar = self.return_prior_covar(SDE_params, sigma_scale_factor = sigma_scale_factor)
-            x_prior = jax.random.multivariate_normal(subkey, prior_mean, overall_covar, (n_states,))
-        return x_prior, key
     
     def return_prior_covar(self, SDE_params, sigma_scale_factor = 1.):
         if(self.learn_covar):
@@ -166,7 +153,7 @@ class VP_SDE_Class(Base_SDE_Class):
     def get_diffusion(self, SDE_params, x, t):
         sigma, _ = self.get_SDE_sigma(SDE_params)
         diffusion = sigma*jnp.sqrt(2*self.beta(SDE_params, t))
-        return diffusion[None, :] 
+        return diffusion[None, :]
     
     def sample(self, shape, key):
         return random.normal(key, shape)
