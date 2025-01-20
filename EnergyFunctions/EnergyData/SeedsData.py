@@ -41,7 +41,7 @@ def load_model_other(model_name='Seeds'):
 	elif model_name == 'Ionosphere':
 		model, model_args = load_model_lr(model_name)
 	elif model_name == 'Seeds':
-		model, model_args = load_model(model_name)
+		model, model_args = load_model()
 	
 	rng_key = jax.random.PRNGKey(1)
 	model_param_info, potential_fn, constrain_fn, _ = numpyro.infer.util.initialize_model(rng_key, model, model_args=model_args)

@@ -272,7 +272,7 @@ class Base_SDE_Class:
             else:
                 Energy, grad, key = self.vmap_prior_target_grad_interpolation(x, counter_arr, Energy_params, SDE_params, temp, key) 
                 Energy_value = Energy
-                in_dict = {"x": x, "Energy_value": Energy_value,  "t": t_arr, "grads": grad}
+                in_dict = {"x": x, "grads": grad,  "t": t_arr}
                 out_dict = model.apply(params, in_dict, train = True)
                 score = out_dict["score"]
         # if(jnp.isnan(concat_values).any()):
@@ -346,6 +346,7 @@ class Base_SDE_Class:
         #print("no scan", model.apply(params, x0[0:10], t*jnp.ones((10, 1))))
         init_carry = jnp.zeros((n_states, self.Network_Config["n_hidden"]))
         carry_dict = {"hidden_state": [(init_carry, init_carry)  for i in range(self.Network_Config["n_layers"])]}
+        ### scan because jit would take too long
         (x_final, t_final, counter, key, carry_dict), SDE_tracker_steps = jax.lax.scan(
             scan_fn,
             (x_prior, t, counter, key, carry_dict),

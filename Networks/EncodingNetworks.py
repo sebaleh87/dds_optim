@@ -52,9 +52,13 @@ class EncodingNetwork(nn.Module):
     max_time: float = 1.
 
     @nn.compact
-    #@partial(flax.linen.jit, static_argnums=(0,))
-    def __call__(self, in_dict, train = False):
-        x_in = jnp.concatenate([in_dict["x"], in_dict["Energy_value"], in_dict["grads"]], axis=-1)
+    #@partial(flax.linen.jit, static_argnums=(0,-1,-2))
+    def __call__(self, in_dict, train = False, use_normal = True):
+        if(not use_normal):
+            x_in = jnp.concatenate([in_dict["x"], in_dict["Energy_value"], in_dict["grads"]], axis=-1)
+        else:
+            x_in = in_dict["x"]
+            
         t = in_dict["t"]
         t = self.max_time * t
         t_encodings = get_sinusoidal_positional_encoding(t, self.feature_dim, self.max_time)
@@ -65,10 +69,11 @@ class EncodingNetwork(nn.Module):
         x_encode = nn.relu(x_encode)
         x = jnp.concatenate([ x_encode, t, t_encodings], axis=-1)
 
-        x = nn.Dense(self.hidden_dim, kernel_init=nn.initializers.he_normal(),
-                                 bias_init=nn.initializers.zeros)(x)
-        x = nn.LayerNorm()(x)
-        x = nn.relu(x)
+        ### commented our to make architecture more similar to SEQUENTIAL CONTROLLED LANGEVIN DIFFUSIONS
+        #x = nn.Dense(self.hidden_dim, kernel_init=nn.initializers.he_normal(),
+        #                          bias_init=nn.initializers.zeros)(x)
+        # x = nn.LayerNorm()(x)
+        # x = nn.relu(x)
 
         return x
     

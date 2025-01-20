@@ -20,21 +20,21 @@ class TrainerClass:
 
         AnnealConfig = base_config["Anneal_Config"]
         Energy_Config = base_config["EnergyConfig"]
-        SDE_Loss_Config = base_config["SDE_Loss_Config"]
+        self.SDE_Loss_Config = base_config["SDE_Loss_Config"]
         self.Network_Config = base_config["Network_Config"]
         self.Optimizer_Config = base_config["Optimizer_Config"]
-        self.model = get_network(self.Network_Config, SDE_Loss_Config)
+        self.model = get_network(self.Network_Config, self.SDE_Loss_Config)
 
         self.EnergyClass = get_Energy_class(Energy_Config)
 
         self._init_wandb()
         self.AnnealClass = get_AnnealSchedule_class(AnnealConfig)
-        self.SDE_LossClass = get_SDE_Loss_class(SDE_Loss_Config, self.Optimizer_Config, self.EnergyClass, self.Network_Config, self.model)
+        self.SDE_LossClass = get_SDE_Loss_class(self.SDE_Loss_Config, self.Optimizer_Config, self.EnergyClass, self.Network_Config, self.model)
 
         self.dim_x = self.EnergyClass.dim_x
 
         self.num_epochs = base_config["num_epochs"]
-        self.n_integration_steps = SDE_Loss_Config["n_integration_steps"]
+        self.n_integration_steps = self.SDE_Loss_Config["n_integration_steps"]
         self._init_Network()
 
         #if(self.EnergyClass.invariance):
@@ -52,7 +52,11 @@ class TrainerClass:
 
 
         ###TODO if energy value and grads are not used it should not allocate parameters!!!!
-        in_dict = {"x": x_init, "Energy_value": Energy_value,  "t": jnp.ones((1, 1,)), "grads": grad_init, "hidden_state": [(init_carry, init_carry) for i in range(self.Network_Config["n_layers"])]}
+        use_normal = self.SDE_Loss_Config["SDE_Type_Config"]["use_normal"]
+        if(use_normal):
+            in_dict = {"x": x_init,  "t": jnp.ones((1, 1,)), "grads": grad_init}
+        else:
+            in_dict = {"x": x_init, "Energy_value": Energy_value,  "t": jnp.ones((1, 1,)), "grads": grad_init, "hidden_state": [(init_carry, init_carry) for i in range(self.Network_Config["n_layers"])]}
         
         if(self.Network_Config["model_mode"] == "latent"):
             in_dict["z"] = jnp.ones((1,self.Network_Config["latent_dim"] ))
