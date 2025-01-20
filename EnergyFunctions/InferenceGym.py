@@ -27,6 +27,10 @@ class InferenceGymClass(EnergyModelClass):
     def load_model_gym(self, model='banana'):
         def log_prob_model(z):
             x = target.default_event_space_bijector(z)
+            # print(x)
+            # print(z)
+            # print(target.unnormalized_log_prob(x) )
+            # print(target.default_event_space_bijector.forward_log_det_jacobian(z, event_ndims = 1))
             return (target.unnormalized_log_prob(x) + target.default_event_space_bijector.forward_log_det_jacobian(z, event_ndims = 1))
         if model == 'Lorenz':
             target = gym.targets.ConvectionLorenzBridge()

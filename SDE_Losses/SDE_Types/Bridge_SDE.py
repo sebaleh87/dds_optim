@@ -59,10 +59,10 @@ class Bridge_SDE_Class(Base_SDE_Class):
     def get_SDE_sigma(self, SDE_params):
         if(self.invariance):
             sigma = jnp.exp(SDE_params["log_sigma"])*jnp.ones((self.dim_x,))
-            return sigma
+            return sigma, None
         else:
             sigma = jnp.exp(SDE_params["log_sigma"])
-            return sigma
+            return sigma, None
 
     def sample_prior(self, SDE_params, key, n_states, sigma_scale_factor = 1.):
         key, subkey = random.split(key)
@@ -156,7 +156,8 @@ class Bridge_SDE_Class(Base_SDE_Class):
         t = n_integration_steps
         counter = 0
         if(sample_mode == "train"):
-            sigma_scale_factor, key = self.return_sigma_scale_factor(self.sigma_scale_factor, key)
+            #sigma_scale_factor, key = self.return_sigma_scale_factor(self.sigma_scale_factor, key)
+            sigma_scale_factor = 1.
         elif(sample_mode == "val"):
             sigma_scale_factor = self.sigma_scale_factor**2 + 1 ### todo check if this is the expectation value
         else:
