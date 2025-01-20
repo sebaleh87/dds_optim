@@ -72,8 +72,9 @@ class VanillaBaseModelClass(nn.Module):
 
         copy_grads = in_dict["grads"]
         if(self.use_normal or self.SDE_mode == "Bridge_SDE"):
-            in_dict["grads"] = jnp.zeros_like(in_dict["grads"])
-            in_dict["Energy_value"] = jnp.zeros_like(in_dict["Energy_value"])
+            pass
+            #in_dict["grads"] = jnp.zeros_like(in_dict["grads"])
+            #in_dict["Energy_value"] = jnp.zeros_like(in_dict["Energy_value"])
         else:
             ### parametrization as in Learning to learn by gradient descent by gradient descent
             grad = in_dict["grads"]
@@ -90,7 +91,7 @@ class VanillaBaseModelClass(nn.Module):
 
 
 
-        encoding = self.encoding_network(in_dict, train = train)
+        encoding = self.encoding_network(in_dict, train = train, use_normal = self.use_normal)
         in_dict["encoding"] = encoding
 
         out_dict = self.backbone(in_dict)
