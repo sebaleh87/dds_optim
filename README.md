@@ -41,6 +41,7 @@ and for VE-SDE (```--SDE_Type VE_SDE```) it should be something like:
 ```
  --beta_max 1. --beta_min 0.01
 ```
+
 These hyperparameters probably do not need to be tuned but you should use the correct default values depending on the SDE.
 
 #### Scale of the diffusion parameter
@@ -62,8 +63,15 @@ Best known ELBO Literature: -108.18
 #### VP-SDE
 ELBO of this config: -111.5
 ```
-python main.py --SDE_Loss Reverse_KL_Loss --Energy_Config Sonar --n_integration_steps 128 --T_start 1.01 --T_end 1. --batch_size 2000 --lr 0.0005 --Energy_lr 0.0 --SDE_lr 0.0005 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 1 --beta_max 5. --beta_min 0.05 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type VP_SDE --repulsion_strength 0.0
+python main.py --SDE_Loss Reverse_KL_Loss --Energy_Config Sonar --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 2000 --lr 0.0005 --Energy_lr 0.0 --SDE_lr 0.0005 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 1 --beta_max 5. --beta_min 0.05 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type VP_SDE --repulsion_strength 0.0
 ```
+
+#### Bridge
+ELBO of this config: -109.4
+```
+python main.py --SDE_Loss Bridge_LogVarLoss --Energy_Config Sonar --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 2000 --lr 0.0005 --Energy_lr 0.0 --SDE_lr 0.0005 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 4 --beta_max 0.1 --beta_min 0.05 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type Bridge_SDE --repulsion_strength 0.0
+```
+
 
 ## Brownian good config 
 
@@ -75,7 +83,7 @@ Best known ELBO Literature: 1.00
 #### VE-SDE
 ELBO of this config: -0.94
 ```
- python main.py --SDE_Loss Reverse_KL_Loss --Energy_Config Brownian --n_integration_steps 128 --T_start 1. --T_end 1. --batch_size 2000 --lr 0.0002 --Energy_lr 0.0 --SDE_lr  0.0002 --N_anneal 6000 --feature_dim 64 --n_hidden 128 --GPU 6 --beta_max 1. --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type VE_SDE --repulsion_strength 0.0 --sigma_init 0.1
+ python main.py --SDE_Loss Reverse_KL_Loss --Energy_Config Brownian --n_integration_steps 128 --T_start 1. --T_end 1. --batch_size 2000 --lr 0.0002 --Energy_lr 0.0 --SDE_lr  0.0002 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 6 --beta_max 1. --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type VE_SDE --repulsion_strength 0.0 --sigma_init 0.1
 ```
 
 
@@ -101,7 +109,7 @@ Best known ELBO Literature: 1153.1
 #### VE-SDE
 ELBO of this config: 1336
 ```
-main.py --SDE_Loss Reverse_KL_Loss --Energy_Config Lorenz --n_integration_steps 128 --T_start 1.01 --T_end 1. --batch_size 2000 --lr 0.001 --Energy_lr 0.0 --SDE_lr 0.001 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 0 --beta_max 1. --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type VE_SDE --repulsion_strength 0.0
+main.py --SDE_Loss Reverse_KL_Loss --Energy_Config Lorenz --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 2000 --lr 0.001 --Energy_lr 0.0 --SDE_lr 0.001 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 0 --beta_max 1. --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type VE_SDE --repulsion_strength 0.0
 ```
 
 ## Ionosphere good config

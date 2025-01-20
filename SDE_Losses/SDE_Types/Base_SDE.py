@@ -47,6 +47,7 @@ class Base_SDE_Class:
         self.learn_covar = config["learn_covar"]
         self.repulsion_strength = config["repulsion_strength"]
         self.sigma_scale_factor = config["sigma_scale_factor"]
+        self.learn_interpolation_params = config["learn_interpolation_params"]
         # self.noise_scale_factor = config["noise_scale_factor"]
 
     def weightening(self, t):
@@ -116,7 +117,13 @@ class Base_SDE_Class:
 
     def interpol_func(self, x, counter, SDE_params, Energy_params, temp, key):
         clipped_temp = jnp.clip(temp, min = 0.0001)
-        beta_interpol = self.compute_energy_interpolation_time(SDE_params, counter, SDE_param_key = "beta_interpol_params")
+        
+        if(self.learn_interpolation_params):
+            interpolation_params = SDE_params
+        else:
+            interpolation_params = jax.lax.stop_gradient(SDE_params)
+
+        beta_interpol = self.compute_energy_interpolation_time(interpolation_params, counter, SDE_param_key = "beta_interpol_params")
         Energy_value, key = self.Energy_Class.calc_energy(x, Energy_params, key)
         log_prior_params = jax.lax.stop_gradient(SDE_params)
         log_prior = self.get_log_prior(log_prior_params,x)  ### only stop gradient for log prior but not for beta_interpol or x
