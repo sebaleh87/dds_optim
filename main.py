@@ -9,7 +9,7 @@ parser.add_argument("--latent_dim", type=int, default=None)
 
 parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=["Reverse_KL_Loss","Reverse_KL_Loss_stop_grad","LogVariance_Loss", "LogVariance_Loss_MC", 
                                                                                  "LogVariance_Loss_with_grad", "LogVariance_Loss_weighted",
-                                                                                 "Bridge_rKL", "Bridge_LogVarLoss",
+                                                                                 "Bridge_rKL", "Bridge_LogVarLoss", "Bridge_rKL_logderiv", "Bridge_rKL_logderiv_DiffUCO",
                                                                                 "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam"], help="select loss function")
 parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE", "VE_SDE", "Bridge_SDE"], help="select SDE type, subVP_SDE is currently deprecated")
 parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "GaussianMixtureToy", "Rastrigin", "LennardJones", 
@@ -64,7 +64,9 @@ parser.add_argument("--n_layers", type=int, default=3)
 parser.add_argument('--use_interpol_gradient', action='store_true', default=True, help='use gradient of energy function to parameterize the score')
 parser.add_argument('--no-use_interpol_gradient', dest='use_interpol_gradient', action='store_false', help='dont use gradient of energy function to parameterize the score')
 ### TODO in SEQUENTIAL CONTROLLED LANGEVIN DIFFUSIONS they use a high lr for that, maybe we should also amke this possible!
-parser.add_argument("--learn_interpolation_params", action='store_true', default=False, help="flag which enables learning of interpolation params between pror and target distribution")
+parser.add_argument("--learn_interpolation_params", action='store_true', default=True, help="flag which enables learning of interpolation params between pror and target distribution")
+parser.add_argument('--no-learn_interpolation_params', dest='learn_interpolation_params', action='store_false', help='flag which enables learning of interpolation params between pror and target distributio')
+
 
 parser.add_argument('--use_normal', action='store_true', default=False, help='gradient of energy function is added to the score as in Denoising Diffusion Samplers')
 parser.add_argument('--no-use_normal', dest='use_normal', action='store_false', help='if false parameterize energy function gradient as in Learning to learn by gradient descent by gradient descent')

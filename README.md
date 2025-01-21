@@ -58,7 +58,7 @@ DDS is similar to our VP-SDE and PIS is similar to our VE-SDE
 ELBO Literature DDS: -121.22 \
 ELBO Literature PIS: -142 \
 Best known ELBO Literature: -108.18 \
-(from SEQUENTIAL CONTROLLED LANGEVIN DIFFUSIONS) \
+(from SEQUENTIAL CONTROLLED LANGEVIN DIFFUSIONS) 
 
 #### VP-SDE
 ELBO of this config: -111.5 \
@@ -78,7 +78,7 @@ python main.py --SDE_Loss Bridge_LogVarLoss --Energy_Config Sonar --n_integratio
 ELBO Literature DDS: 0.56 \
 ELBO Literature PIS: N/A \
 Best known ELBO Literature: 1.00 \
-(from SEQUENTIAL CONTROLLED LANGEVIN DIFFUSIONS) \
+(from SEQUENTIAL CONTROLLED LANGEVIN DIFFUSIONS) 
 
 #### VE-SDE
 ELBO of this config: -0.94 \
@@ -91,7 +91,7 @@ ELBO of this config: -0.94 \
 ELBO Literature DDS: -75.21 \
 ELBO Literature PIS: -88.92 \
 Best known ELBO Literature: -73.45 \
-(from SEQUENTIAL CONTROLLED LANGEVIN DIFFUSIONS) \
+(from SEQUENTIAL CONTROLLED LANGEVIN DIFFUSIONS) 
 
 #### VE-SDE
 ELBO of this config: -74.5 \
@@ -104,7 +104,7 @@ main.py --SDE_Loss Reverse_KL_Loss --Energy_Config Seeds --n_integration_steps 1
 ELBO Literature DDS: Unknown \
 ELBO Literature PIS: Unknown \
 Best known ELBO Literature: 1153.1 \
-(from Langevin Diffusion Variational Inference) \
+(from Langevin Diffusion Variational Inference) 
 
 #### VE-SDE
 ELBO of this config: 1336 \
@@ -116,7 +116,7 @@ main.py --SDE_Loss Reverse_KL_Loss --Energy_Config Lorenz --n_integration_steps 
 ELBO Literature DDS: Unknown \
 ELBO Literature PIS: Unknown \
 Best known ELBO Literature: −111.9 \
-(from Langevin Diffusion Variational Inference) \
+(from Langevin Diffusion Variational Inference) 
 
 #### VE-SDE 
 ELBO of this config: -113.0 \

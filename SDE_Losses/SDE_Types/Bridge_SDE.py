@@ -47,6 +47,22 @@ class Bridge_SDE_Class(Base_SDE_Class):
             log_pdf_vec = jax.scipy.stats.norm.logpdf(x, loc=mean, scale=prior_sigma) 
             log_pdf = jnp.sum(log_pdf_vec, axis = -1)
             return log_pdf
+
+    def get_entropy_prior(self, SDE_params):
+        if(self.invariance):
+            raise ValueError("not implemented")
+        else:
+            prior_sigma = self.return_prior_covar(SDE_params)
+            entropy = 0.5 * jnp.sum(jnp.log(2 * jnp.pi) + 2* jnp.log(prior_sigma) + 1, axis = -1)
+            return entropy
+        
+    def get_entropy_diff_step(self, SDE_params, t):
+        if(self.invariance):
+            raise ValueError("not implemented")
+        else:
+            diff_sigma = self.get_diffusion(SDE_params, None, t)
+            entropy = 0.5 * jnp.sum(jnp.log(2 * jnp.pi) + 2* jnp.log(diff_sigma) + 1, axis = -1)
+            return entropy
         
     def get_mean_prior(self, SDE_params):
         if(self.invariance):
