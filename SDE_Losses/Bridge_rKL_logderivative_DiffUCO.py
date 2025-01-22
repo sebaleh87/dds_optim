@@ -51,7 +51,7 @@ class Bridge_rKL_logderiv_DiffUCO_Loss_Class(Base_SDE_Loss_Class):
         Entropy_prior_loss = neg_Entropy_prior
 
         ### TODO compute exact reverse_log_prob_entropy reinforce loss and exact loss
-        cumsum_reverse_log_probs = jax.lax.cumsum(reverse_log_probs, axis = 0) + log_prior
+        cumsum_reverse_log_probs = jax.lax.cumsum(reverse_log_probs, axis = 0) + log_prior[None, :]
         #cum_sum_log_probs_shifted = jax.lax.cumsum(jnp.concatenate([log_prior[None, ...], reverse_log_probs[:-1]], axis = 0))
 
         neg_Entropy_diff_step = - jax.vmap(self.SDE_type.get_entropy_diff_step, in_axes = (None, 0))(SDE_params, ts)
