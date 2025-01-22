@@ -32,14 +32,19 @@ pip install pytheusQ
 ```
 
 #### maximum and Minimum value of diffusion constant schedule:
-For VP-SDE (```--SDE_Type VP_SDE```) it should be something like:
+For VP-SDE (```--SDE_Type VP_SDE```) it should be like:
 ```
  --beta_max 5. --beta_min 0.05
 ```
 
-and for VE-SDE (```--SDE_Type VE_SDE```) it should be something like:
+and for VE-SDE (```--SDE_Type VE_SDE```) it should be like:
 ```
  --beta_max 1. --beta_min 0.01
+```
+
+and for Bridge-SDE (```--SDE_Type Bridge_SDE```) it should be like:
+```
+ --beta_max 0.1 --beta_min 0.01
 ```
 
 These hyperparameters probably do not need to be tuned but you should use the correct default values depending on the SDE.
@@ -67,9 +72,9 @@ python main.py --SDE_Loss Reverse_KL_Loss --Energy_Config Sonar --n_integration_
 ```
 
 #### Bridge
-ELBO of this config: -109.4 \
+ELBO of this config: -108.9 \
 ```
-python main.py --SDE_Loss Bridge_LogVarLoss --Energy_Config Sonar --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 2000 --lr 0.0005 --Energy_lr 0.0 --SDE_lr 0.0005 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 4 --beta_max 0.1 --beta_min 0.05 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type Bridge_SDE --repulsion_strength 0.0
+python main.py --SDE_Loss Bridge_rKL_logderiv --Energy_Config Sonar --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 2000 --lr 0.001 --Energy_lr 0.0 --SDE_lr 0.001 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 0 --beta_max 0.1 --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type Bridge_SDE --repulsion_strength 0.0 --sigma_init 1.
 ```
 
 
@@ -81,11 +86,16 @@ Best known ELBO Literature: 1.00 \
 (from SEQUENTIAL CONTROLLED LANGEVIN DIFFUSIONS) 
 
 #### VE-SDE
-ELBO of this config: -0.94 \
+ELBO of this config: -0.96 \
 ```
- python main.py --SDE_Loss Reverse_KL_Loss --Energy_Config Brownian --n_integration_steps 128 --T_start 1. --T_end 1. --batch_size 2000 --lr 0.0002 --Energy_lr 0.0 --SDE_lr  0.0002 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 6 --beta_max 1. --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type VE_SDE --repulsion_strength 0.0 --sigma_init 0.1
+python main.py --SDE_Loss Bridge_rKL_logderiv --Energy_Config Brownian --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 2000 --lr 0.001 --Energy_lr 0.0 --SDE_lr 0.001 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 5 --beta_max 0.1 --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type Bridge_SDE --repulsion_strength 0.0 --sigma_init 1.
 ```
 
+### Bridge
+ELBO of this config: 0.96 \
+```
+python main.py --SDE_Loss Bridge_rKL_logderiv --Energy_Config Brownian --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 2000 --lr 0.001 --Energy_lr 0.0 --SDE_lr 0.001 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 5 --beta_max 0.1 --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type Bridge_SDE --repulsion_strength 0.0 --sigma_init 1.
+```
 
 ## Seeds good config
 ELBO Literature DDS: -75.21 \
@@ -96,7 +106,13 @@ Best known ELBO Literature: -73.45 \
 #### VE-SDE
 ELBO of this config: -74.5 \
 ```
-main.py --SDE_Loss Reverse_KL_Loss --Energy_Config Seeds --n_integration_steps 128 --T_start 1. --T_end 1. --batch_size 2000 --lr 0.0005 --Energy_lr 0.0 --SDE_lr 0.0005 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 1 --beta_max 1. --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type VE_SDE --repulsion_strength 0.0 --sigma_init 0.1
+python main.py --SDE_Loss Reverse_KL_Loss --Energy_Config Seeds --n_integration_steps 128 --T_start 1. --T_end 1. --batch_size 2000 --lr 0.0005 --Energy_lr 0.0 --SDE_lr 0.0005 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 1 --beta_max 1. --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type VE_SDE --repulsion_strength 0.0 --sigma_init 0.1
+```
+
+### Bridge
+ELBO of this config: -73.5 \
+```
+python main.py --SDE_Loss Bridge_rKL_logderiv --Energy_Config Seeds --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 2000 --lr 0.001 --Energy_lr 0.0 --SDE_lr 0.001 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 1 --beta_max 0.1 --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type Bridge_SDE --repulsion_strength 0.0 --sigma_init 1.
 ```
 
 ## Lorenz good config
@@ -109,7 +125,7 @@ Best known ELBO Literature: 1153.1 \
 #### VE-SDE
 ELBO of this config: 1336 \
 ```
-main.py --SDE_Loss Reverse_KL_Loss --Energy_Config Lorenz --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 2000 --lr 0.001 --Energy_lr 0.0 --SDE_lr 0.001 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 0 --beta_max 1. --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type VE_SDE --repulsion_strength 0.0
+python main.py --SDE_Loss Reverse_KL_Loss --Energy_Config Lorenz --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 2000 --lr 0.001 --Energy_lr 0.0 --SDE_lr 0.001 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 0 --beta_max 1. --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type VE_SDE --repulsion_strength 0.0
 ```
 
 ## Ionosphere good config
@@ -121,6 +137,11 @@ Best known ELBO Literature: −111.9 \
 #### VE-SDE 
 ELBO of this config: -113.0 \
 ```
-main.py --SDE_Loss Reverse_KL_Loss --Energy_Config Ionosphere --n_integration_steps 128 --T_start 1. --T_end 1. --batch_size 2000 --lr 0.001 --Energy_lr 0.0 --SDE_lr 0.001 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 1 --beta_max 1. --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type VE_SDE --repulsion_strength 0.0 --sigma_init 0.1
+python main.py --SDE_Loss Reverse_KL_Loss --Energy_Config Ionosphere --n_integration_steps 128 --T_start 1. --T_end 1. --batch_size 2000 --lr 0.001 --Energy_lr 0.0 --SDE_lr 0.001 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 1 --beta_max 1. --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type VE_SDE --repulsion_strength 0.0 --sigma_init 0.1
 ```
 
+### Bridge
+ELBO of this config: -111.77 \
+```
+python main.py --SDE_Loss Bridge_rKL_logderiv --Energy_Config Ionosphere --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 2000 --lr 0.001 --Energy_lr 0.0 --SDE_lr 0.001 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 5 --beta_max 0.1 --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type Bridge_SDE --repulsion_strength 0.0 --sigma_init 1.
+```
