@@ -170,7 +170,9 @@ class Base_SDE_Class:
         key, subkey = random.split(key)
         #TODO the following distribution produces heavy outliers! Fat tail distribution
         if scale_strength:
-            sigma_scale_factor = 1+(jax.random.normal(subkey, shape)*scale_strength)**2
+            # sigma_scale_factor = 1+(jax.random.normal(subkey, shape)*scale_strength)**2
+            sigma_scale_factor = 1+(jax.random.uniform(subkey, shape)*scale_strength)
+            # sigma_scale_factor = jnp.abs(1+jax.random.normal(subkey, shape)*scale_strength)
         else:
             sigma_scale_factor = 1.
         return sigma_scale_factor, key
@@ -299,10 +301,8 @@ class Base_SDE_Class:
         
         shape= [n_states, self.dim_x]
         if self.config['use_off_policy']:    
-            if(sample_mode == "train"):
+            if(sample_mode == "train" or sample_mode == "val"):
                 sigma_scale, key = self.return_sigma_scale_factor(self.sigma_scale_factor, shape, key)
-            elif(sample_mode == "val"):
-                sigma_scale = (self.sigma_scale_factor**2 + 1)*jnp.ones_like(shape)    #this is the mode, not the expectation value
             else:
                 sigma_scale = 1.*jnp.ones(shape)
         else:
