@@ -145,3 +145,41 @@ ELBO of this config: -111.77 \
 ```
 python main.py --SDE_Loss Bridge_rKL_logderiv --Energy_Config Ionosphere --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 2000 --lr 0.001 --Energy_lr 0.0 --SDE_lr 0.001 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 5 --beta_max 0.1 --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type Bridge_SDE --repulsion_strength 0.0 --sigma_init 1.
 ```
+
+
+### GaussianMixture
+
+#### Bridge
+ELBO of this config: - 0.5
+```
+python main.py --SDE_Loss Bridge_rKL_logderiv --Energy_Config GaussianMixture --n_integration_steps 128 --T_start 8. --T_end 1. --batch_size 2000 --lr 0.001 --Energy_lr 0.0 --SDE_lr 0.001 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 1 --beta_max 0.1 --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name log_deriv --use_normal --SDE_Type Bridge_SDE --repulsion_strength 0.0 --sigma_init 1.
+```
+
+#### VP-SDE 
+##### rKL w/ logderiv
+ELBO of this config: Not tested well
+```
+python main.py --SDE_Loss Reverse_KL_Loss_logderiv --Energy_Config GaussianMixture --n_integration_steps 128 --T_start 3. --T_end 1. --batch_size 2000 --lr 0.001 --Energy_lr 0.0 --SDE_lr 0.001 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 1 --beta_max 5. --beta_min 0.05 --use_interpol_gradient --Network_Type FeedForward --project_name log_deriv_rKL --use_normal --SDE_Type VP_SDE --repulsion_strength 0.0 --sigma_init 1.
+```
+
+
+with noise
+ELBO of this config: Not tested well
+```
+python main.py --SDE_Loss Reverse_KL_Loss_logderiv --Energy_Config GaussianMixture --n_integration_steps 128 --T_start 1. --T_end 1. --batch_size 2000 --lr 0.001 --Energy_lr 0.0 --SDE_lr 0.001 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 5 --beta_max 5. --beta_min 0.05 --use_interpol_gradient --Network_Type FeedForward --project_name log_deriv_rKL --use_normal --SDE_Type VP_SDE --repulsion_strength 0.0 --sigma_init 1. --use_off_policy --sigma_scale_factor 0.15
+```
+
+
+#### VE-SDE 
+##### rKL w/ logderiv
+ELBO of this config: - 2
+```
+python main.py --SDE_Loss Reverse_KL_Loss_logderiv --Energy_Config GaussianMixture --n_integration_steps 128 --T_start 3. --T_end 1. --batch_size 2000 --lr 0.001 --Energy_lr 0.0 --SDE_lr 0.001 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 1 --beta_max 1. --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name log_deriv_rKL --use_normal --SDE_Type VE_SDE --repulsion_strength 0.0 --sigma_init 1.
+```
+
+
+with noise
+ELBO of this config: - 0.5
+```
+python main.py --SDE_Loss Reverse_KL_Loss_logderiv --Energy_Config GaussianMixture --n_integration_steps 128 --T_start 1. --T_end 1. --batch_size 2000 --lr 0.001 --Energy_lr 0.0 --SDE_lr 0.001 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 4 --beta_max 1. --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name log_deriv_rKL --use_normal --SDE_Type VE_SDE --repulsion_strength 0.0 --sigma_init 1. --use_off_policy --sigma_scale_factor 0.1
+```
