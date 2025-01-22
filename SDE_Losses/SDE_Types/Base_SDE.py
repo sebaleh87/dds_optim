@@ -172,6 +172,7 @@ class Base_SDE_Class:
         if scale_strength:
             sigma_scale_factor = 1 + jax.random.exponential(subkey, shape) * scale_strength
             log_prob = jnp.sum(jax.scipy.stats.expon.logpdf(sigma_scale_factor - 1, scale=1/scale_strength), axis = -1)
+
         else:
             sigma_scale_factor = 1.
             log_prob = jnp.zeros((shape[0],))
@@ -301,12 +302,8 @@ class Base_SDE_Class:
         
         shape= [n_states, self.dim_x]
         if self.config['use_off_policy']:    
-            if(sample_mode == "train"):
-                sigma_scale, scale_log_prob, key = self.return_sigma_scale_factor(self.sigma_scale_factor, shape, key)
-            elif(sample_mode == "val"):
-                sigma_scale, scale_log_prob, key = self.return_sigma_scale_factor(self.sigma_scale_factor, shape, key)
-                # sigma_scale = (self.sigma_scale_factor**2 + 1)*jnp.ones(shape)    #this is the mode, not the expectation value
-                # scale_log_prob = jnp.zeros((n_states,))
+            if(sample_mode == "train" or sample_mode == "val"):
+                sigma_scale, key = self.return_sigma_scale_factor(self.sigma_scale_factor, shape, key)
             else:
                 sigma_scale = 1.*jnp.ones(shape)
                 scale_log_prob = jnp.zeros((n_states,))

@@ -189,8 +189,7 @@ class TrainerClass:
         for epoch in pbar:
             T_curr = self.AnnealClass.update_temp()
             start_time = time.time()
-            if((epoch % int(self.num_epochs/self.Optimizer_Config["epochs_per_eval"]) == 0 or epoch == 0)):# and not self.config["disable_jit"]):
-                ### TODO plot here also samples where more nosie is used
+            if((epoch % int(self.num_epochs/self.Optimizer_Config["epochs_per_eval"]) == 0 or epoch == 0) and not self.config["disable_jit"]):
                 sampling_modes = [ "val", "eval"]
                 for sample_mode in sampling_modes:
                     n_samples = self.config["n_eval_samples"]
