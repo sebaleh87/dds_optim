@@ -8,7 +8,7 @@ parser.add_argument("--model_mode", type=str, default="normal", choices = ["norm
 parser.add_argument("--latent_dim", type=int, default=None)
 
 parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=["Reverse_KL_Loss","Reverse_KL_Loss_stop_grad","LogVariance_Loss", "LogVariance_Loss_MC", 
-                                                                                 "LogVariance_Loss_with_grad", "LogVariance_Loss_weighted",
+                                                                                 "LogVariance_Loss_with_grad", "LogVariance_Loss_weighted", "Reverse_KL_Loss_logderiv",
                                                                                  "Bridge_rKL", "Bridge_LogVarLoss", "Bridge_rKL_logderiv", "Bridge_rKL_logderiv_DiffUCO",
                                                                                 "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam"], help="select loss function")
 parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE", "VE_SDE", "Bridge_SDE"], help="select SDE type, subVP_SDE is currently deprecated")
@@ -160,9 +160,9 @@ if(__name__ == "__main__"):
             }
         else:
             #modified sampling distributions are only applicable for certain losses
-            # if(args.use_off_policy and (args.SDE_Loss != "LogVariance_Loss" and args.SDE_Loss != "Bridge_LogVarLoss")):
-            #     raise ValueError("Off policy only implemented for LogVariance_Loss")
 
+            if(args.use_off_policy and (args.SDE_Loss != "LogVariance_Loss" and args.SDE_Loss != "Bridge_LogVarLoss" and args.SDE_Loss != "Reverse_KL_Loss_logderiv")):
+                raise ValueError("Off policy only implemented for LogVariance_Loss")
             if(not args.use_off_policy and args.sigma_scale_factor != 0):
                 raise ValueError("Sigma scale factor != 0 and use_off_policy is off")
 

@@ -170,12 +170,13 @@ class Base_SDE_Class:
         key, subkey = random.split(key)
         #TODO the following distribution produces heavy outliers! Fat tail distribution
         if scale_strength:
-            # sigma_scale_factor = 1+(jax.random.normal(subkey, shape)*scale_strength)**2
-            sigma_scale_factor = 1+(jax.random.uniform(subkey, shape)*scale_strength)
-            # sigma_scale_factor = jnp.abs(1+jax.random.normal(subkey, shape)*scale_strength)
+            sigma_scale_factor = 1 + jax.random.exponential(subkey, shape) * scale_strength
+            log_prob = jnp.sum(jax.scipy.stats.expon.logpdf(sigma_scale_factor - 1, scale=1/scale_strength), axis = -1)
+
         else:
             sigma_scale_factor = 1.
-        return sigma_scale_factor, key
+            log_prob = jnp.zeros((shape[0],))
+        return sigma_scale_factor, log_prob, key
     
 
     def get_diffusion(self, SDE_params, x, t):
@@ -305,8 +306,10 @@ class Base_SDE_Class:
                 sigma_scale, key = self.return_sigma_scale_factor(self.sigma_scale_factor, shape, key)
             else:
                 sigma_scale = 1.*jnp.ones(shape)
+                scale_log_prob = jnp.zeros((n_states,))
         else:
             sigma_scale = 1.*jnp.ones(shape)
+            scale_log_prob = jnp.zeros((n_states,))
 
         def scan_fn(carry, step):
             x, t, counter, key, carry_dict = carry
@@ -362,6 +365,8 @@ class Base_SDE_Class:
         )
 
         SDE_tracker = {
+            "scale_log_prob": scale_log_prob,
+            "noise_scale": sigma_scale,
             "dW": SDE_tracker_steps["dW"],
             "xs": SDE_tracker_steps["xs"],
             "ts": SDE_tracker_steps["ts"],
