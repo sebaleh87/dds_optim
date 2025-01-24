@@ -1,4 +1,3 @@
-
 from .GaussianMixture import GaussianMixtureClass
 from .MexicanHat import MexicanHatClass
 from .Rastrigin import RastriginClass
@@ -11,13 +10,15 @@ from .DoubleWellEquivariant import DoubleWellEquivariantClass
 from .DoubleMoon import DoubleMoonClass
 from .Sonar import SonarClass
 from .InferenceGym import InferenceGymClass
+from .Funnel import FunnelClass
+from .LGCP import LGCPClass
 
 
 Energy_Registry = {"GaussianMixture": GaussianMixtureClass, "MexicanHat": MexicanHatClass, "Rastrigin": RastriginClass, "Pytheus": PytheusEnergyClass,
                 "WavePINN_hyperparam": WavePINN_hyperparam_Class, "WavePINN_latent": WavePINN_latent_Class, "LennardJones": LennardJonesClass,
                 "DoubleWellEquivariant": DoubleWellEquivariantClass, "DoubleWell": DoubleWellClass, "DoubleMoon": DoubleMoonClass,
                 "Lorenz": InferenceGymClass, "Brownian": InferenceGymClass, "Banana": InferenceGymClass, "Seeds": InferenceGymClass, 
-                "Ionosphere" : InferenceGymClass, "Sonar": InferenceGymClass}
+                "Ionosphere" : InferenceGymClass, "Sonar": InferenceGymClass, "Funnel": FunnelClass, "LGCP": LGCPClass}
 
 
 

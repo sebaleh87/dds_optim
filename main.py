@@ -13,9 +13,9 @@ parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=
                                                                                 "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam"], help="select loss function")
 parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE", "VE_SDE", "Bridge_SDE"], help="select SDE type, subVP_SDE is currently deprecated")
 parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "GaussianMixtureToy", "Rastrigin", "LennardJones", 
-                                                                                     "DoubleWellEquivariant", "DoubleWell", "Sonar",
+                                                                                     "DoubleWellEquivariant", "DoubleWell", "Sonar", "Funnel",
                                                                                       "Pytheus", "WavePINN_latent", "WavePINN_hyperparam", "DoubleMoon",
-                                                                                      "Banana", "Brownian", "Lorenz", "Seeds", "Ionosphere", "Sonar"], help="EnergyClass")
+                                                                                      "Banana", "Brownian", "Lorenz", "Seeds", "Ionosphere", "Sonar", "Funnel", "LGCP"], help="EnergyClass")
 parser.add_argument("--n_particles", type=int, default=2, help="the dimension can be controlled for some problems")
 parser.add_argument("--T_start", type=float, default=[1.], nargs="+" ,  help="Starting Temperature")
 parser.add_argument("--T_end", type=float, default=0., help="End Temperature")
@@ -316,6 +316,25 @@ if(__name__ == "__main__"):
                     "name": args.Energy_Config,
                     "dim_x": dim
                 }
+
+            elif(args.Energy_Config == "Funnel"):
+                dim = args.n_particles
+                Energy_Config = {
+                    "name": "Funnel",
+                    "dim_x": dim,
+                    "eta": 3,
+                    "scaling": args.Scaling_factor
+                }
+
+            elif(args.Energy_Config == "LGCP"):
+                Energy_Config = {
+                    "name": "LGCP",  # Your 2D array of point coordinates
+                    "num_grid_per_dim": 40,      # Grid size (40x40=1600)
+                    "use_whitened": False,       # Whether to use whitened parameterization
+                    "dim_x": 1600,              # Total dimension (grid_size^2)
+                    "scaling": 1.0              # Required by base class
+                }
+
 
             else:
                 raise ValueError("Energy Config not found")
