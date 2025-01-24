@@ -171,7 +171,7 @@ class Base_SDE_Class:
         #TODO the following distribution produces heavy outliers! Fat tail distribution
         if self.config['use_off_policy']:
             sigma_scale_factor = 1 + jax.random.exponential(subkey, shape) * scale_strength
-            log_prob = jnp.sum(jax.scipy.stats.expon.logpdf(sigma_scale_factor - 1, scale=1/scale_strength), axis = -1)
+            log_prob = jnp.zeros((shape[0],))# jnp.sum(jax.scipy.stats.expon.logpdf(sigma_scale_factor - 1, scale=1/scale_strength), axis = -1)
 
         else:
             sigma_scale_factor = 1.*jnp.ones((shape[0],))
@@ -302,8 +302,13 @@ class Base_SDE_Class:
         ### if self.config['use_off_policy'] true temp is not treated as a temperature but as an annealed scaling for self.sigma_scale_factor, assumes temp >= 1.
         shape= [n_states, self.dim_x]
         if self.config['use_off_policy']:    
-            if(sample_mode == "train" or sample_mode == "val"):
-                sigma_scale, key = self.return_sigma_scale_factor(self.sigma_scale_factor, shape, key)
+            annealed_scale = temp - 1. 
+            if(sample_mode == "train"):
+                sigma_scale, scale_log_prob, key = self.return_sigma_scale_factor(self.sigma_scale_factor*annealed_scale, shape, key)
+            elif(sample_mode == "val"):
+                sigma_scale, scale_log_prob, key = self.return_sigma_scale_factor(self.sigma_scale_factor*annealed_scale, shape, key)
+                # sigma_scale = (self.sigma_scale_factor**2 + 1)*jnp.ones(shape)    #this is the mode, not the expectation value
+                # scale_log_prob = jnp.zeros((n_states,))
             else:
                 sigma_scale = 1.*jnp.ones(shape)
                 scale_log_prob = jnp.zeros((n_states,))

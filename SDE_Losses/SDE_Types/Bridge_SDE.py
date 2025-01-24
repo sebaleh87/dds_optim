@@ -105,8 +105,12 @@ class Bridge_SDE_Class(Base_SDE_Class):
     def beta(self, SDE_params, t, frac = 0.2):
         t = t/self.n_integration_steps
         beta_min, beta_max = self.get_beta_min_and_max(SDE_params)
+        if(self.config["beta_schedule"] == "constant"):
+            return beta_max
+        elif(self.config["beta_schedule"] == "cosine"):
+            return beta_min + (beta_max-beta_min)*jnp.cos(jnp.pi/2*(1-t))
         ### Todo use cosine schedule with warmup here?
-        return beta_max#(beta_min + t * (beta_max - beta_min))
+        #return beta_max#(beta_min + t * (beta_max - beta_min))
         # lin_up = (beta_max + t/frac * (beta_min - beta_max))
         # cos_shedule = beta_min + (beta_max-beta_min)*jnp.cos(jnp.pi/2*(1-t-frac)/(1-frac)) 
         # return jnp.where(t > 1- frac, lin_up, cos_shedule)

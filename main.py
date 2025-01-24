@@ -39,9 +39,10 @@ parser.add_argument("--learn_covar", action='store_true', default=False, help="l
 parser.add_argument("--sigma_init", type=float, default=1., help="init value of sigma")
 parser.add_argument("--repulsion_strength", type=float, default=0., help="repulsion_strength >= 0")
 
+### TODO explain the effect
 parser.add_argument('--use_off_policy', action='store_true', default=False, help='use off policy sampling')
 parser.add_argument('--no-use_off_policy', dest='use_off_policy', action='store_false', help='dont use off policy sampling')
-parser.add_argument("--sigma_scale_factor", type=float, default=0., help="amount of noise for off policy sampling, 0 has no effect = no-use_off_policy")
+parser.add_argument("--sigma_scale_factor", type=float, default=1., help="amount of noise for off policy sampling, 0 has no effect = no-use_off_policy")
 
 parser.add_argument("--disable_jit", action='store_true', default=False, help="disable jit for debugging")
 
@@ -49,6 +50,7 @@ parser.add_argument("--N_anneal", type=int, default=1000)
 parser.add_argument("--N_warmup", type=int, default=0)
 parser.add_argument("--steps_per_epoch", type=int, default=10)
 
+parser.add_argument("--beta_schedule", type=str, choices = ["constant", "cosine"], default="constant", help="defines the noise schedule for Bridge_SDE")
 parser.add_argument("--update_params_mode", type=str, choices = ["all_in_one", "DKL"], default="all_in_one", help="keep all_in_one as default. This is currently not used")
 parser.add_argument("--epochs_per_eval", type=int, default=50)
 
@@ -148,7 +150,7 @@ if(__name__ == "__main__"):
                     "temp_mode": args.temp_mode,
                     "n_integration_steps": args.n_integration_steps,
                     "SDE_weightening": args.SDE_weightening,
-                    "use_normal": False
+                    "use_normal": False,
                 }
                 
                 SDE_Loss_Config = {
@@ -162,7 +164,7 @@ if(__name__ == "__main__"):
             #modified sampling distributions are only applicable for certain losses
             if(args.use_off_policy and (args.SDE_Loss != "LogVariance_Loss" and args.SDE_Loss != "Bridge_LogVarLoss" and args.SDE_Loss != "Reverse_KL_Loss_logderiv" and args.SDE_Loss != "Bridge_rKL_logderiv")):
                 raise ValueError("Off policy only implemented for LogVariance_Loss")
-            if(not args.use_off_policy and args.sigma_scale_factor != 0):
+            if(not args.use_off_policy and args.sigma_scale_factor != 1.):
                 raise ValueError("Sigma scale factor != 0 and use_off_policy is off")
 
             SDE_Type_Config = {
@@ -180,6 +182,7 @@ if(__name__ == "__main__"):
                 "batch_size": args.batch_size,
                 "use_off_policy": args.use_off_policy,
                 "learn_interpolation_params": args.learn_interpolation_params,
+                "beta_schedule": args.beta_schedule
             }
             
             SDE_Loss_Config = {
@@ -197,6 +200,7 @@ if(__name__ == "__main__"):
             if(args.Energy_Config == "GaussianMixtureToy"):
                 torch.manual_seed(0)
                 #np.random.seed(42)
+                arg.n_particles
                 dim = 2
                 num_gaussians = 1
                 x_min = -1
