@@ -151,7 +151,6 @@ if(__name__ == "__main__"):
                     "n_integration_steps": args.n_integration_steps,
                     "SDE_weightening": args.SDE_weightening,
                     "use_normal": False,
-                    "beta_schedule": args.beta_schedule
                 }
                 
                 SDE_Loss_Config = {
@@ -163,10 +162,6 @@ if(__name__ == "__main__"):
             }
         else:
             #modified sampling distributions are only applicable for certain losses
-<<<<<<< HEAD
-
-=======
->>>>>>> 88742d2c018876d4e2dc7f9706ca20df4f7c273c
             if(args.use_off_policy and (args.SDE_Loss != "LogVariance_Loss" and args.SDE_Loss != "Bridge_LogVarLoss" and args.SDE_Loss != "Reverse_KL_Loss_logderiv" and args.SDE_Loss != "Bridge_rKL_logderiv")):
                 raise ValueError("Off policy only implemented for LogVariance_Loss")
             if(not args.use_off_policy and args.sigma_scale_factor != 1.):
@@ -187,6 +182,7 @@ if(__name__ == "__main__"):
                 "batch_size": args.batch_size,
                 "use_off_policy": args.use_off_policy,
                 "learn_interpolation_params": args.learn_interpolation_params,
+                "beta_schedule": args.beta_schedule
             }
             
             SDE_Loss_Config = {
