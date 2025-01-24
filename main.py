@@ -160,8 +160,12 @@ if(__name__ == "__main__"):
             }
         else:
             #modified sampling distributions are only applicable for certain losses
+<<<<<<< HEAD
+            if(args.use_off_policy and (args.SDE_Loss != "LogVariance_Loss" and args.SDE_Loss != "Bridge_LogVarLoss" and args.SDE_Loss != "Reverse_KL_Loss_logderiv" and args.SDE_Loss != "Bridge_rKL_logderiv")):
+=======
 
             if(args.use_off_policy and (args.SDE_Loss != "LogVariance_Loss" and args.SDE_Loss != "Bridge_LogVarLoss" and args.SDE_Loss != "Reverse_KL_Loss_logderiv")):
+>>>>>>> 8721b27c4481ab96d392b9fb0cc4b5af67bce5b6
                 raise ValueError("Off policy only implemented for LogVariance_Loss")
             if(not args.use_off_policy and args.sigma_scale_factor != 0):
                 raise ValueError("Sigma scale factor != 0 and use_off_policy is off")

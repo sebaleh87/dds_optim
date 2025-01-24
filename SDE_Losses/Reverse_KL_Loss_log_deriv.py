@@ -34,8 +34,6 @@ class Reverse_KL_Loss_log_deriv_Class(Base_SDE_Loss_Class):
         #print("adas", self.vmap_drift_divergence( SDE_params, ts).shape)
         drift_divergence = self.vmap_drift_divergence( SDE_params, ts)[:,None, :]
         #print("shapes", score.shape, diff_factor.shape, drift_divergence.shape)
-        U = diff_factor*score
-        f = (1/2*jnp.sum( ( U)**2, axis = -1) + jnp.sum(drift_divergence, axis = -1))
 
         forward_drift = self.vmap_get_drift(SDE_params, xs, ts)
         ### TODO get forward drift and score
@@ -56,6 +54,12 @@ class Reverse_KL_Loss_log_deriv_Class(Base_SDE_Loss_Class):
             _, _, p_weights = self.compute_radon_nykodyn_derivative( diff_factor_X_scaled, diff_factor_X, drift_X_scaled, drift_X, dW, dts, log_prior_X_scaled, log_prior_X)
             log_p_ref, _, _ = self.compute_radon_nykodyn_derivative( diff_factor_X, diff_factor_Y, drift_X, drift_Y, dW, dts, log_prior_X, log_prior_Y)
 
+            U = diff_factor*score
+            stop_grad_U = jax.lax.stop_gradient(diff_factor_X_scaled*score)
+            #f = (1/2*jnp.sum( ( U)**2, axis = -1) + jnp.sum(drift_divergence, axis = -1))
+            f = (jnp.sum( U * stop_grad_U - U**2/2, axis = -1) + jnp.sum(drift_divergence, axis = -1))
+            f_no_stop = (jnp.sum( U**2/2, axis = -1) + jnp.sum(drift_divergence, axis = -1))
+            S_no_stop = 0.
         else:
             drift_Y = diff_factor**2*score - forward_drift
             drift_X = jax.lax.stop_gradient(drift_Y )  
@@ -65,23 +69,33 @@ class Reverse_KL_Loss_log_deriv_Class(Base_SDE_Loss_Class):
             diff_factor_Y = diff_factor
 
             log_p_ref, _, _ = self.compute_radon_nykodyn_derivative( diff_factor_X, diff_factor_Y, drift_X, drift_Y, dW, dts, log_prior_X, log_prior_Y)
-            p_weights = jnp.ones_like(log_p_ref)
-        
+            p_weights = 1.
+
+            U = diff_factor*score
+            stop_grad_U = jax.lax.stop_gradient(diff_factor_X*score)
+            #f = (1/2*jnp.sum( ( U)**2, axis = -1) + jnp.sum(drift_divergence, axis = -1))
+            f = (jnp.sum( U * stop_grad_U - U**2/2, axis = -1) + jnp.sum(drift_divergence, axis = -1))
+            f_no_stop = f
+            S_no_stop = jnp.sum(jnp.sum(U * dW, axis = -1), axis = 0)
+
         S = jnp.sum(jnp.sum(U * dW, axis = -1), axis = 0)
         R_diff = jnp.sum(dts*f  , axis = 0)
+        R_diff_no_stop = jnp.sum(dts*f_no_stop  , axis = 0)
         mean_R_diff = jnp.mean(R_diff)
 
         if(not self.Network_Config["model_mode"] == "latent"):
             if(self.optim_mode == "optim"):
                 loss_value = temp*(R_diff + S+ log_prior) + Energy
+                loss_value_no_stop = temp*(R_diff_no_stop + S_no_stop+ log_prior) + Energy
             elif(self.optim_mode == "equilibrium"):
                 loss_value = (R_diff + S+ log_prior) + Energy/temp
+                loss_value_no_stop = (R_diff_no_stop + S_no_stop + log_prior) + Energy/temp
             else:
                 raise ValueError(f"Unknown optim_mode: {self.optim}")
             
             loss_baseline = jax.lax.stop_gradient(loss_value - jnp.mean(loss_value, keepdims=True))
             loss_log_deriv = jnp.mean(p_weights*loss_baseline* log_p_ref)
-            loss = loss_log_deriv + jnp.mean(p_weights*loss_value)
+            loss = loss_log_deriv + jnp.mean(p_weights*loss_value_no_stop)
         else:
             raise ValueError("Not implemented yet")
         

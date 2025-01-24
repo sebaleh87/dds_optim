@@ -195,7 +195,7 @@ class Base_SDE_Loss_Class:
     def evaluate_loss(self, params, Energy_params, SDE_params, SDE_tracer, key, temp = 1.0):
         raise NotImplementedError("Not implemented yet")
     
-    def compute_partition_sum(self, R_diff, S, log_prior, Energy, rec_dict):
+    def compute_partition_sum(self, R_diff, S, log_prior, Energy, rec_dict, off_policy_weights = 1.):
         Z_estim = R_diff + S + log_prior + Energy
         log_Z = jnp.mean(-Z_estim)
         Free_Energy = -log_Z
@@ -206,8 +206,8 @@ class Base_SDE_Loss_Class:
 
         NLL = -jnp.mean(R_diff + S + log_prior) 
 
-        ELBO = jnp.mean(log_weights)
-        EUBO = jnp.mean(normed_weights*(log_weights))
+        ELBO = jnp.mean(off_policy_weights*log_weights)
+        EUBO = jnp.mean(off_policy_weights*normed_weights*(log_weights))
         res_dict = {"Free_Energy_at_T=1": Free_Energy, "normed_weights": normed_weights, "log_Z_at_T=1": log_Z, "n_eff": n_eff, "NLL": NLL, "ELBO_at_T=1": ELBO, "EUBO_at_T=1": EUBO}
         rec_dict.update(res_dict)
         return rec_dict

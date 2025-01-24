@@ -185,11 +185,16 @@ class TrainerClass:
         Best_Energy_value_ever = np.infty
         Best_Free_Energy_value_ever = np.infty
 
+        save_metric_dict = {"Free_Energy_at_T=1": [], "epoch": []}
         pbar = trange(self.num_epochs)
         for epoch in pbar:
             T_curr = self.AnnealClass.update_temp()
             start_time = time.time()
             if((epoch % int(self.num_epochs/self.Optimizer_Config["epochs_per_eval"]) == 0 or epoch == 0) and not self.config["disable_jit"]):
+<<<<<<< HEAD
+                ### TODO plot here also samples where more nosie is used
+=======
+>>>>>>> 8721b27c4481ab96d392b9fb0cc4b5af67bce5b6
                 sampling_modes = [ "val", "eval"]
                 for sample_mode in sampling_modes:
                     n_samples = self.config["n_eval_samples"]
@@ -274,6 +279,13 @@ class TrainerClass:
             pbar.set_description(f"mean_loss {mean_loss:.4f}, best energy: {Best_Energy_value_ever:.4f}")
 
             Free_Energy_values = np.mean(self.aggregated_out_dict["Free_Energy_at_T=1"])
+            for save_key in save_metric_dict.keys():
+                if(save_key in self.aggregated_out_dict.keys()):
+                    save_metric_dict[save_key].append(np.mean(self.aggregated_out_dict[save_key]))
+
+            save_metric_dict["epoch"].append(epoch)
+            self.save_metric_curves(save_metric_dict)
+
             self.check_improvement(params, Best_Free_Energy_value_ever, Free_Energy_values, "Free_Energy_at_T=1", epoch, figs = None)
 
             del self.aggregated_out_dict
@@ -329,4 +341,12 @@ class TrainerClass:
         }
         with open(script_dir + filename, "wb") as f:
             pickle.dump(data, f)
+
+    def save_metric_curves(self, save_metric_dict):
+        script_dir = os.path.dirname(os.path.abspath(__file__)) + "Checkpoints/" + self.wandb_id + "/"
+        if not os.path.isdir(script_dir):
+            os.makedirs(script_dir)
+        
+        with open(script_dir + f"metric_dict.pkl", "wb") as f:
+            pickle.dump(save_metric_dict, f)
 
