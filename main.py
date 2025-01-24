@@ -79,7 +79,7 @@ parser.add_argument("--model_seed", type=int, default=0, help="Seed used for mod
 
 #energy function specific args
 parser.add_argument("--Pytheus_challenge", type=int, default=1, choices=[0,1,2,3,4,5], help="Pyhteus Chellange Index")
-parser.add_argument("--Scaling_factor", type=float, default=1., help="Scaling factor for Energy Functions")
+parser.add_argument("--Scaling_factor", type=float, default=40., help="Scaling factor for Energy Functions")
 parser.add_argument("--Variances", type=float, default=0.1, help="Variances of Gaussian Mixtures before scalling when means ~Unif([-1,1])")
 
 
@@ -163,7 +163,10 @@ if(__name__ == "__main__"):
             }
         else:
             #modified sampling distributions are only applicable for certain losses
+<<<<<<< HEAD
 
+=======
+>>>>>>> 88742d2c018876d4e2dc7f9706ca20df4f7c273c
             if(args.use_off_policy and (args.SDE_Loss != "LogVariance_Loss" and args.SDE_Loss != "Bridge_LogVarLoss" and args.SDE_Loss != "Reverse_KL_Loss_logderiv" and args.SDE_Loss != "Bridge_rKL_logderiv")):
                 raise ValueError("Off policy only implemented for LogVariance_Loss")
             if(not args.use_off_policy and args.sigma_scale_factor != 1.):
@@ -231,12 +234,12 @@ if(__name__ == "__main__"):
                 loc_scaling = args.Scaling_factor
                 var_scaling = args.Variances
                 mean = (torch.rand((num_gaussians, dim)) - 0.5)*2*loc_scaling
-                variances = torch.ones((num_gaussians, dim)) * var_scaling
+                log_var = torch.ones((num_gaussians, dim)) * var_scaling
                 Energy_Config = {
                     "name": "GaussianMixture",
                     "dim_x": dim,
                     "means": mean,
-                    "variances": variances,
+                    "variances": torch.nn.functional.softplus(log_var),
                     "weights": [1/num_gaussians for i in range(num_gaussians)],
                     "num_modes": num_gaussians
                 }

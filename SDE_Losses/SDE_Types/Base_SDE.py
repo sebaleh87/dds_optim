@@ -302,6 +302,7 @@ class Base_SDE_Class:
         ### if self.config['use_off_policy'] true temp is not treated as a temperature but as an annealed scaling for self.sigma_scale_factor, assumes temp >= 1.
         shape= [n_states, self.dim_x]
         if self.config['use_off_policy']:    
+<<<<<<< HEAD
             annealed_scale = temp - 1. 
             if(sample_mode == "train"):
                 sigma_scale, scale_log_prob, key = self.return_sigma_scale_factor(self.sigma_scale_factor*annealed_scale, shape, key)
@@ -309,6 +310,10 @@ class Base_SDE_Class:
                 sigma_scale, scale_log_prob, key = self.return_sigma_scale_factor(self.sigma_scale_factor*annealed_scale, shape, key)
                 # sigma_scale = (self.sigma_scale_factor**2 + 1)*jnp.ones(shape)    #this is the mode, not the expectation value
                 # scale_log_prob = jnp.zeros((n_states,))
+=======
+            if(sample_mode == "train" or sample_mode == "val"):
+                sigma_scale, key = self.return_sigma_scale_factor(self.sigma_scale_factor, shape, key)
+>>>>>>> 88742d2c018876d4e2dc7f9706ca20df4f7c273c
             else:
                 sigma_scale = 1.*jnp.ones(shape)
                 scale_log_prob = jnp.zeros((n_states,))

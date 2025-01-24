@@ -189,7 +189,7 @@ python main.py --SDE_Loss Bridge_rKL_logderiv --Energy_Config Ionosphere --n_int
 
 
 
-### GaussianMixture
+## GaussianMixture
 
 ### Brige CMCD (Not our method!)
 ```
