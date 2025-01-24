@@ -18,6 +18,7 @@ class Bridge_rKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
         ts = SDE_tracer["ts"]
         forward_diff_log_probs = SDE_tracer["forward_diff_log_probs"]
         reverse_log_probs = SDE_tracer["reverse_log_probs"]
+        log_prob_prior_scaled = SDE_tracer["log_prob_prior_scaled"]
 
         entropy_minus_noise = jnp.sum(reverse_log_probs - forward_diff_log_probs, axis = 0)
 
@@ -33,7 +34,16 @@ class Bridge_rKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
         noise_loss = jnp.mean(-jnp.sum(forward_diff_log_probs, axis = 0))
 
 
-        loss = self.compute_rKL_log_deriv(SDE_params, log_prior, reverse_log_probs, forward_diff_log_probs, entropy_minus_noise,Energy, temp, ts)
+        if self.SDE_type.config['use_off_policy']:  
+            log_prob_prior_scaled = SDE_tracer["log_prob_prior_scaled"]
+            scale_log_prob = SDE_tracer["scale_log_prob"]
+            log_prob_noise = SDE_tracer["log_prob_noise"]
+            log_weights = reverse_log_probs - log_prob_noise + log_prior - log_prob_prior_scaled #- scale_log_prob
+            off_policy_weights = jax.lax.stop_gradient(jnp.exp(log_weights - jnp.max(log_weights)))
+            loss = self.compute_rKL_log_deriv(SDE_params, log_prior, reverse_log_probs, forward_diff_log_probs, entropy_minus_noise,Energy, temp, ts, off_policy_weights)
+        else:
+            off_policy_weights = 1.
+            loss = self.compute_rKL_log_deriv(SDE_params, log_prior, reverse_log_probs, forward_diff_log_probs, entropy_minus_noise,Energy, temp, ts)
 
         log_dict = {"loss": loss, "mean_energy": mean_Energy, 
                       "best_Energy": jnp.min(Energy), "noise_loss": noise_loss, "entropy_loss": entropy_loss, "key": key, "X_0": x_last, 
@@ -41,17 +51,18 @@ class Bridge_rKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
                         "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": SDE_params["mean"], "sigma_prior": jnp.exp(SDE_params["log_sigma_prior"])
                         }
 
-        log_dict = self.compute_partition_sum(entropy_minus_noise, jnp.zeros_like(entropy_minus_noise), log_prior, Energy, log_dict)
+        log_dict = self.compute_partition_sum(entropy_minus_noise, jnp.zeros_like(entropy_minus_noise), log_prior, Energy, log_dict, off_policy_weights = off_policy_weights)
 
         return loss, log_dict
 
-    def compute_rKL_log_deriv(self, SDE_params, log_prior, reverse_log_probs, forward_diff_log_probs, entropy_minus_noise,Energy, temp, ts):
+    def compute_rKL_log_deriv(self, SDE_params, log_prior, reverse_log_probs, forward_diff_log_probs, entropy_minus_noise,Energy, temp, ts, off_policy_weights = 1.):
+
         if(self.optim_mode == "optim"):
             sum_reverse_log_probs = jnp.sum(reverse_log_probs, axis = 0) + log_prior
             radon_dykodin_derivative = T*log_prior + T*entropy_minus_noise + Energy
 
             reward = jax.lax.stop_gradient(radon_dykodin_derivative - jnp.mean(radon_dykodin_derivative, keepdims=True, axis = 0))
-            loss = jnp.mean(reward * sum_reverse_log_probs) + jnp.mean(radon_dykodin_derivative)
+            loss = jnp.mean(off_policy_weights * reward * sum_reverse_log_probs) + jnp.mean(off_policy_weights * radon_dykodin_derivative)
         elif(self.optim_mode == "equilibrium"):
             sum_reverse_log_probs = jnp.sum(reverse_log_probs, axis = 0) + log_prior
             radon_dykodin_derivative = log_prior + entropy_minus_noise + Energy/temp
@@ -59,9 +70,7 @@ class Bridge_rKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
 
             #print("log_prior", log_prior.shape, sum_reverse_log_probs.shape, radon_dykodin_derivative.shape)
             reward = jax.lax.stop_gradient(radon_dykodin_derivative - jnp.mean(radon_dykodin_derivative, keepdims=True, axis = 0))
-            loss = jnp.mean(reward * sum_reverse_log_probs) + jnp.mean(radon_nykodin_wo_reverse)
+            loss = jnp.mean(off_policy_weights * reward * sum_reverse_log_probs) + jnp.mean(off_policy_weights * radon_nykodin_wo_reverse)
 
         return loss
-
-
     
