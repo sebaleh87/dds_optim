@@ -101,25 +101,36 @@ class VanillaBaseModelClass(nn.Module):
         if(self.SDE_mode == "Bridge_SDE" and self.use_normal):
             # follows SEQUENTIAL CONTROLLED LANGEVIN DIFFUSIONS (32)
             grad = copy_grads
-            score = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
-                                                bias_init=nn.initializers.zeros)(embedding)
 
-            out_dict["score"] = score  + grad /2     
-            return out_dict
-        elif(self.SDE_mode == "Bridge_SDE" and not self.use_normal):
-            grads = copy_grads
+            time_out_dict = self.time_backbone(in_dict)
+            time_encoding = time_out_dict["embedding"]
 
             grad_drift = nn.Dense(x_dim, kernel_init=nn.initializers.zeros,
+                                                bias_init=nn.initializers.zeros)(time_encoding)
+            
+            correction_drift = nn.Dense(x_dim, kernel_init=nn.initializers.zeros,
                                                 bias_init=nn.initializers.zeros)(embedding)
             
-            correction_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
-                                                bias_init=nn.initializers.zeros)(embedding)
-            
-            grad_score = grad_drift * jnp.clip(grads, -10**2, 10**2) #* nn.softplus(interpolated_grad) 
+            grad_score = grad_drift * jnp.clip(grad, -10**2, 10**2) #* nn.softplus(interpolated_grad) 
             correction_grad_score = correction_drift + grad_score
             score = jnp.clip(correction_grad_score, -10**4, 10**4 )
 
-            out_dict["score"] = score
+            out_dict["score"] = score  + grad /2     
+            return out_dict
+        # elif(self.SDE_mode == "Bridge_SDE" and not self.use_normal):
+        #     grads = copy_grads
+
+        #     grad_drift = nn.Dense(x_dim, kernel_init=nn.initializers.zeros,
+        #                                         bias_init=nn.initializers.zeros)(embedding)
+            
+        #     correction_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
+        #                                         bias_init=nn.initializers.zeros)(embedding)
+            
+        #     grad_score = grad_drift * jnp.clip(grads, -10**2, 10**2) #* nn.softplus(interpolated_grad) 
+        #     correction_grad_score = correction_drift + grad_score
+        #     score = jnp.clip(correction_grad_score, -10**4, 10**4 )
+
+        #     out_dict["score"] = score
             return out_dict
         elif(self.SDE_mode == "DiscreteTime_SDE"):
             mean_x = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),

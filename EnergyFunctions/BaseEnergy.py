@@ -5,6 +5,7 @@ import numpy as np
 import os
 import wandb
 import re
+from sklearn.manifold import TSNE
 
 # Base Class
 class EnergyModelClass:
@@ -173,6 +174,8 @@ class EnergyModelClass:
         elif( hasattr(self, 'n_particles')):
             data = self.load_data()
             return {"interatomic_distances": self.plot_interatomic_distances(Xs, data, panel=panel), "energy_histogram": self.plot_energy_histogram(Xs, data, panel=panel)}
+        elif(True):
+            return {"tsne": self.plot_tsne_last_samples(Xs, panel=panel)}
         else:
             pass
 
@@ -320,6 +323,29 @@ class EnergyModelClass:
 
         wfig = wandb.Image(fig)
         #wandb.log({f"{panel}/trajectories": wfig})
+        plt.close()
+        return wfig
+
+    def plot_tsne_last_samples(self, Xs, panel = "fig"):
+        print("TSNE plot")
+        Xs = Xs[:2000]
+        if(hasattr(self, 'means')):
+            means_reshaped = self.means.reshape(-1, self.dim_x)
+            Xs = np.concatenate([Xs, means_reshaped], axis=0)
+        tsne = TSNE(n_components=2, random_state=0)
+        Xs_reshaped = Xs.reshape(-1, self.dim_x)
+        Xs_embedded = tsne.fit_transform(Xs_reshaped)
+        fig = plt.figure(figsize=(10, 6))
+        plt.scatter(Xs_embedded[:, 0], Xs_embedded[:, 1], alpha=0.5)
+        if hasattr(self, 'means'):
+            means_embedded = Xs_embedded[-self.means.shape[0]:]
+            plt.scatter(means_embedded[:, 0], means_embedded[:, 1], color='orange', alpha=1., label='Means')
+        plt.xlabel('t-SNE 1')
+        plt.ylabel('t-SNE 2')
+        plt.title('t-SNE of Last Samples')
+        plt.grid(True)
+        wfig = wandb.Image(fig)
+        #wandb.log({f"{panel}/tsne_last_samples": wfig})
         plt.close()
         return wfig
     

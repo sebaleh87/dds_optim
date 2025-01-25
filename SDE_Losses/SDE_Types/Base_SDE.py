@@ -63,6 +63,11 @@ class Base_SDE_Class:
     def get_div_drift(self, SDE_params, t):
         raise NotImplementedError("get_diffusion method not implemented")
 
+    def get_Interpol_params(self):
+        InterpoL_params = {"beta_interpol_params": jnp.ones((self.n_integration_steps)),
+                            "repulsion_interpol_params": jnp.ones((self.n_integration_steps))}
+        return InterpoL_params
+
     def get_SDE_params(self):
         raise NotImplementedError("get_diffusion method not implemented")
 
@@ -95,12 +100,16 @@ class Base_SDE_Class:
         return x_prior, key
     
     
-    def vmap_prior_target_grad_interpolation(self, x, counter, Energy_params, SDE_params, temp, key):
+    def vmap_prior_target_grad_interpolation(self, x, counter, Energy_params, SDE_params, temp, key, clip_overall_score = 10**3):
         key, subkey = random.split(key)
         batched_subkey = random.split(subkey, x.shape[0])
         vmap_energy, vmap_grad = jax.vmap(self.prior_target_grad_interpolation, in_axes=(0, 0, None, None, None, 0))(x, counter, Energy_params, SDE_params, temp, batched_subkey)
         #print("vmap_grad", jnp.mean(jax.lax.stop_gradient(vmap_grad)))
         vmap_grad = jnp.where(jnp.isfinite(vmap_grad), vmap_grad, 0)
+        vmap_grad = jnp.where(jnp.isnan(vmap_grad), 0, vmap_grad)
+        #vmap_grad = jnp.clip(vmap_grad, -10**4, 10**4)
+        grad_norm = jnp.linalg.norm(vmap_grad, axis = -1, keepdims = True)
+        vmap_grad = jnp.where(grad_norm > clip_overall_score, clip_overall_score*vmap_grad/grad_norm, vmap_grad)
 
         #vmap_div_energy, vmap_grad_div = self.get_diversity_log_prob_grad(x,counter,SDE_params) 
         vmap_energy = vmap_energy #+ vmap_div_energy
@@ -321,14 +330,17 @@ class Base_SDE_Class:
 
         return sigma_scale, scale_log_prob, temp, key
     
-    def simulate_reverse_sde_scan(self, model, params, Energy_params, SDE_params, temp, key, n_states = 100, sample_mode = "train", n_integration_steps = 1000):
+    def simulate_reverse_sde_scan(self, model, params, Interpol_params, SDE_params, temp, key, n_states = 100, sample_mode = "train", n_integration_steps = 1000):
         
+        for interpol_key in Interpol_params.keys():
+            SDE_params[interpol_key] = Interpol_params[interpol_key]
+
         sigma_scale, scale_log_prob, temp, key = self.get_sigma_noise(n_states, key, sample_mode, temp)
 
         def scan_fn(carry, step):
             x, t, counter, key, carry_dict = carry
             hidden_state = carry_dict["hidden_state"]
-            score, new_hidden_state, grad, key = self.apply_model(model, x, t, counter, params, Energy_params, SDE_params, hidden_state, temp, key)
+            score, new_hidden_state, grad, key = self.apply_model(model, x, t, counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
             carry_dict["hidden_state"] = new_hidden_state
 
             dt = self.reversed_dt_values[step]

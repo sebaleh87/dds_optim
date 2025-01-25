@@ -89,7 +89,7 @@ class TrainerClass:
             x_centered_rot = jax.vmap(jax.vmap(rotate_vector, in_axes=(0, None)), in_axes=(0, None))(x_centered_resh, rot)
             x_centered_resh_rot =  x_centered_rot.reshape((batch_size, self.dim_x)) 
 
-            vmap_energy, vmap_grad, key = self.SDE_LossClass.SDE_type.vmap_prior_target_grad_interpolation(x_centered_resh_rot, 0., self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, key)
+            vmap_energy, vmap_grad, key = self.SDE_LossClass.SDE_type.vmap_prior_target_grad_interpolation(x_centered_resh_rot, 0., self.SDE_LossClass.Interpol_params, self.SDE_LossClass.SDE_params, key)
 
             grad_init = vmap_grad
             Energy_value = vmap_energy
@@ -194,7 +194,7 @@ class TrainerClass:
                 sampling_modes = [ "val", "eval"]
                 for sample_mode in sampling_modes:
                     n_samples = self.config["n_eval_samples"]
-                    SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, T_curr, key, sample_mode = sample_mode, n_integration_steps = self.n_integration_steps, n_states = n_samples)
+                    SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Interpol_params, self.SDE_LossClass.SDE_params, T_curr, key, sample_mode = sample_mode, n_integration_steps = self.n_integration_steps, n_states = n_samples)
                     wandb.log({ f"eval_{sample_mode}/{key}": np.mean(out_dict[key]) for key in out_dict.keys()}, step=epoch+1)
 
                     self.plot_figures(SDE_tracer, epoch, sample_mode = sample_mode)
@@ -207,11 +207,11 @@ class TrainerClass:
 
                 self.check_improvement(params, Best_Energy_value_ever, np.min(Energy_values), "Energy", epoch=epoch+1)
 
-                if("beta_interpol_params" in self.SDE_LossClass.SDE_params.keys()):
-                    beta_interpol_params = self.SDE_LossClass.SDE_params["beta_interpol_params"]
+                if("beta_interpol_params" in self.SDE_LossClass.Interpol_params.keys()):
+                    beta_interpol_params = self.SDE_LossClass.Interpol_params["beta_interpol_params"]
                     steps = np.arange(0,len(beta_interpol_params) +1)
 
-                    interpol_time = [self.SDE_LossClass.SDE_type.compute_energy_interpolation_time(self.SDE_LossClass.SDE_params, t, SDE_param_key = "beta_interpol_params") for t in range(len(beta_interpol_params) + 1)]
+                    interpol_time = [self.SDE_LossClass.SDE_type.compute_energy_interpolation_time(self.SDE_LossClass.Interpol_params, t, SDE_param_key = "beta_interpol_params") for t in range(len(beta_interpol_params) + 1)]
 
                     fig, ax = plt.subplots()
 
@@ -223,11 +223,11 @@ class TrainerClass:
                     wandb.log({"fig/Beta_Interpolation_Parameters": wandb.Image(fig)})
                     plt.close(fig)
 
-                if("repulsion_interpol_params" in self.SDE_LossClass.SDE_params.keys()):
+                if("repulsion_interpol_params" in self.SDE_LossClass.Interpol_params.keys()):
                     #beta_interpol_params = self.SDE_LossClass.SDE_params["repulsion_interpol_params"]
                     steps = np.arange(0,len(beta_interpol_params) +1)
 
-                    interpol_time = np.array([self.SDE_LossClass.SDE_type.compute_energy_interpolation_time(self.SDE_LossClass.SDE_params, t, SDE_param_key = "repulsion_interpol_params") for t in range(len(beta_interpol_params) + 1)])
+                    interpol_time = np.array([self.SDE_LossClass.SDE_type.compute_energy_interpolation_time(self.SDE_LossClass.Interpol_params, t, SDE_param_key = "repulsion_interpol_params") for t in range(len(beta_interpol_params) + 1)])
 
                     fig, ax = plt.subplots()
 
@@ -289,11 +289,11 @@ class TrainerClass:
 
         param_dict = self.load_params_and_config(filename="best_Free_Energy_at_T=1_checkpoint.pkl")
 
-        self.SDE_LossClass.Energy_params = param_dict["Energy_params"]
+        self.SDE_LossClass.Interpol_params = param_dict["Interpol_params"]
         self.SDE_LossClass.SDE_params = param_dict["SDE_params"]
 
         n_samples = self.config["n_eval_samples"]
-        SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, T_curr, key, sample_mode = "eval", n_integration_steps = self.n_integration_steps, n_states = n_samples)
+        SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Interpol_params, self.SDE_LossClass.SDE_params, T_curr, key, sample_mode = "eval", n_integration_steps = self.n_integration_steps, n_states = n_samples)
         
         self.plot_figures(SDE_tracer, epoch)
 

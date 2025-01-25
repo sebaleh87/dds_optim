@@ -26,10 +26,10 @@ class Base_SDE_Loss_Class:
         self.vmap_Energy_function =  jax.jit(jax.vmap(self.EnergyClass.energy_function, in_axes = (0,)))
         self.vmap_model = jax.vmap(self.model.apply, in_axes=(None,0,0))
 
-        self.Energy_params = self.EnergyClass.init_EnergyParams()
-        self.Energy_lr = Optimizer_Config["Energy_lr"]
-        self.Energy_params_optimizer = self.init_Energy_params_optimizer()
-        self.Energy_params_state = self.Energy_params_optimizer.init(self.Energy_params)
+        self.Interpol_params = self.SDE_type.get_Interpol_params()
+        self.Interpol_lr = Optimizer_Config["Interpol_lr"]
+        self.Interpol_params_optimizer = self.init_Interpol_params_optimizer()
+        self.Interpol_params_state = self.Interpol_params_optimizer.init(self.Interpol_params)
 
         self.SDE_params = self.SDE_type.get_SDE_params()
         self.SDE_lr = Optimizer_Config["SDE_lr"]
@@ -76,8 +76,8 @@ class Base_SDE_Loss_Class:
         return loss, key
 
     def update_step(self, params, opt_state, key, T_curr):
-        params, self.Energy_params, self.SDE_params, opt_state, self.Energy_params_state, self.SDE_params_state, loss_value, out_dict =  self.update_params(params, self.Energy_params, self.SDE_params
-                                                                                                                                                            , opt_state, self.Energy_params_state, self.SDE_params_state, key, T_curr)
+        params, self.Interpol_params, self.SDE_params, opt_state, self.Interpol_params_state, self.SDE_params_state, loss_value, out_dict =  self.update_params(params, self.Interpol_params, self.SDE_params
+                                                                                                                                                            , opt_state, self.Interpol_params_state, self.SDE_params_state, key, T_curr)
         # for key in out_dict:
         #     print(key, jnp.mean(out_dict[key]))
         return params, opt_state, loss_value, out_dict
@@ -97,14 +97,16 @@ class Base_SDE_Loss_Class:
         return params, Energy_params, SDE_params, opt_state, Energy_params_state, SDE_params_state, loss_value, out_dict
     
     @partial(jax.jit, static_argnums=(0,))
-    def update_params_all_in_one(self, params, Energy_params, SDE_params, opt_state, Energy_params_state, SDE_params_state, key, T_curr):
-        (loss_value, out_dict), (grads, SDE_params_grad) = jax.value_and_grad(self.loss_fn, argnums=(0, 2), has_aux = True)(params, Energy_params, SDE_params, T_curr, key)
+    def update_params_all_in_one(self, params, Interpol_params, SDE_params, opt_state, Interpol_params_state, SDE_params_state, key, T_curr):
+        (loss_value, out_dict), (grads, Interpol_params_grad, SDE_params_grad) = jax.value_and_grad(self.loss_fn, argnums=(0, 1, 2), has_aux = True)(params, Interpol_params, SDE_params, T_curr, key)
         updates, opt_state = self.optimizer.update(grads, opt_state)
         params = optax.apply_updates(params, updates)
         
         # check_nans(grads)
         # check_nans(SDE_params_grad)
         # print(loss_value)
+        Interpol_params_updates, Interpol_params_state = self.Interpol_params_optimizer.update(Interpol_params_grad, Interpol_params_state, Interpol_params)
+        Interpol_params = optax.apply_updates(Interpol_params, Interpol_params_updates)
 
         SDE_params_updates, SDE_params_state = self.SDE_params_optimizer.update(SDE_params_grad, SDE_params_state, SDE_params)
         SDE_params = optax.apply_updates(SDE_params, SDE_params_updates)
@@ -117,7 +119,7 @@ class Base_SDE_Loss_Class:
         elif( self.Optimizer_Config["learn_beta_mode"] == "min_and_max"):
             pass			
         
-        return params, Energy_params, SDE_params, opt_state, Energy_params_state, SDE_params_state, loss_value, out_dict
+        return params, Interpol_params, SDE_params, opt_state, Interpol_params_state, SDE_params_state, loss_value, out_dict
     
     @partial(jax.jit, static_argnums=(0,))
     def update_net_params_only(self, params, Energy_params, SDE_params, opt_state, Energy_params_state, SDE_params_state, key, T_curr):
@@ -138,19 +140,19 @@ class Base_SDE_Loss_Class:
 
         self.schedule = self._init_lr_schedule(l_max, l_start, lr_min, overall_steps, warmup_steps)
 
-        optimizer = optax.chain(optax.clip_by_global_norm(1.0), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.schedule(epoch)))
+        optimizer = optax.chain(optax.zero_nans(), optax.clip_by_global_norm(1.0), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.schedule(epoch)))
         return optimizer
     
-    def init_Energy_params_optimizer(self):
+    def init_Interpol_params_optimizer(self):
         l_start = 1e-10
-        l_max = self.Energy_lr
+        l_max = self.Interpol_lr
         lr_min = l_max/10
         overall_steps = self.Optimizer_Config["epochs"]*self.Optimizer_Config["steps_per_epoch"]*self.lr_factor
         warmup_steps = int(0.1 * overall_steps)
 
-        self.Energy_schedule = self._init_lr_schedule(l_max, l_start, lr_min, overall_steps, warmup_steps)
+        self.Interpol_schedule = self._init_lr_schedule(l_max, l_start, lr_min, overall_steps, warmup_steps)
         #optimizer = optax.adam(self.schedule)
-        optimizer = optax.chain( optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.Energy_schedule(epoch)))
+        optimizer = optax.chain( optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.Interpol_schedule(epoch)))
         return optimizer
     
     def init_SDE_params_optimizer(self):
@@ -167,7 +169,7 @@ class Base_SDE_Loss_Class:
 
         self.SDE_schedule = self._init_lr_schedule(l_max, l_start, lr_min, overall_steps, warmup_steps)
         #clipping is necessary due to lennard jones instabilities for some energy functions
-        optimizer = optax.chain(optax.clip(clip_value), optax.add_decayed_weights(weight_decay), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.SDE_schedule(epoch)))
+        optimizer = optax.chain(optax.zero_nans(), optax.clip_by_global_norm(clip_value), optax.add_decayed_weights(weight_decay), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.SDE_schedule(epoch)))
         
         return optimizer
     
@@ -280,7 +282,7 @@ class Base_SDE_Loss_Class:
         return overall_loss, out_dict
     
     def get_param_dict(self, params):
-        return {"model_params": params, "Energy_params": self.Energy_params, "SDE_params": self.SDE_params}
+        return {"model_params": params, "Interpol_params": self.Interpol_params, "SDE_params": self.SDE_params}
     
 
 def constant_lr(step, l_max = 1e-4):

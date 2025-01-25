@@ -30,6 +30,7 @@ parser.add_argument("--batch_size", type=int, default=200)
 parser.add_argument( "--lr", type=float, default=[0.001], nargs="+")
 parser.add_argument("--lr_schedule", type=str, choices = ["cosine", "const", "cosine_warmup"], default = "cosine")
 parser.add_argument("--Energy_lr", type=float, default=0.0)
+parser.add_argument("--Interpol_lr", type=float, default=0.001)
 parser.add_argument("--SDE_lr", type=float, default=[0.001], nargs="+")
 parser.add_argument("--SDE_weight_decay", type=float, default=0.)
 parser.add_argument("--clip_value", type=float, default=100., help = "clip value of sde param gradients")
@@ -80,7 +81,7 @@ parser.add_argument("--model_seed", type=int, default=0, help="Seed used for mod
 #energy function specific args
 parser.add_argument("--Pytheus_challenge", type=int, default=1, choices=[0,1,2,3,4,5], help="Pyhteus Chellange Index")
 parser.add_argument("--Scaling_factor", type=float, default=40., help="Scaling factor for Energy Functions")
-parser.add_argument("--Variances", type=float, default=0.1, help="Variances of Gaussian Mixtures before scalling when means ~Unif([-1,1])")
+parser.add_argument("--Variances", type=float, default=1., help="Variances of Gaussian Mixtures before scalling when means ~Unif([-1,1])")
 
 
 args = parser.parse_args()
@@ -121,7 +122,7 @@ if(__name__ == "__main__"):
             Optimizer_Config = {
                 "name": "Adam",
                 "lr": lr,
-                "Energy_lr": args.Energy_lr,
+                "Interpol_lr": args.Interpol_lr,
                 "SDE_lr": SDE_lr,
                 "learn_beta_mode": args.learn_beta_mode,
                 "epochs": epochs,
@@ -166,6 +167,8 @@ if(__name__ == "__main__"):
                 raise ValueError("Off policy only implemented for LogVariance_Loss")
             if(not args.use_off_policy and args.sigma_scale_factor != 1.):
                 raise ValueError("Sigma scale factor != 0 and use_off_policy is off")
+            if(args.beta_min >= args.beta_max):
+                raise ValueError("Beta min >= beta max")
 
             SDE_Type_Config = {
                 "name": args.SDE_Type,
@@ -200,7 +203,6 @@ if(__name__ == "__main__"):
             if(args.Energy_Config == "GaussianMixtureToy"):
                 torch.manual_seed(0)
                 #np.random.seed(42)
-                arg.n_particles
                 dim = 2
                 num_gaussians = 1
                 x_min = -1
@@ -230,12 +232,12 @@ if(__name__ == "__main__"):
                 loc_scaling = args.Scaling_factor
                 var_scaling = args.Variances
                 mean = (torch.rand((num_gaussians, dim)) - 0.5)*2*loc_scaling
-                log_var = torch.ones((num_gaussians, dim)) * var_scaling
+                variances = torch.ones((num_gaussians, dim)) * var_scaling
                 Energy_Config = {
                     "name": "GaussianMixture",
                     "dim_x": dim,
                     "means": mean,
-                    "variances": torch.nn.functional.softplus(log_var),
+                    "variances": variances,#torch.nn.functional.softplus(log_var),
                     "weights": [1/num_gaussians for i in range(num_gaussians)],
                     "num_modes": num_gaussians
                 }

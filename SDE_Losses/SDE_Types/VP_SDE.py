@@ -67,17 +67,14 @@ class VP_SDE_Class(Base_SDE_Class):
             SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"] - self.config["beta_min"]), 
             "log_beta_min": jnp.log(self.config["beta_min"]),
             "log_sigma": jnp.log(self.sigma_init), "mean": jnp.zeros((self.dim_x,)), "mean_target": jnp.zeros((self.dim_x,)),
-            "log_sigma_t": jnp.log(10**-5),
-            "beta_interpol_params": jnp.ones((self.n_integration_steps)),
-            "repulsion_interpol_params": jnp.ones((self.n_integration_steps))}
+            "log_sigma_t": jnp.log(10**-5)}
 
         else:
             SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"] - self.config["beta_min"])* jnp.ones((self.dim_x,)), 
                         "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
                         "log_sigma": jnp.log(self.sigma_init)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)),  "mean_target": jnp.zeros((self.dim_x,)),
                         "B": -10*jnp.ones((self.dim_x,self.dim_x)) + jnp.diag((jnp.log(self.sigma_init)+10.)*jnp.ones((self.dim_x,))),
-                        "beta_interpol_params": jnp.ones((self.n_integration_steps)),
-                        "repulsion_interpol_params": jnp.ones((self.n_integration_steps))}
+                        }
                         
         return SDE_params
     

@@ -36,9 +36,8 @@ class Bridge_rKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
 
         if self.SDE_type.config['use_off_policy']:  
             log_prob_prior_scaled = SDE_tracer["log_prob_prior_scaled"]
-            scale_log_prob = SDE_tracer["scale_log_prob"]
             log_prob_noise = SDE_tracer["log_prob_noise"]
-            log_weights = reverse_log_probs - log_prob_noise + log_prior - log_prob_prior_scaled #- scale_log_prob
+            log_weights = reverse_log_probs - log_prob_noise + log_prior - log_prob_prior_scaled 
             off_policy_weights = jax.lax.stop_gradient(jnp.exp(log_weights - jnp.max(log_weights)))
             loss = self.compute_rKL_log_deriv(SDE_params, log_prior, reverse_log_probs, forward_diff_log_probs, entropy_minus_noise,Energy, temp, ts, off_policy_weights)
         else:

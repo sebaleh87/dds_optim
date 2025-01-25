@@ -57,6 +57,18 @@ class GaussianMixtureClass(EnergyModelClass):
         # Compute log probabilities and apply logsumexp to get log of mean of exponentials
         log_probs = gaussian_log_prob(x, self.means, self.variances)
         return -logsumexp(log_probs, axis=0) + jnp.log(log_probs.shape[0])
+    
+    def sample(self, num_samples):
+        """
+        Generate samples from the Gaussian Mixture Model.
+        
+        :param num_samples: Number of samples to generate.
+        :return: Samples.
+        """
+        num_components = len(self.means)
+        components = np.random.choice(num_components, num_samples, p=self.weights)
+        samples = np.array([np.random.normal(self.means[component], np.sqrt(self.variances[component])) for component in components])
+        return samples
 
     
     
