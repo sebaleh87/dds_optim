@@ -30,9 +30,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
             SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"] - self.config["beta_min"])* jnp.ones((self.dim_x,)), 
                         "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
                         "log_sigma": jnp.log(1)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)),
-                        "log_sigma_prior": jnp.log(self.sigma_init)* jnp.ones((self.dim_x,)),
-                        "beta_interpol_params": rand_weights,
-                        "repulsion_interpol_params": rand_weights_repulse}
+                        "log_sigma_prior": jnp.log(self.sigma_init)* jnp.ones((self.dim_x,))}
         return SDE_params
 
     def get_log_prior(self, SDE_params, x, sigma_scale_factor = 1.):
@@ -173,8 +171,10 @@ class Bridge_SDE_Class(Base_SDE_Class):
         return reverse_out_dict, key
 
 
-    def simulate_reverse_sde_scan(self, model, params, Energy_params, SDE_params, temp, key, n_states = 100, sample_mode = "train", n_integration_steps = 1000):
+    def simulate_reverse_sde_scan(self, model, params, Interpol_params, SDE_params, temp, key, n_states = 100, sample_mode = "train", n_integration_steps = 1000):
         ### since we use discrete time models dt is 1 and t = n_integration_steps (this is different from when we use SDEs formulation)
+        for interpol_key in Interpol_params.keys():
+            SDE_params[interpol_key] = Interpol_params[interpol_key]
         dt = 1.
         t = n_integration_steps
         counter = 0
@@ -187,7 +187,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
             #     raise ValueError("score is nan")
             hidden_state = carry_dict["hidden_state"]
             ### apply model expects t to be in [0, 1] --> divide by n_integration_steps
-            score, new_hidden_state, grad, key = self.apply_model(model, x, t/self.n_integration_steps, counter, params, Energy_params, SDE_params, hidden_state, temp, key)
+            score, new_hidden_state, grad, key = self.apply_model(model, x, t/self.n_integration_steps, counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
             carry_dict["hidden_state"] = new_hidden_state
 
             reverse_out_dict, key = self.reverse_sde(SDE_params, score, grad, x, t, dt, key, sigma_scale_factor= sigma_scale)
@@ -229,7 +229,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
 
         ### TODO make last forward pass here
         hidden_state = carry_dict["hidden_state"]
-        score, new_hidden_state, grad, key = self.apply_model(model, x_final, t_final/self.n_integration_steps, counter, params, Energy_params, SDE_params, hidden_state, temp, key)
+        score, new_hidden_state, grad, key = self.apply_model(model, x_final, t_final/self.n_integration_steps, counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
         diffusion_final = self.get_diffusion(SDE_params, x_final, t_final)
         reverse_drift_final = self.compute_reverse_drift(diffusion_final, score, grad)
         #carry_dict["hidden_state"] = new_hidden_state
