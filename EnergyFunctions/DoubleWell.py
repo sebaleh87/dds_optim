@@ -20,6 +20,7 @@ class DoubleWellClass(EnergyModelClass):
         self.b = 1
         self.c = 0.5
         self.dim_x = self.d + self.m
+        self.has_tractable_distribution = True
         #self.chosen_energy_function = self.energy_function_richter
         self.invariance = False
 

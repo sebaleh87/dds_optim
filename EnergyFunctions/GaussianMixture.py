@@ -58,5 +58,6 @@ class GaussianMixtureClass(EnergyModelClass):
         log_probs = gaussian_log_prob(x, self.means, self.variances)
         return -logsumexp(log_probs, axis=0) + jnp.log(log_probs.shape[0])
 
+
     
     

@@ -12,6 +12,7 @@ class EnergyModelClass:
     def __init__(self,EnergyConfig):
         self.config = EnergyConfig
         self.dim_x = EnergyConfig["dim_x"]
+        self.has_tractable_distribution = False  # Default to False, override in subclasses
 
         if("shift" in EnergyConfig.keys()):
             self.shift = EnergyConfig["shift"]
@@ -427,3 +428,12 @@ class EnergyModelClass:
         #wandb.log({f"{panel}/2d_histogram": wfig})
         plt.close()
         return wfig
+
+    def generate_samples(self, key, n_samples):
+        """
+        Generate samples from the tractable distribution if available.
+        Should be implemented by subclasses that have tractable distributions.
+        """
+        if not self.has_tractable_distribution:
+            raise NotImplementedError("This energy function does not have a tractable distribution")
+        raise NotImplementedError("Subclasses with tractable distributions should implement this method")

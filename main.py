@@ -15,7 +15,7 @@ parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE",
 parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "GaussianMixtureToy", "Rastrigin", "LennardJones", 
                                                                                      "DoubleWellEquivariant", "DoubleWell", "Sonar", "Funnel",
                                                                                       "Pytheus", "WavePINN_latent", "WavePINN_hyperparam", "DoubleMoon",
-                                                                                      "Banana", "Brownian", "Lorenz", "Seeds", "Ionosphere", "Sonar", "Funnel", "LGCP"], help="EnergyClass")
+                                                                                      "Banana", "Brownian", "Lorenz", "Seeds", "Ionosphere", "Sonar", "Funnel", "LGCP", "GermanCredit", "MW54"], help="EnergyClass")
 parser.add_argument("--n_particles", type=int, default=2, help="the dimension can be controlled for some problems")
 parser.add_argument("--T_start", type=float, default=[1.], nargs="+" ,  help="Starting Temperature")
 parser.add_argument("--T_end", type=float, default=0., help="End Temperature")
@@ -74,6 +74,7 @@ parser.add_argument('--no-use_normal', dest='use_normal', action='store_false', 
 parser.add_argument("--SDE_time_mode", type=str, default="Discrete_Time", choices=["Discrete_Time", "Continuous_Time"], help="SDE Time Mode")
 parser.add_argument("--Network_Type", type=str, default="FeedForward", choices=["FourierNetwork", "FeedForward", "LSTMNetwork", "ADAMNetwork"], help="SDE Time Mode")
 parser.add_argument("--model_seed", type=int, default=0, help="Seed used for model init")
+parser.add_argument("--sample_seed", type=int, default=42, help="Seed used for sample creation")
 
 #energy function specific args
 parser.add_argument("--Pytheus_challenge", type=int, default=1, choices=[0,1,2,3,4,5], help="Pyhteus Chellange Index")
@@ -335,6 +336,20 @@ if(__name__ == "__main__"):
                     "scaling": 1.0              # Required by base class
                 }
 
+            elif(args.Energy_Config == "GermanCredit"):
+                Energy_Config = {
+                    "name": "GermanCredit",
+                    "dim_x": 25,
+                }
+            elif(args.Energy_Config == "MW54"):
+                N = args.n_particles
+                Energy_Config = {
+                    "name": args.Energy_Config,
+                    "d": N,
+                    "m": N,
+                    "dim_x": N + N,
+                }
+                n_eval_samples = 2000
 
             else:
                 raise ValueError("Energy Config not found")
@@ -366,7 +381,8 @@ if(__name__ == "__main__"):
             "num_epochs": epochs,
             "n_eval_samples": n_eval_samples,
             "project_name": args.project_name,
-            "disable_jit": args.disable_jit
+            "disable_jit": args.disable_jit,
+            "sample_seed": args.sample_seed
         }
 
         trainer = TrainerClass(base_config)
