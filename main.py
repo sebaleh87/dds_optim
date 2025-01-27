@@ -13,9 +13,9 @@ parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=
                                                                                 "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam"], help="select loss function")
 parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE", "VE_SDE", "Bridge_SDE", "Bridge_SDE_with_bug"], help="select SDE type, subVP_SDE is currently deprecated")
 parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "GaussianMixtureToy", "Rastrigin", "LennardJones", 
-                                                                                     "DoubleWellEquivariant", "DoubleWell", "Sonar",
+                                                                                     "DoubleWellEquivariant", "DoubleWell", "Sonar", "Funnel",
                                                                                       "Pytheus", "WavePINN_latent", "WavePINN_hyperparam", "DoubleMoon",
-                                                                                      "Banana", "Brownian", "Lorenz", "Seeds", "Ionosphere", "Sonar"], help="EnergyClass")
+                                                                                      "Banana", "Brownian", "Lorenz", "Seeds", "Ionosphere", "Sonar", "Funnel", "LGCP", "GermanCredit", "MW54"], help="EnergyClass")
 parser.add_argument("--n_particles", type=int, default=2, help="the dimension can be controlled for some problems")
 parser.add_argument("--T_start", type=float, default=[1.], nargs="+" ,  help="Starting Temperature")
 parser.add_argument("--T_end", type=float, default=0., help="End Temperature")
@@ -77,7 +77,10 @@ parser.add_argument('--no-use_normal', dest='use_normal', action='store_false', 
 
 parser.add_argument("--SDE_time_mode", type=str, default="Discrete_Time", choices=["Discrete_Time", "Continuous_Time"], help="SDE Time Mode")
 parser.add_argument("--Network_Type", type=str, default="FeedForward", choices=["FourierNetwork", "FeedForward", "LSTMNetwork", "ADAMNetwork"], help="SDE Time Mode")
+
+parser.add_argument("--sample_seed", type=int, default=42, help="Seed used for sample creation")
 parser.add_argument("--model_seeds", type = int ,default=[0], nargs="+" , help="Seed used for model init")
+
 
 #energy function specific args
 parser.add_argument("--Pytheus_challenge", type=int, default=1, choices=[0,1,2,3,4,5], help="Pyhteus Chellange Index")
@@ -324,7 +327,48 @@ if(__name__ == "__main__"):
                         "name": args.Energy_Config,
                         "dim_x": dim
                     }
+              elif(args.Energy_Config == "Funnel"):
+                  dim = args.n_particles
+                  Energy_Config = {
+                      "name": "Funnel",
+                      "dim_x": dim,
+                      "eta": 3,
+                      "scaling": args.Scaling_factor
+                  }
 
+              elif(args.Energy_Config == "LGCP"):
+                  Energy_Config = {
+                      "name": "LGCP",  # Your 2D array of point coordinates
+                      "num_grid_per_dim": 40,      # Grid size (40x40=1600)
+                      "use_whitened": False,       # Whether to use whitened parameterization
+                      "dim_x": 1600,              # Total dimension (grid_size^2)
+                      "scaling": 1.0              # Required by base class
+                  }
+
+              elif(args.Energy_Config == "GermanCredit"):
+                  Energy_Config = {
+                      "name": "GermanCredit",
+                      "dim_x": 25,
+                  }
+              elif(args.Energy_Config == "MW54"):
+                  N = args.n_particles
+                  Energy_Config = {
+                      "name": args.Energy_Config,
+                      "d": N,
+                      "m": N,
+                      "dim_x": N + N,
+                  }
+                  n_eval_samples = 2000
+
+              else:
+                  raise ValueError("Energy Config not found")
+              Energy_Config["scaling"] = args.Scaling_factor
+
+              Network_Config["x_dim"] = Energy_Config["dim_x"]
+              if(Network_Config["model_mode"] == "latent"):
+                  SDE_Type_Config["use_interpol_gradient"] = False
+                  if(args.latent_dim == None):
+                      raise ValueError("Latent dim not defined")
                 else:
                     raise ValueError("Energy Config not found")
                 Energy_Config["scaling"] = args.Scaling_factor
@@ -358,6 +402,20 @@ if(__name__ == "__main__"):
                 "disable_jit": args.disable_jit
             }
 
-            trainer = TrainerClass(base_config)
-            trainer.train()
+          base_config = {
+              "EnergyConfig": Energy_Config,
+              "Anneal_Config": Anneal_Config,
+              "SDE_Loss_Config": SDE_Loss_Config,
+              "Optimizer_Config": Optimizer_Config,
+              "Network_Config": Network_Config,
+              "num_epochs": epochs,
+              "n_eval_samples": n_eval_samples,
+              "project_name": args.project_name,
+              "disable_jit": args.disable_jit,
+              "sample_seed": args.sample_seed
+          }
+
+          trainer = TrainerClass(base_config)
+          trainer.train()
+
 
