@@ -185,7 +185,7 @@ class TrainerClass:
         Best_Energy_value_ever = np.infty
         Best_Free_Energy_value_ever = np.infty
 
-        save_metric_dict = {"Free_Energy_at_T=1": [], "epoch": []}
+        save_metric_dict = {"Free_Energy_at_T=1": [], "EUBO_at_T": [],  "n_eff": [], "epoch": []}
         pbar = trange(self.num_epochs)
         for epoch in pbar:
             T_curr = self.AnnealClass.update_temp()
