@@ -181,7 +181,7 @@ class TrainerClass:
     def train(self):
 
         params = self.params
-        key = jax.random.PRNGKey(0)
+        key = jax.random.PRNGKey(self.Network_Config["model_seed"])
         Best_Energy_value_ever = np.infty
         Best_Free_Energy_value_ever = np.infty
 
