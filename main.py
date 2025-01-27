@@ -327,48 +327,39 @@ if(__name__ == "__main__"):
                         "name": args.Energy_Config,
                         "dim_x": dim
                     }
-              elif(args.Energy_Config == "Funnel"):
-                  dim = args.n_particles
-                  Energy_Config = {
-                      "name": "Funnel",
-                      "dim_x": dim,
-                      "eta": 3,
-                      "scaling": args.Scaling_factor
-                  }
+                elif(args.Energy_Config == "Funnel"):
+                    dim = args.n_particles
+                    Energy_Config = {
+                        "name": "Funnel",
+                        "dim_x": dim,
+                        "eta": 3,
+                        "scaling": args.Scaling_factor
+                    }
 
-              elif(args.Energy_Config == "LGCP"):
-                  Energy_Config = {
-                      "name": "LGCP",  # Your 2D array of point coordinates
-                      "num_grid_per_dim": 40,      # Grid size (40x40=1600)
-                      "use_whitened": False,       # Whether to use whitened parameterization
-                      "dim_x": 1600,              # Total dimension (grid_size^2)
-                      "scaling": 1.0              # Required by base class
-                  }
+                elif(args.Energy_Config == "LGCP"):
+                    Energy_Config = {
+                        "name": "LGCP",  # Your 2D array of point coordinates
+                        "num_grid_per_dim": 40,      # Grid size (40x40=1600)
+                        "use_whitened": False,       # Whether to use whitened parameterization
+                        "dim_x": 1600,              # Total dimension (grid_size^2)
+                        "scaling": 1.0              # Required by base class
+                    }
 
-              elif(args.Energy_Config == "GermanCredit"):
-                  Energy_Config = {
-                      "name": "GermanCredit",
-                      "dim_x": 25,
-                  }
-              elif(args.Energy_Config == "MW54"):
-                  N = args.n_particles
-                  Energy_Config = {
-                      "name": args.Energy_Config,
-                      "d": N,
-                      "m": N,
-                      "dim_x": N + N,
-                  }
-                  n_eval_samples = 2000
+                elif(args.Energy_Config == "GermanCredit"):
+                    Energy_Config = {
+                        "name": "GermanCredit",
+                        "dim_x": 25,
+                    }
+                elif(args.Energy_Config == "MW54"):
+                    N = args.n_particles
+                    Energy_Config = {
+                        "name": args.Energy_Config,
+                        "d": N,
+                        "m": N,
+                        "dim_x": N + N,
+                    }
+                    n_eval_samples = 2000
 
-              else:
-                  raise ValueError("Energy Config not found")
-              Energy_Config["scaling"] = args.Scaling_factor
-
-              Network_Config["x_dim"] = Energy_Config["dim_x"]
-              if(Network_Config["model_mode"] == "latent"):
-                  SDE_Type_Config["use_interpol_gradient"] = False
-                  if(args.latent_dim == None):
-                      raise ValueError("Latent dim not defined")
                 else:
                     raise ValueError("Energy Config not found")
                 Energy_Config["scaling"] = args.Scaling_factor
@@ -379,7 +370,7 @@ if(__name__ == "__main__"):
                     if(args.latent_dim == None):
                         raise ValueError("Latent dim not defined")
                     else:
-                        Network_Config["latent_dim"] = args.latent_dim
+                        raise ValueError("Energy Config not found")
 
                 Anneal_Config = {
                     "name": args.AnnealSchedule,
@@ -390,6 +381,8 @@ if(__name__ == "__main__"):
                     "lam": 10.
                 }
 
+
+
             base_config = {
                 "EnergyConfig": Energy_Config,
                 "Anneal_Config": Anneal_Config,
@@ -399,23 +392,11 @@ if(__name__ == "__main__"):
                 "num_epochs": epochs,
                 "n_eval_samples": n_eval_samples,
                 "project_name": args.project_name,
-                "disable_jit": args.disable_jit
+                "disable_jit": args.disable_jit,
+                "sample_seed": args.sample_seed
             }
 
-          base_config = {
-              "EnergyConfig": Energy_Config,
-              "Anneal_Config": Anneal_Config,
-              "SDE_Loss_Config": SDE_Loss_Config,
-              "Optimizer_Config": Optimizer_Config,
-              "Network_Config": Network_Config,
-              "num_epochs": epochs,
-              "n_eval_samples": n_eval_samples,
-              "project_name": args.project_name,
-              "disable_jit": args.disable_jit,
-              "sample_seed": args.sample_seed
-          }
-
-          trainer = TrainerClass(base_config)
-          trainer.train()
+            trainer = TrainerClass(base_config)
+            trainer.train()
 
 

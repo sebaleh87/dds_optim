@@ -25,7 +25,8 @@ class EGNNBaseClass(nn.Module):
     def __call__(self, in_dict, train = False, forw_mode = "diffusion"):
         ### TODO rewrite code so that __call__ is allways applied with vmap
         if(self.use_normal):
-            copy_grads = jax.lax.stop_gradient(in_dict["grads"])
+            grads = in_dict["grads"]
+            grads_detached = jax.lax.stop_gradient(in_dict["grads"])
             in_dict["grads"] = jnp.zeros_like(in_dict["grads"])
             in_dict["Energy_value"] = jax.lax.stop_gradient(jnp.zeros_like(in_dict["Energy_value"]))
         else:
@@ -52,12 +53,11 @@ class EGNNBaseClass(nn.Module):
         x_score = out_dict["x"]
         h_score = out_dict["x_hidden"]
         
-        grads = copy_grads
 
         if(self.use_normal):
             clip_value = 20
             clip_overall_score = 10**4
-            grads_norm = jnp.linalg.norm(grads, axis = -1, keepdims = True)
+            grads_norm = jnp.linalg.norm(grads_detached, axis = -1, keepdims = True)
             clipped_grads = jnp.where(grads_norm > clip_value, clip_value*grads/grads_norm, grads)
             
             grad_score = h_score * clipped_grads
@@ -68,7 +68,9 @@ class EGNNBaseClass(nn.Module):
             resh_score = clipped_score.reshape(-1, self.n_particles, self.particle_dim)
             resh_COM_score = resh_score - jnp.mean(resh_score, axis = 1, keepdims=   True)
             COM_score = resh_COM_score.reshape(-1, self.particle_dim*self.n_particles)
-            out_dict["score"] = COM_score
+
+
+            out_dict["score"] = COM_score + grads/2
             return out_dict
         else:
             out_dict["score"] = x_score

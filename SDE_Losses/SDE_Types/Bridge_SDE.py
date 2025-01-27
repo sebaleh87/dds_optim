@@ -37,9 +37,8 @@ class Bridge_SDE_Class(Base_SDE_Class):
         mean = self.get_mean_prior(SDE_params)
         #print("VP_SDE", x.shape, mean.shape, sigma.shape)
         if(self.invariance):
-            raise ValueError("not implemented")
-            overall_sigma = self.return_prior_covar(SDE_params, sigma_scale_factor=sigma_scale_factor)
-            log_pdf_vec =  jax.scipy.stats.norm.logpdf(x, loc=mean, scale=overall_sigma) + 0.5*jnp.log(2 * jnp.pi * overall_sigma)/overall_sigma.shape[0]*self.Energy_Class.particle_dim
+            prior_sigma = self.return_prior_covar(SDE_params, sigma_scale_factor=sigma_scale_factor)
+            log_pdf_vec =  jax.scipy.stats.norm.logpdf(x, loc=mean, scale=prior_sigma) + 0.5*jnp.log(2 * jnp.pi * prior_sigma)/prior_sigma.shape[0]*self.Energy_Class.particle_dim
             return jnp.sum(log_pdf_vec, axis = -1)
         else:
             prior_sigma = self.return_prior_covar(SDE_params, sigma_scale_factor=sigma_scale_factor)
