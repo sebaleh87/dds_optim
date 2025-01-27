@@ -43,7 +43,7 @@ def load_german_credit_dataset(file_path):
 # Main execution
 if __name__ == "__main__":
     # Define the folder to save the dataset
-    folder = "datasets"
+    folder = "/system/user/publicwork/bartmann/DDS_Optim/EnergyFunctions/EnergyData/Datasets"
     
     # Download the dataset
     dataset_path = download_german_credit_dataset(save_folder=folder)

@@ -70,5 +70,6 @@ class GaussianMixtureClass(EnergyModelClass):
         samples = np.array([np.random.normal(self.means[component], np.sqrt(self.variances[component])) for component in components])
         return samples
 
+
     
     

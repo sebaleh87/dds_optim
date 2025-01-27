@@ -13,6 +13,7 @@ import pickle
 import os
 from utils.rotate_vector import rotate_vector
 from matplotlib import pyplot as plt
+from Metrics.optimal_transport import SD  # Import the Sinkhorn divergence class
 
 class TrainerClass:
     def __init__(self, base_config):
@@ -26,6 +27,12 @@ class TrainerClass:
         self.model = get_network(self.Network_Config, self.SDE_Loss_Config)
 
         self.EnergyClass = get_Energy_class(Energy_Config)
+
+        # Generate ground truth samples for SD metric if available
+        if hasattr(self.EnergyClass, 'has_tractable_distribution') and self.EnergyClass.has_tractable_distribution:
+            key = jax.random.PRNGKey(self.config["sample_seed"])  # Use configured seed for reproducibility
+            self.gt_samples = self.EnergyClass.generate_samples(key, self.config["n_eval_samples"])
+            self.sd_calculator = SD(self.gt_samples, epsilon=1e-3)
 
         self._init_wandb()
         self.AnnealClass = get_AnnealSchedule_class(AnnealConfig)
@@ -185,7 +192,11 @@ class TrainerClass:
         Best_Energy_value_ever = np.infty
         Best_Free_Energy_value_ever = np.infty
 
+
+        # Initialize metric history dictionary
+        metric_history = {}
         save_metric_dict = {"Free_Energy_at_T=1": [], "EUBO_at_T": [],  "n_eff": [], "epoch": []}
+
         pbar = trange(self.num_epochs)
         for epoch in pbar:
             T_curr = self.AnnealClass.update_temp()
@@ -195,7 +206,32 @@ class TrainerClass:
                 for sample_mode in sampling_modes:
                     n_samples = self.config["n_eval_samples"]
                     SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Interpol_params, self.SDE_LossClass.SDE_params, T_curr, key, sample_mode = sample_mode, n_integration_steps = self.n_integration_steps, n_states = n_samples)
+                    # Store metrics in history
+                    for metric_name, value in out_dict.items():
+                        full_metric_name = f"eval_{sample_mode}/{metric_name}"
+                        if full_metric_name not in metric_history:
+                            metric_history[full_metric_name] = []
+                        metric_history[full_metric_name].append(float(np.mean(value)))
+                    
                     wandb.log({ f"eval_{sample_mode}/{key}": np.mean(out_dict[key]) for key in out_dict.keys()}, step=epoch+1)
+
+                    # Calculate Sinkhorn divergence if the energy model has a tractable distribution
+                    if hasattr(self, 'sd_calculator'):
+                        model_samples = out_dict["X_0"][0:n_samples]
+                        distance = self.sd_calculator.compute_SD(model_samples)
+                        approximate_distance = self.sd_calculator.compute_approximate_W2(model_samples)
+                        
+                        # Store Sinkhorn metrics
+                        sd_metric_name = f"eval_{sample_mode}/sinkhorn_divergence"
+                        w2_metric_name = f"eval_{sample_mode}/approximate_W2"
+                        if sd_metric_name not in metric_history:
+                            metric_history[sd_metric_name] = []
+                            metric_history[w2_metric_name] = []
+                        metric_history[sd_metric_name].append(float(distance))
+                        metric_history[w2_metric_name].append(float(approximate_distance))
+                        
+                        wandb.log({sd_metric_name: distance}, step=epoch+1)
+                        wandb.log({w2_metric_name: approximate_distance}, step=epoch+1)
 
                     self.plot_figures(SDE_tracer, epoch, sample_mode = sample_mode)
 
@@ -297,6 +333,10 @@ class TrainerClass:
         
         self.plot_figures(SDE_tracer, epoch)
 
+        # After training loop, calculate and log running averages
+        running_avg_table = self._calculate_running_averages(metric_history)
+        wandb.log({"final_metrics": running_avg_table})
+
         wandb.finish()
         return params
     
@@ -338,6 +378,23 @@ class TrainerClass:
         with open(script_dir + filename, "wb") as f:
             pickle.dump(data, f)
 
+
+    def _calculate_running_averages(self, metric_history, window_size=5):
+        """Calculate running averages for all metrics and create a wandb table."""
+        table = wandb.Table(columns=["Metric", "Last Value", f"Last {window_size} Avg"])
+        
+        for metric_name, values in metric_history.items():
+            if len(values) > 0:
+                last_value = values[-1]
+                # Calculate running average of last window_size values
+                last_n = values[-window_size:] if len(values) >= window_size else values
+                running_avg = sum(last_n) / len(last_n)
+                
+                # Add row to table
+                table.add_data(metric_name, f"{last_value:.6f}", f"{running_avg:.6f}")
+        
+        return table
+
     def save_metric_curves(self, save_metric_dict):
         script_dir = os.path.dirname(os.path.abspath(__file__)) + "Checkpoints/" + self.wandb_id + "/"
         if not os.path.isdir(script_dir):
@@ -345,4 +402,5 @@ class TrainerClass:
         
         with open(script_dir + f"metric_dict.pkl", "wb") as f:
             pickle.dump(save_metric_dict, f)
+
 
