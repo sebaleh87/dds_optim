@@ -63,6 +63,11 @@ class Base_SDE_Class:
     def get_div_drift(self, SDE_params, t):
         raise NotImplementedError("get_diffusion method not implemented")
 
+    def get_Interpol_params(self):
+        InterpoL_params = {"beta_interpol_params": jnp.ones((self.n_integration_steps)),
+                            "repulsion_interpol_params": jnp.ones((self.n_integration_steps))}
+        return InterpoL_params
+
     def get_SDE_params(self):
         raise NotImplementedError("get_diffusion method not implemented")
 
@@ -95,12 +100,16 @@ class Base_SDE_Class:
         return x_prior, key
     
     
-    def vmap_prior_target_grad_interpolation(self, x, counter, Energy_params, SDE_params, temp, key):
+    def vmap_prior_target_grad_interpolation(self, x, counter, Energy_params, SDE_params, temp, key, clip_overall_score = 10**3):
         key, subkey = random.split(key)
         batched_subkey = random.split(subkey, x.shape[0])
         vmap_energy, vmap_grad = jax.vmap(self.prior_target_grad_interpolation, in_axes=(0, 0, None, None, None, 0))(x, counter, Energy_params, SDE_params, temp, batched_subkey)
         #print("vmap_grad", jnp.mean(jax.lax.stop_gradient(vmap_grad)))
         vmap_grad = jnp.where(jnp.isfinite(vmap_grad), vmap_grad, 0)
+        vmap_grad = jnp.where(jnp.isnan(vmap_grad), 0, vmap_grad)
+        #vmap_grad = jnp.clip(vmap_grad, -10**4, 10**4)
+        grad_norm = jnp.linalg.norm(vmap_grad, axis = -1, keepdims = True)
+        vmap_grad = jnp.where(grad_norm > clip_overall_score, clip_overall_score*vmap_grad/grad_norm, vmap_grad)
 
         #vmap_div_energy, vmap_grad_div = self.get_diversity_log_prob_grad(x,counter,SDE_params) 
         vmap_energy = vmap_energy #+ vmap_div_energy
@@ -125,7 +134,6 @@ class Base_SDE_Class:
 
         beta_interpol = self.compute_energy_interpolation_time(interpolation_params, counter, SDE_param_key = "beta_interpol_params")
         Energy_value, key = self.Energy_Class.calc_energy(x, Energy_params, key)
-        #log_prior_params = jax.lax.stop_gradient(SDE_params)
         log_prior_params = SDE_params
         log_prior = self.get_log_prior(log_prior_params,x)  ### only stop gradient for log prior but not for beta_interpol or x
         interpol = (beta_interpol)*log_prior  - (1-beta_interpol)*Energy_value / clipped_temp
@@ -169,13 +177,14 @@ class Base_SDE_Class:
     def return_sigma_scale_factor(self, scale_strength, shape, key):
         key, subkey = random.split(key)
         #TODO the following distribution produces heavy outliers! Fat tail distribution
-        if scale_strength:
-            # sigma_scale_factor = 1+(jax.random.normal(subkey, shape)*scale_strength)**2
-            sigma_scale_factor = 1+(jax.random.uniform(subkey, shape)*scale_strength)
-            # sigma_scale_factor = jnp.abs(1+jax.random.normal(subkey, shape)*scale_strength)
+        if self.config['use_off_policy']:
+            sigma_scale_factor = 1 + jax.random.exponential(subkey, shape) * scale_strength
+            log_prob = jnp.zeros((shape[0],))# jnp.sum(jax.scipy.stats.expon.logpdf(sigma_scale_factor - 1, scale=1/scale_strength), axis = -1)
+
         else:
-            sigma_scale_factor = 1.
-        return sigma_scale_factor, key
+            sigma_scale_factor = 1.*jnp.ones((shape[0],))
+            log_prob = jnp.zeros((shape[0],))
+        return sigma_scale_factor, log_prob, key
     
 
     def get_diffusion(self, SDE_params, x, t):
@@ -297,21 +306,40 @@ class Base_SDE_Class:
             score = out_dict["score"]
         return score, new_hidden_state, grad, key
     
-    def simulate_reverse_sde_scan(self, model, params, Energy_params, SDE_params, temp, key, n_states = 100, sample_mode = "train", n_integration_steps = 1000):
-        
+    def get_sigma_noise(self,  n_states, key, sample_mode, temp):
+        ### if self.config['use_off_policy'] true temp is not treated as a temperature but as an annealed scaling for self.sigma_scale_factor, assumes temp >= 1.
         shape= [n_states, self.dim_x]
         if self.config['use_off_policy']:    
-            if(sample_mode == "train" or sample_mode == "val"):
-                sigma_scale, key = self.return_sigma_scale_factor(self.sigma_scale_factor, shape, key)
+            annealed_scale = temp - 1. 
+            if(sample_mode == "train"):
+                sigma_scale, scale_log_prob, key = self.return_sigma_scale_factor(self.sigma_scale_factor*annealed_scale, shape, key)
+            elif(sample_mode == "val"):
+                sigma_scale, scale_log_prob, key = self.return_sigma_scale_factor(self.sigma_scale_factor*annealed_scale, shape, key)
+                # sigma_scale = (self.sigma_scale_factor**2 + 1)*jnp.ones(shape)    #this is the mode, not the expectation value
+                # scale_log_prob = jnp.zeros((n_states,))
             else:
                 sigma_scale = 1.*jnp.ones(shape)
+                scale_log_prob = jnp.zeros((n_states,))
+
+            temp = 1.
         else:
+            temp = temp
             sigma_scale = 1.*jnp.ones(shape)
+            scale_log_prob = jnp.zeros((n_states,))
+
+        return sigma_scale, scale_log_prob, temp, key
+    
+    def simulate_reverse_sde_scan(self, model, params, Interpol_params, SDE_params, temp, key, n_states = 100, sample_mode = "train", n_integration_steps = 1000):
+        
+        for interpol_key in Interpol_params.keys():
+            SDE_params[interpol_key] = Interpol_params[interpol_key]
+
+        sigma_scale, scale_log_prob, temp, key = self.get_sigma_noise(n_states, key, sample_mode, temp)
 
         def scan_fn(carry, step):
             x, t, counter, key, carry_dict = carry
             hidden_state = carry_dict["hidden_state"]
-            score, new_hidden_state, grad, key = self.apply_model(model, x, t, counter, params, Energy_params, SDE_params, hidden_state, temp, key)
+            score, new_hidden_state, grad, key = self.apply_model(model, x, t, counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
             carry_dict["hidden_state"] = new_hidden_state
 
             dt = self.reversed_dt_values[step]
@@ -362,6 +390,8 @@ class Base_SDE_Class:
         )
 
         SDE_tracker = {
+            "scale_log_prob": scale_log_prob,
+            "noise_scale": sigma_scale,
             "dW": SDE_tracker_steps["dW"],
             "xs": SDE_tracker_steps["xs"],
             "ts": SDE_tracker_steps["ts"],

@@ -96,7 +96,7 @@ class TrainerClass:
             x_centered_rot = jax.vmap(jax.vmap(rotate_vector, in_axes=(0, None)), in_axes=(0, None))(x_centered_resh, rot)
             x_centered_resh_rot =  x_centered_rot.reshape((batch_size, self.dim_x)) 
 
-            vmap_energy, vmap_grad, key = self.SDE_LossClass.SDE_type.vmap_prior_target_grad_interpolation(x_centered_resh_rot, 0., self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, key)
+            vmap_energy, vmap_grad, key = self.SDE_LossClass.SDE_type.vmap_prior_target_grad_interpolation(x_centered_resh_rot, 0., self.SDE_LossClass.Interpol_params, self.SDE_LossClass.SDE_params, key)
 
             grad_init = vmap_grad
             Energy_value = vmap_energy
@@ -188,12 +188,14 @@ class TrainerClass:
     def train(self):
 
         params = self.params
-        key = jax.random.PRNGKey(0)
+        key = jax.random.PRNGKey(self.Network_Config["model_seed"])
         Best_Energy_value_ever = np.infty
         Best_Free_Energy_value_ever = np.infty
 
+
         # Initialize metric history dictionary
         metric_history = {}
+        save_metric_dict = {"Free_Energy_at_T=1": [], "EUBO_at_T": [],  "n_eff": [], "epoch": []}
 
         pbar = trange(self.num_epochs)
         for epoch in pbar:
@@ -203,8 +205,7 @@ class TrainerClass:
                 sampling_modes = [ "val", "eval"]
                 for sample_mode in sampling_modes:
                     n_samples = self.config["n_eval_samples"]
-                    SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, T_curr, key, sample_mode = sample_mode, n_integration_steps = self.n_integration_steps, n_states = n_samples)
-                    
+                    SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Interpol_params, self.SDE_LossClass.SDE_params, T_curr, key, sample_mode = sample_mode, n_integration_steps = self.n_integration_steps, n_states = n_samples)
                     # Store metrics in history
                     for metric_name, value in out_dict.items():
                         full_metric_name = f"eval_{sample_mode}/{metric_name}"
@@ -242,11 +243,11 @@ class TrainerClass:
 
                 self.check_improvement(params, Best_Energy_value_ever, np.min(Energy_values), "Energy", epoch=epoch+1)
 
-                if("beta_interpol_params" in self.SDE_LossClass.SDE_params.keys()):
-                    beta_interpol_params = self.SDE_LossClass.SDE_params["beta_interpol_params"]
+                if("beta_interpol_params" in self.SDE_LossClass.Interpol_params.keys()):
+                    beta_interpol_params = self.SDE_LossClass.Interpol_params["beta_interpol_params"]
                     steps = np.arange(0,len(beta_interpol_params) +1)
 
-                    interpol_time = [self.SDE_LossClass.SDE_type.compute_energy_interpolation_time(self.SDE_LossClass.SDE_params, t, SDE_param_key = "beta_interpol_params") for t in range(len(beta_interpol_params) + 1)]
+                    interpol_time = [self.SDE_LossClass.SDE_type.compute_energy_interpolation_time(self.SDE_LossClass.Interpol_params, t, SDE_param_key = "beta_interpol_params") for t in range(len(beta_interpol_params) + 1)]
 
                     fig, ax = plt.subplots()
 
@@ -258,11 +259,11 @@ class TrainerClass:
                     wandb.log({"fig/Beta_Interpolation_Parameters": wandb.Image(fig)})
                     plt.close(fig)
 
-                if("repulsion_interpol_params" in self.SDE_LossClass.SDE_params.keys()):
+                if("repulsion_interpol_params" in self.SDE_LossClass.Interpol_params.keys()):
                     #beta_interpol_params = self.SDE_LossClass.SDE_params["repulsion_interpol_params"]
                     steps = np.arange(0,len(beta_interpol_params) +1)
 
-                    interpol_time = np.array([self.SDE_LossClass.SDE_type.compute_energy_interpolation_time(self.SDE_LossClass.SDE_params, t, SDE_param_key = "repulsion_interpol_params") for t in range(len(beta_interpol_params) + 1)])
+                    interpol_time = np.array([self.SDE_LossClass.SDE_type.compute_energy_interpolation_time(self.SDE_LossClass.Interpol_params, t, SDE_param_key = "repulsion_interpol_params") for t in range(len(beta_interpol_params) + 1)])
 
                     fig, ax = plt.subplots()
 
@@ -310,6 +311,13 @@ class TrainerClass:
             pbar.set_description(f"mean_loss {mean_loss:.4f}, best energy: {Best_Energy_value_ever:.4f}")
 
             Free_Energy_values = np.mean(self.aggregated_out_dict["Free_Energy_at_T=1"])
+            for save_key in save_metric_dict.keys():
+                if(save_key in self.aggregated_out_dict.keys()):
+                    save_metric_dict[save_key].append(np.mean(self.aggregated_out_dict[save_key]))
+
+            save_metric_dict["epoch"].append(epoch)
+            self.save_metric_curves(save_metric_dict)
+
             self.check_improvement(params, Best_Free_Energy_value_ever, Free_Energy_values, "Free_Energy_at_T=1", epoch, figs = None)
 
             del self.aggregated_out_dict
@@ -317,11 +325,11 @@ class TrainerClass:
 
         param_dict = self.load_params_and_config(filename="best_Free_Energy_at_T=1_checkpoint.pkl")
 
-        self.SDE_LossClass.Energy_params = param_dict["Energy_params"]
+        self.SDE_LossClass.Interpol_params = param_dict["Interpol_params"]
         self.SDE_LossClass.SDE_params = param_dict["SDE_params"]
 
         n_samples = self.config["n_eval_samples"]
-        SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Energy_params, self.SDE_LossClass.SDE_params, T_curr, key, sample_mode = "eval", n_integration_steps = self.n_integration_steps, n_states = n_samples)
+        SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Interpol_params, self.SDE_LossClass.SDE_params, T_curr, key, sample_mode = "eval", n_integration_steps = self.n_integration_steps, n_states = n_samples)
         
         self.plot_figures(SDE_tracer, epoch)
 
@@ -370,6 +378,7 @@ class TrainerClass:
         with open(script_dir + filename, "wb") as f:
             pickle.dump(data, f)
 
+
     def _calculate_running_averages(self, metric_history, window_size=5):
         """Calculate running averages for all metrics and create a wandb table."""
         table = wandb.Table(columns=["Metric", "Last Value", f"Last {window_size} Avg"])
@@ -385,4 +394,13 @@ class TrainerClass:
                 table.add_data(metric_name, f"{last_value:.6f}", f"{running_avg:.6f}")
         
         return table
+
+    def save_metric_curves(self, save_metric_dict):
+        script_dir = os.path.dirname(os.path.abspath(__file__)) + "Checkpoints/" + self.wandb_id + "/"
+        if not os.path.isdir(script_dir):
+            os.makedirs(script_dir)
+        
+        with open(script_dir + f"metric_dict.pkl", "wb") as f:
+            pickle.dump(save_metric_dict, f)
+
 

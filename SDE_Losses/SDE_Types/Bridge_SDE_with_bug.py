@@ -10,7 +10,7 @@ from matplotlib import pyplot as plt
 from .Base_SDE import Base_SDE_Class
 
 ### Bridge as in SEQUENTIAL CONTROLLED LANGEVIN DIFFUSIONS
-class Bridge_SDE_Class(Base_SDE_Class):
+class Bridge_SDE_with_CMCD_bug_Class(Base_SDE_Class):
     def __init__(self, SDE_Type_Config, Network_Config, Energy_Class):
         super().__init__(SDE_Type_Config, Network_Config, Energy_Class)
         self.vmap_get_log_prior = jax.vmap(self.get_log_prior, in_axes=(None, 0, 0))
@@ -150,7 +150,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
         scaled_diffusion = diffusion*sigma_scale_factor
 
         reverse_drift_t_g_s = self.compute_reverse_drift(scaled_diffusion, score, grad) #TODO check is this power of two correct? I think yes because U = diffusion*score
-        x_drift_update = reverse_drift_t_g_s
+        x_drift_update = reverse_drift_t_g_s + scaled_diffusion**2 *grad/2
 
         dx, log_prob_noise, key = self.sample_noise(SDE_params, x, t, dt, key, sigma_scale_factor = sigma_scale_factor)
 
@@ -243,12 +243,13 @@ class Bridge_SDE_Class(Base_SDE_Class):
         x_prev = xs[:-1]
         x_next = xs[1:]
         diffusion_prev = diffusions[0:-1]
-        diffusion_next = diffusions[1:]
-        grads_next = interpol_grads[1:]
+        diffusion_next = diffusions[0:-1]
+        grads_prev = interpol_grads[:-1]
+        grads_next = interpol_grads[1:] ### intentionally included bug as in CMCD
         reverse_drifts_next = reverse_drifts[1:]
         reverse_drifts_prev = reverse_drifts[0:-1]
 
-        forward_drift = (diffusion_next**2*grads_next - reverse_drifts_next)
+        forward_drift = (diffusion_prev**2*grads_prev  - (reverse_drifts_next + diffusion_prev**2*grads_prev/2)) ### this is supposed to reproduce the bug in CMCD assumes taht diffusion does not change with time
         x_pos_next = x_next + forward_drift*dt
 
 
