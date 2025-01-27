@@ -32,6 +32,7 @@ class Base_SDE_Loss_Class:
         self.Interpol_params_state = self.Interpol_params_optimizer.init(self.Interpol_params)
 
         self.SDE_params = self.SDE_type.get_SDE_params()
+        self.init_SDE_params = self.SDE_params
         self.SDE_lr = Optimizer_Config["SDE_lr"]
         self.SDE_params_optimizer = self.init_SDE_params_optimizer()
         self.SDE_params_state = self.SDE_params_optimizer.init(self.SDE_params)
@@ -111,12 +112,16 @@ class Base_SDE_Loss_Class:
         SDE_params_updates, SDE_params_state = self.SDE_params_optimizer.update(SDE_params_grad, SDE_params_state, SDE_params)
         SDE_params = optax.apply_updates(SDE_params, SDE_params_updates)
 
-        if( self.Optimizer_Config["learn_beta_mode"] == "None"):
+        if( self.Optimizer_Config["learn_SDE_params_mode"] == "all"):
             SDE_params["log_beta_min"] = jnp.log(self.SDE_type.config["beta_min"])*jnp.ones_like(SDE_params["log_beta_min"])
             SDE_params["log_beta_delta"] = jnp.log(self.SDE_type.config["beta_max"])*jnp.ones_like(SDE_params["log_beta_delta"])
-        elif( self.Optimizer_Config["learn_beta_mode"] == "max"):
-            SDE_params["log_beta_min"] = jnp.log(self.SDE_type.config["beta_min"])*jnp.ones_like(SDE_params["log_beta_min"])
-        elif( self.Optimizer_Config["learn_beta_mode"] == "min_and_max"):
+        elif( self.Optimizer_Config["learn_SDE_params_mode"] == "prior_only"):
+            for SDE_param_key in SDE_params.keys():
+                if(SDE_param_key == "log_sigma_prior" or SDE_param_key == "mean"):
+                    pass
+                else:
+                    SDE_params[SDE_param_key] = self.init_SDE_params[SDE_param_key]
+        elif( self.Optimizer_Config["learn_SDE_params_mode"] == "all_and_beta"):
             pass			
         
         return params, Interpol_params, SDE_params, opt_state, Interpol_params_state, SDE_params_state, loss_value, out_dict
@@ -199,8 +204,9 @@ class Base_SDE_Loss_Class:
     
     def compute_partition_sum(self, R_diff, S, log_prior, Energy, rec_dict, off_policy_weights = 1.):
         Z_estim = R_diff + S + log_prior + Energy
-        log_Z = jnp.mean(-Z_estim)
-        Free_Energy = -log_Z
+        log_Z = jax.scipy.special.logsumexp(-Z_estim) - jnp.log(Z_estim.shape[0]) ### TODO make this computation unbiased?
+        #log_Z = jnp.log(jnp.mean(jnp.exp(-Z_estim)))
+        #log_Z = jnp.mean(-Z_estim)
         log_weights = -Z_estim
         normed_weights = jax.nn.softmax(log_weights, axis = -1)
 
@@ -209,7 +215,8 @@ class Base_SDE_Loss_Class:
         NLL = -jnp.mean(R_diff + S + log_prior) 
 
         ELBO = jnp.mean(off_policy_weights*log_weights)
-        EUBO = jnp.mean(off_policy_weights*normed_weights*(log_weights))
+        EUBO = jnp.sum(off_policy_weights*normed_weights*(log_weights))
+        Free_Energy = -ELBO   ### THis is the variational free energy
         res_dict = {"Free_Energy_at_T=1": Free_Energy, "normed_weights": normed_weights, "log_Z_at_T=1": log_Z, "n_eff": n_eff, "NLL": NLL, "ELBO_at_T=1": ELBO, "EUBO_at_T=1": EUBO}
         rec_dict.update(res_dict)
         return rec_dict

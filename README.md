@@ -112,12 +112,12 @@ python main.py --SDE_Loss Bridge_LogVarLoss --Energy_Config Brownian --n_integra
 
 Bridge rKL LD fixed params: 
 ```
-python main.py --SDE_Loss Bridge_rKL_logderiv --Energy_Config Brownian --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 2000 --lr 0.005 --Energy_lr 0.0 --SDE_lr 0.0 --N_anneal 4000 --feature_dim 64 --n_hidden 64 --GPU 5 --beta_max 0.1 --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name stability_test --use_normal --SDE_Type Bridge_SDE --repulsion_strength 0.0 --sigma_init 0.2
+python main.py --SDE_Loss Bridge_rKL_logderiv --Energy_Config Brownian --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 2000 --lr 0.005 --SDE_lr 0.001 --learn_SDE_params_mode prior_only  --N_anneal 4000 --feature_dim 64 --n_hidden 64 --GPU 5 --beta_max 0.1 --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name stability_test --use_normal --SDE_Type Bridge_SDE --repulsion_strength 0.0 --sigma_init 0.2
 ```
 
 Bridge rKL LogVar fixed params: 
 ```
-python main.py --SDE_Loss Bridge_LogVarLoss --Energy_Config Brownian --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 2000 --lr 0.005 --Energy_lr 0.0 --SDE_lr 0.0 --N_anneal 4000 --feature_dim 64 --n_hidden 64 --GPU 4 --beta_max 0.1 --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name stability_test --use_normal --SDE_Type Bridge_SDE --repulsion_strength 0.0 --sigma_init 0.2
+python main.py --SDE_Loss Bridge_LogVarLoss --Energy_Config Brownian --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 2000 --lr 0.001 --Energy_lr 0.0 --SDE_lr 0.001 --learn_SDE_params_mode prior_only --N_anneal 4000 --feature_dim 64 --n_hidden 64 --GPU 4 --beta_max 0.1 --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name stability_test --use_normal --SDE_Type Bridge_SDE --repulsion_strength 0.0 --sigma_init 0.2
 ```
 
 
@@ -211,11 +211,11 @@ ELBO = -0.3
 ```--sigma_scale_factor 1.``` should be 1 and sigma scale strength is specified with ```--T_start``` where 1- T_start specifies the scale strength
 
 ```
-main.py --SDE_Loss Bridge_rKL_logderiv --Energy_Config GaussianMixture --n_integration_steps 128 --T_start 1.01 --T_end 1. --batch_size 2000 --lr 0.001 --Energy_lr 0.0 --SDE_lr 0.001 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 4 --beta_max 0.1 --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name log_deriv_rKL_off_policy --use_normal --SDE_Type Bridge_SDE --repulsion_strength 0.0 --sigma_init 1. --use_off_policy --sigma_scale_factor 1.
+python main.py --SDE_Loss Bridge_rKL_logderiv --Energy_Config GaussianMixture --n_integration_steps 128 --T_start 1.01 --T_end 1. --batch_size 2000 --lr 0.001 --Energy_lr 0.0 --SDE_lr 0.001 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 4 --beta_max 0.1 --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name log_deriv_rKL_off_policy --use_normal --SDE_Type Bridge_SDE --repulsion_strength 0.0 --sigma_init 1. --use_off_policy --sigma_scale_factor 1.
 ```
 
 
 ## Gaussian Mixture 50-D
 ```
-python main.py --SDE_Loss Bridge_rKL_logderiv --Energy_Config GaussianMixture --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 2000 --lr 0.005 --Energy_lr 0.0 --SDE_lr 0.005 --N_anneal 4000 --feature_dim 64 --n_hidden 64 --GPU 5 --beta_max 0.1 --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name final_runs --use_normal --SDE_Type Bridge_SDE --repulsion_strength 0.0 --sigma_init 40 --n_particles 50
+python main.py --SDE_Loss Bridge_rKL_logderiv --Energy_Config GaussianMixture --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 2000 --lr 0.001 --Energy_lr 0.01 --SDE_lr 0.0002 --N_anneal 4000 --feature_dim 64 --n_hidden 64 --GPU 5 --beta_max 2.0 --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name final_runs --use_normal --SDE_Type Bridge_SDE --sigma_init 40. --n_particles 50 --clip_value 1.
 ```
