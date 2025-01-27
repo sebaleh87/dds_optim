@@ -3,8 +3,26 @@
 ```
 conda env create -f environment.yml
 ```
+```
+conda activate /system/apps/userenv/bartmann/rayjay_clone_test
+```
 
-When installation crashes, do the following:
+When installation crashes, do the following: (WORK IN PROGRESS)
+```
+conda env create --file=environment_christoph.yml 
+conda activate rayjay_clone
+pip install --upgrade "jax[cuda12_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+pip install tqdm jraph matplotlib tqdm optax
+pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+pip install flax==0.8.1 igraph unipath wandb==0.15.0
+pip install tfp-nightly inference_gym
+pip install numpyro
+pip install scikit-learn
+```
+
+
+
+When installation crashes, do the following: (STALE)
 ```
 conda activate rayjay_clone
 pip install --upgrade "jax[cuda12_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
