@@ -235,7 +235,7 @@ python main.py --SDE_Loss Bridge_rKL_logderiv --Energy_Config GaussianMixture --
 
 ## Gaussian Mixture 50-D
 ```
-python main.py --SDE_Loss Bridge_rKL_logderiv --Energy_Config GaussianMixture --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 2000 --lr 0.001 --Energy_lr 0.01 --SDE_lr 0.0002 --N_anneal 4000 --feature_dim 64 --n_hidden 64 --GPU 5 --beta_max 2.0 --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name final_runs --use_normal --SDE_Type Bridge_SDE --sigma_init 40. --n_particles 50 --clip_value 1.
+python main.py --SDE_Loss Bridge_rKL_logderiv --Energy_Config GaussianMixture --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 2000 --lr 0.001 --Interpol_lr 0.01 --SDE_lr 0.0002 --N_anneal 4000 --feature_dim 64 --n_hidden 64 --GPU 5 --beta_max 2.0 --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name final_runs --use_normal --SDE_Type Bridge_SDE --sigma_init 40. --n_particles 50 --clip_value 1.
 ```
 
 
@@ -271,7 +271,7 @@ ELBO of this config: 12.14 \
 python main.py --SDE_Loss Bridge_rKL_logderiv --Energy_Config MW54 --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 2000 --lr 0.001 --Energy_lr 0.0 --SDE_lr 0.001 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 6 --beta_max 0.1 --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type Bridge_SDE --repulsion_strength 0.0 --sigma_init 1. --n_particles 10
 ```
 
-## LGCP good config
+### LGCP good config
 
 ELBO Literature DDS: Unknown \
 ELBO Literature PIS: 479.54 \
@@ -283,8 +283,10 @@ Best known ELBO Literature: 497.85
 
 ### Bridge
 ELBO of this config: 461.25 \
+
 ```
-python main.py --SDE_Loss Bridge_rKL_logderiv --Energy_Config LGCP --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 1000 --lr 0.001 --Energy_lr 0.0 --SDE_lr 0.001 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 2 --beta_max 0.1 --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type Bridge_SDE --repulsion_strength 0.0 --sigma_init 2.```
+python main.py --SDE_Loss Bridge_rKL_logderiv --Energy_Config LGCP --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 300 --lr 0.003 --SDE_lr 0.003 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 1 --beta_max 0.1 --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type Bridge_SDE --repulsion_strength 0.0 --sigma_init 2.
+```
 
 
 ## German Credit good config
@@ -300,5 +302,5 @@ Best known ELBO Literature: -504.46
 ### Bridge
 ELBO of this config: -504.62 \
 ```
-python main.py --SDE_Loss Bridge_rKL_logderiv --Energy_Config GermanCredit --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 2000 --lr 0.001 --Energy_lr 0.0 --SDE_lr 0.001 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 6 --beta_max 0.1 --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type Bridge_SDE --repulsion_strength 0.0 --sigma_init 1
+python main.py --SDE_Loss Bridge_rKL_logderiv --Energy_Config GermanCredit --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 2000 --lr 0.002 0.005 --Energy_lr 0.0 --SDE_lr 0.002 0.005 --N_anneal 6000 --feature_dim 64 --n_hidden 64 --GPU 3 --beta_max 0.1 --beta_min 0.01 --use_interpol_gradient --Network_Type FeedForward --project_name FeedForward --use_normal --SDE_Type Bridge_SDE --repulsion_strength 0.0 --sigma_init 1.
 ```

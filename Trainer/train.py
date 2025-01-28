@@ -183,7 +183,7 @@ class TrainerClass:
         if(fig_last_samples_dict != None):
             overall_dict.update(fig_last_samples_dict)
 
-        wandb.log({f"figs_{sample_mode}/{key}": overall_dict[key] for key in overall_dict}, step=epoch+1)
+        wandb.log({f"figs_{sample_mode}/{key}": overall_dict[key] for key in overall_dict})
 
     def train(self):
 
@@ -235,10 +235,6 @@ class TrainerClass:
 
                     self.plot_figures(SDE_tracer, epoch, sample_mode = sample_mode)
 
-                    if(self.EnergyClass.config["name"] == "DoubleMoon"):
-                        n_samples = 5
-                        self.EnergyClass.visualize_models(out_dict["X_0"][0:n_samples])
-
                 Energy_values = self.SDE_LossClass.vmap_Energy_function(SDE_tracer["y_final"])
 
                 self.check_improvement(params, Best_Energy_value_ever, np.min(Energy_values), "Energy", epoch=epoch+1)
@@ -274,10 +270,21 @@ class TrainerClass:
                     ax.legend()
                     wandb.log({"fig/repulsion_interpol_params": wandb.Image(fig)})
                     plt.close(fig)
+
+                if("log_sigma" in self.SDE_LossClass.SDE_params):
+                    sigma = np.exp(self.SDE_LossClass.SDE_params["log_sigma"])
+                    print("simga_Type", type(sigma))
+                    if(type(sigma) == jnp.ndarray):
+                        sigma_sorted = np.sort(sigma)
+                        fig, ax = plt.subplots()
+                        ax.scatter(np.arange(len(sigma_sorted)), sigma_sorted)
+                        ax.set_xlabel('Steps')
+                        ax.set_ylabel('Sigma')
+                        ax.set_title('Sorted Sigma over Steps')
+                        wandb.log({"fig/Sorted_Sigma_Scatter": wandb.Image(fig)})
+                        plt.close(fig)
+
                     
-
-
-
             loss_list = []
             for i in range(self.Optimizer_Config["steps_per_epoch"]):
                 start_grad_time = time.time()

@@ -122,6 +122,8 @@ class Base_SDE_Loss_Class:
                 else:
                     SDE_params[SDE_param_key] = self.init_SDE_params[SDE_param_key]
         elif( self.Optimizer_Config["learn_SDE_params_mode"] == "all_and_beta"):
+            if(self.SDE_type.config["name"] == "Bridge_SDE"):
+                SDE_params["log_sigma"] = jnp.log(1.)*jnp.ones_like(SDE_params["log_sigma"]) ### log sigma does not exist in config as it is controled via beta
             pass			
         
         return params, Interpol_params, SDE_params, opt_state, Interpol_params_state, SDE_params_state, loss_value, out_dict
@@ -157,7 +159,8 @@ class Base_SDE_Loss_Class:
 
         self.Interpol_schedule = self._init_lr_schedule(l_max, l_start, lr_min, overall_steps, warmup_steps)
         #optimizer = optax.adam(self.schedule)
-        optimizer = optax.chain( optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.Interpol_schedule(epoch)))
+        clip_value = self.Optimizer_Config["clip_value"]
+        optimizer = optax.chain(optax.zero_nans(), optax.clip_by_global_norm(clip_value), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.Interpol_schedule(epoch)))
         return optimizer
     
     def init_SDE_params_optimizer(self):
