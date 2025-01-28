@@ -204,141 +204,6 @@ if(__name__ == "__main__"):
                     "update_params_mode": args.update_params_mode,
                     
                 }
-
-                loc_scaling = args.Scaling_factor
-                var_scaling = args.Variances
-                mean = (torch.rand((num_gaussians, dim)) - 0.5)*2*loc_scaling
-                variances = torch.ones((num_gaussians, dim)) * var_scaling
-                Energy_Config = {
-                    "name": "GaussianMixture",
-                    "dim_x": dim,
-                    "means": mean,
-                    "variances": variances,
-                    "weights": [1/num_gaussians for i in range(num_gaussians)],
-                    "num_modes": num_gaussians
-                }
-            elif(args.Energy_Config == "Rastrigin"):
-                dim = args.n_particles
-                Energy_Config = {
-                    "name": "Rastrigin",
-                    "dim_x": dim,
-                    "shift": 5.0
-                }
-            elif(args.Energy_Config == "Pytheus"):
-                n_eval_samples = 100
-                Energy_Config = {
-                    "name": "Pytheus",
-                    "challenge_index": args.Pytheus_challenge,
-                }
-
-            elif("LennardJones" in args.Energy_Config):
-                n_eval_samples = 1000
-                Network_Config["base_name"] = "EGNN"
-                N = args.n_particles
-                out_dim = 3
-                Network_Config["n_particles"] = N
-                Network_Config["out_dim"] = out_dim 
-                Energy_Config = {
-                    "name": args.Energy_Config,
-                    "N": N,
-                    "dim_x": N*out_dim,
-                }
-            elif("DoubleWellEquivariant" in args.Energy_Config):
-                Network_Config["base_name"] = "EGNN"
-                N = 4
-                out_dim = 2
-                Network_Config["n_particles"] = N
-                Network_Config["out_dim"] = out_dim 
-                Energy_Config = {
-                    "name": args.Energy_Config,
-                    "N": N,
-                    "dim_x": N*out_dim,
-                }
-            elif("DoubleWell" in args.Energy_Config):
-                N = args.n_particles
-                Energy_Config = {
-                    "name": args.Energy_Config,
-                    "d": N,
-                    "m": N,
-                    "dim_x": N + N,
-                }
-
-            elif("WavePINN" in args.Energy_Config):
-                Energy_Config = {
-                    "name": args.Energy_Config,
-                    "dim_x": 3, ### x dim is here the latent dim
-                    "d_in": 1,
-                    "l1_d": 64,
-                    "l2_d": 64,
-                    "d_out": 1,
-                }
-                n_eval_samples = 10
-            elif("DoubleMoon" in args.Energy_Config):
-                Energy_Config = {
-                    "name": args.Energy_Config,
-                    "d_in": 1,
-                    "l1_d": 64,
-                    "l2_d": 64,
-                    "d_out": 1,
-                }
-                n_eval_samples = 10
-            elif("Banana" in args.Energy_Config or "Brownian" in args.Energy_Config or "Lorenz" in args.Energy_Config):
-                from EnergyFunctions.EnergyData.BrownianData import load_model_gym
-                _, dim = load_model_gym(args.Energy_Config)
-                Energy_Config = {
-                    "name": args.Energy_Config,
-                    "dim_x": dim
-                }
-            elif("Seeds" in args.Energy_Config or "Ionosphere" in args.Energy_Config or "Sonar" in args.Energy_Config):
-                from EnergyFunctions.EnergyData.SeedsData import load_model_other
-                _, dim = load_model_other(args.Energy_Config)
-                Energy_Config = {
-                    "name": args.Energy_Config,
-                    "dim_x": dim
-                }
-
-            elif(args.Energy_Config == "Funnel"):
-                n_eval_samples = 2000
-                dim = args.n_particles
-                Energy_Config = {
-                    "name": "Funnel",
-                    "dim_x": dim,
-                    "eta": 3,
-                    "sample_bounds": [-30, 30],
-                    "scaling": args.Scaling_factor
-                }
-            elif(args.Energy_Config == "FunnelDistrax"):
-                n_eval_samples = 2000
-                dim = args.n_particles
-                Energy_Config = {
-                    "name": "FunnelDistrax",
-                    "dim_x": dim,
-                    "eta": 3,
-                    "scaling": args.Scaling_factor,
-                }
-
-            elif(args.Energy_Config == "LGCP"):
-                Energy_Config = {
-                    "name": "LGCP", 
-                    "num_grid_per_dim": 40,      # Grid size (40x40=1600)
-                    "use_whitened": False,       # Whether to use whitened parameterization
-                    "dim_x": 1600,              # Total dimension (grid_size^2)
-                    "scaling": 1.0 
-                }
-
-            elif(args.Energy_Config == "GermanCredit"):
-                Energy_Config = {
-                    "name": "GermanCredit",
-                    "dim_x": 25,
-                }
-            elif(args.Energy_Config == "MW54"):
-                N = args.n_particles
-                Energy_Config = {
-                    "name": args.Energy_Config,
-                    "d": N,
-                    "m": N,
-                    "dim_x": N + N,
-                }
                 n_eval_samples = 2000
                 ### TODO implement different scales
                 if(args.Energy_Config == "GaussianMixtureToy"):
@@ -493,25 +358,22 @@ if(__name__ == "__main__"):
                         "dim_x": N + N,
                     }
                     n_eval_samples = 2000
-            elif(args.Energy_Config == "StudentTMixture"):
-                n_eval_samples = 2000
-                dim = 50
-                num_components = 10
+                elif(args.Energy_Config == "StudentTMixture"):
+                    n_eval_samples = 2000
+                    dim = 50
+                    num_components = 10
 
 
-                Energy_Config = {
-                    "name": "StudentTMixture",
-                    "dim_x": dim,
-                    "num_components": num_components,
-                    "df": 2.0
-                }
-
-            else:
-                raise ValueError("Energy Config not found")
-            Energy_Config["scaling"] = args.Scaling_factor
+                    Energy_Config = {
+                        "name": "StudentTMixture",
+                        "dim_x": dim,
+                        "num_components": num_components,
+                        "df": 2.0
+                    }
 
                 else:
                     raise ValueError("Energy Config not found")
+                
                 Energy_Config["scaling"] = args.Scaling_factor
 
                 Network_Config["x_dim"] = Energy_Config["dim_x"]
