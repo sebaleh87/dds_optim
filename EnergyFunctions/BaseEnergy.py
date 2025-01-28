@@ -172,7 +172,7 @@ class EnergyModelClass:
             return {"last_samples": self.plot_2_D_last_samples(Xs, panel = panel)}
         elif(self.dim_x == 1):
             pass
-        elif( hasattr(self, 'n_particles')):
+        elif(self.config["name"] == "LennardJones"):
             data = self.load_data()
             return {"interatomic_distances": self.plot_interatomic_distances(Xs, data, panel=panel), "energy_histogram": self.plot_energy_histogram(Xs, data, panel=panel)}
         elif(True):
@@ -202,7 +202,6 @@ class EnergyModelClass:
         plt.legend()
         
         wfig = wandb.Image(fig)
-        #wandb.log({f"{panel}/Energy_Landscape": wandb.Image(fig)})
         plt.close()
         return wfig
 

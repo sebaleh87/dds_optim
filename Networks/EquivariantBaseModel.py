@@ -24,25 +24,9 @@ class EGNNBaseClass(nn.Module):
     @nn.compact
     def __call__(self, in_dict, train = False, forw_mode = "diffusion"):
         ### TODO rewrite code so that __call__ is allways applied with vmap
-        if(self.use_normal):
-            grads = in_dict["grads"]
-            grads_detached = jax.lax.stop_gradient(in_dict["grads"])
-            in_dict["grads"] = jnp.zeros_like(in_dict["grads"])
-            in_dict["Energy_value"] = jax.lax.stop_gradient(jnp.zeros_like(in_dict["Energy_value"]))
-        else:
-            ### TODO compute grad norm to keep this invariant
-            grad = in_dict["grads"]
-            Energy = jax.lax.stop_gradient(jnp.zeros_like(in_dict["Energy_value"]))
-            eps = 10**-10
-            scaled_energy = Energy
-            p = 10
-            scaled_energy_2 = jnp.where(jnp.abs(scaled_energy) >= jnp.exp(-p), jnp.log(jnp.abs(scaled_energy) + eps)/p, jnp.exp(p)*scaled_energy)
-            scaled_energy_1 = jnp.where(jnp.abs(scaled_energy) >= jnp.exp(-p),  jnp.sign(scaled_energy), -1)
-            grad_2 = jnp.where(jnp.abs(grad) >= jnp.exp(-p), jnp.log(jnp.abs(grad) + eps)/p, jnp.exp(p)*grad)
-            grad_1 = jnp.where(jnp.abs(grad) >= jnp.exp(-p),  jnp.sign(grad), -1)
-            in_dict["grads"] = jax.lax.stop_gradient(jnp.concatenate([grad_1, grad_2], axis = -1))
-            in_dict["Energy_value"] = jax.lax.stop_gradient(jnp.concatenate([scaled_energy_1, scaled_energy_2], axis = -1))
 
+        grads = in_dict["grads"]
+        grads_detached = jax.lax.stop_gradient(in_dict["grads"])
 
         ### TODO only encode time here
         encoding = self.encoding_network(in_dict, train = train)
@@ -54,8 +38,8 @@ class EGNNBaseClass(nn.Module):
         h_score = out_dict["x_hidden"]
         
 
-        if(self.use_normal):
-            clip_value = 20
+        if(self.use_normal and self.SDE_mode == "Bridge_SDE"):
+            clip_value = 100
             clip_overall_score = 10**4
             grads_norm = jnp.linalg.norm(grads_detached, axis = -1, keepdims = True)
             clipped_grads = jnp.where(grads_norm > clip_value, clip_value*grads/grads_norm, grads)
@@ -71,6 +55,24 @@ class EGNNBaseClass(nn.Module):
 
 
             out_dict["score"] = COM_score + grads/2
+            return out_dict
+        elif():
+            clip_value = 20
+            clip_overall_score = 10**4
+            grads_norm = jnp.linalg.norm(grads_detached, axis = -1, keepdims = True)
+            clipped_grads = jnp.where(grads_norm > clip_value, clip_value*grads/grads_norm, grads)
+            
+            grad_score = h_score * clipped_grads
+            correction_grad_score = x_score+ grad_score
+            correction_grad_score_norm = jnp.linalg.norm(correction_grad_score, axis = -1, keepdims = True)
+            clipped_score = jnp.where(correction_grad_score_norm > clip_overall_score, clip_overall_score*correction_grad_score/correction_grad_score_norm, correction_grad_score)
+
+            resh_score = clipped_score.reshape(-1, self.n_particles, self.particle_dim)
+            resh_COM_score = resh_score - jnp.mean(resh_score, axis = 1, keepdims=   True)
+            COM_score = resh_COM_score.reshape(-1, self.particle_dim*self.n_particles)
+
+
+            out_dict["score"] = COM_score 
             return out_dict
         else:
             out_dict["score"] = x_score

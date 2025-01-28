@@ -25,11 +25,11 @@ class Bridge_SDE_Class(Base_SDE_Class):
             "log_sigma_prior": jnp.log(self.sigma_init)}
 
         else:
-            rand_weights = jax.random.normal(random.PRNGKey(0), shape=(self.n_integration_steps,))
-            rand_weights_repulse = jax.random.normal(random.PRNGKey(0), shape=(self.n_integration_steps,))
-            SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"] - self.config["beta_min"])* jnp.ones((self.dim_x,)), 
+            # rand_weights = jax.random.normal(random.PRNGKey(0), shape=(self.n_integration_steps,))
+            # rand_weights_repulse = jax.random.normal(random.PRNGKey(0), shape=(self.n_integration_steps,))
+            SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"] - self.config["beta_min"] + 10**-3)* jnp.ones((self.dim_x,)), 
                         "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
-                        "log_sigma": jnp.log(1)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)),
+                        "log_sigma": jnp.log(1.)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)),
                         "log_sigma_prior": jnp.log(self.sigma_init)* jnp.ones((self.dim_x,))}
         return SDE_params
 
@@ -105,13 +105,9 @@ class Bridge_SDE_Class(Base_SDE_Class):
         if(self.config["beta_schedule"] == "constant"):
             return beta_max
         elif(self.config["beta_schedule"] == "cosine"):
-            return beta_min + (beta_max-beta_min)*jnp.cos(jnp.pi/2*(1-t))
-        ### Todo use cosine schedule with warmup here?
-        #return beta_max#(beta_min + t * (beta_max - beta_min))
-        # lin_up = (beta_max + t/frac * (beta_min - beta_max))
-        # cos_shedule = beta_min + (beta_max-beta_min)*jnp.cos(jnp.pi/2*(1-t-frac)/(1-frac)) 
-        # return jnp.where(t > 1- frac, lin_up, cos_shedule)
-        # return beta_min + (beta_max-beta_min)*jnp.cos(jnp.pi/2*(1-t)) #(beta_min + t * (beta_max - beta_min))#beta_min + (beta_max-beta_min)*jnp.cos(jnp.pi/2*(1-t)) 
+            beta_curr = jnp.clip(beta_min + (beta_max-beta_min)*jnp.cos(jnp.pi/2*(1-t)) , min = 10**-6)
+            return beta_curr
+
 
     def get_diffusion(self, SDE_params, x, t):
         sigma, _ = self.get_SDE_sigma(SDE_params)
@@ -121,7 +117,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
     def calc_diff_log_prob(self, mean, loc, scale):
         ### TODO adapt this in case of EN invariance
         if(self.invariance):
-            raise ValueError("Invariance not implemented for this SDE")
+            log_pdf_vec = jax.scipy.stats.norm.logpdf(mean, loc=loc, scale=scale) + 0.5*jnp.log(2 * jnp.pi * scale)/scale.shape[0]*self.Energy_Class.particle_dim
         else:
             log_pdf_vec = jax.scipy.stats.norm.logpdf(mean, loc=loc, scale=scale)
 
@@ -180,12 +176,11 @@ class Bridge_SDE_Class(Base_SDE_Class):
         sigma_scale, scale_log_prob, temp, key = self.get_sigma_noise(n_states, key, sample_mode, temp)
 
         def scan_fn(carry, step):
-            x, t, counter, key, carry_dict = carry
-            # if(jnp.isnan(x).any()):
-            #     print("score", x)
-            #     raise ValueError("score is nan")
+            x, t, key, carry_dict = carry
+            counter = step
+
             hidden_state = carry_dict["hidden_state"]
-            ### apply model expects t to be in [0, 1] --> divide by n_integration_steps
+
             score, new_hidden_state, grad, key = self.apply_model(model, x, t/self.n_integration_steps, counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
             carry_dict["hidden_state"] = new_hidden_state
 
@@ -195,19 +190,18 @@ class Bridge_SDE_Class(Base_SDE_Class):
             "interpolated_grad": grad,
             "dx": reverse_out_dict["dx"],
             "xs": x,
-            "ts": t,
+            "ts": jnp.array(t, dtype = jnp.float32),
             "diffusions": reverse_out_dict["diffusion"],
-            #"reverse_log_probs": reverse_out_dict["reverse_log_prob"],
             "reverse_drifts": reverse_out_dict["reverse_drift"],
-            "dts": dt,
+            "dts": jnp.array(dt, dtype = jnp.float32),
             "key": key,
-            "hidden_state": carry_dict["hidden_state"],
+            #"hidden_state": carry_dict["hidden_state"],
             "log_prob_noise": reverse_out_dict["log_prob_noise"]
             }
 
             x = reverse_out_dict["x_next"]
             t = reverse_out_dict["t_next"]
-            return (x, t, counter+1, key, carry_dict), SDE_tracker_step
+            return (x, t, key, carry_dict), SDE_tracker_step
 
         x_prior, key = self.sample_prior(SDE_params, key, n_states, sigma_scale_factor = sigma_scale)
         log_prob_prior_scaled = self.vmap_get_log_prior(SDE_params, x_prior, sigma_scale)
@@ -218,13 +212,14 @@ class Bridge_SDE_Class(Base_SDE_Class):
         if(self.invariance == True):
             x_prior = self.subtract_COM(x_prior)
 
-        init_carry = jnp.zeros((n_states, self.Network_Config["n_hidden"]))
+        init_carry = jnp.zeros((n_states, self.Network_Config["n_hidden"]), dtype = jnp.float32)
         carry_dict = {"hidden_state": [(init_carry, init_carry)  for i in range(self.Network_Config["n_layers"])]}
-        (x_final, t_final, counter, key, carry_dict), SDE_tracker_steps = jax.lax.scan(
+        (x_final, t_final, key, carry_dict), SDE_tracker_steps = jax.lax.scan(
             scan_fn,
-            (x_prior, t, counter, key, carry_dict),
+            (x_prior, t, key, carry_dict),
             jnp.arange(n_integration_steps)
         )
+
 
         ### TODO make last forward pass here
         hidden_state = carry_dict["hidden_state"]
@@ -256,7 +251,6 @@ class Bridge_SDE_Class(Base_SDE_Class):
         forward_diff_log_probs = jax.vmap(self.calc_diff_log_prob, in_axes=(0, 0, 0))(x_prev, x_pos_next, diffusion_next*jnp.sqrt(dt))
         log_prob_noise = SDE_tracker_steps["log_prob_noise"]
 
-
         SDE_tracker = {
             "log_prob_prior_scaled": log_prob_prior_scaled,
             "log_prob_noise": log_prob_noise,
@@ -270,7 +264,6 @@ class Bridge_SDE_Class(Base_SDE_Class):
             "dts": SDE_tracker_steps["dts"],
             "x_final": x_final,
             "x_prior": x_prior,
-            #"hidden_states": hidden_states,
             "keys": SDE_tracker_steps["key"],
             "interpolated_grads": interpol_grads
 

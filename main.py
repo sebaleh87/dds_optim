@@ -33,7 +33,7 @@ parser.add_argument("--Energy_lr", type=float, default=0.0)
 parser.add_argument("--Interpol_lr", type=float, default=0.001)
 parser.add_argument("--SDE_lr", type=float, default=[0.001], nargs="+")
 parser.add_argument("--SDE_weight_decay", type=float, default=0.)
-parser.add_argument("--clip_value", type=float, default=100., help = "clip value of sde param gradients")
+parser.add_argument("--clip_value", type=float, default=1., help = "clip value of sde param gradients")
 parser.add_argument("--learn_SDE_params_mode", type=str, default="all", choices=["prior_only", "all", "all_and_beta"], 
                     help="prior_only: only learn prior params are learned, all: learn all SDE params except betas, all_and_beta: learn all params including beta")
 
@@ -78,8 +78,8 @@ parser.add_argument('--no-use_normal', dest='use_normal', action='store_false', 
 parser.add_argument("--SDE_time_mode", type=str, default="Discrete_Time", choices=["Discrete_Time", "Continuous_Time"], help="SDE Time Mode")
 parser.add_argument("--Network_Type", type=str, default="FeedForward", choices=["FourierNetwork", "FeedForward", "LSTMNetwork", "ADAMNetwork"], help="SDE Time Mode")
 
-parser.add_argument("--sample_seed", type=int, default=42, help="Seed used for sample creation")
-parser.add_argument("--model_seeds", type = int ,default=[0], nargs="+" , help="Seed used for model init")
+parser.add_argument("--sample_seed", type=int, default=42, help="Seed used to obtain target samples")
+parser.add_argument("--model_seeds", type = int ,default=[0], nargs="+" , help="Seed used for model and sampling init")
 
 
 #energy function specific args
@@ -173,7 +173,7 @@ if(__name__ == "__main__"):
                     raise ValueError("Off policy only implemented for LogVariance_Loss")
                 if(not args.use_off_policy and args.sigma_scale_factor != 1.):
                     raise ValueError("Sigma scale factor != 0 and use_off_policy is off")
-                if(args.beta_min >= args.beta_max):
+                if(args.beta_min > args.beta_max):
                     raise ValueError("Beta min >= beta max")
 
                 SDE_Type_Config = {
@@ -260,7 +260,6 @@ if(__name__ == "__main__"):
                         "name": "Pytheus",
                         "challenge_index": args.Pytheus_challenge,
                     }
-                    n_eval_samples = 10000
 
                 elif("LennardJones" in args.Energy_Config):
                     n_eval_samples = 1000
@@ -381,22 +380,20 @@ if(__name__ == "__main__"):
                     "lam": 10.
                 }
 
+                base_config = {
+                    "EnergyConfig": Energy_Config,
+                    "Anneal_Config": Anneal_Config,
+                    "SDE_Loss_Config": SDE_Loss_Config,
+                    "Optimizer_Config": Optimizer_Config,
+                    "Network_Config": Network_Config,
+                    "num_epochs": epochs,
+                    "n_eval_samples": n_eval_samples,
+                    "project_name": args.project_name,
+                    "disable_jit": args.disable_jit,
+                    "sample_seed": args.sample_seed
+                }
 
-
-            base_config = {
-                "EnergyConfig": Energy_Config,
-                "Anneal_Config": Anneal_Config,
-                "SDE_Loss_Config": SDE_Loss_Config,
-                "Optimizer_Config": Optimizer_Config,
-                "Network_Config": Network_Config,
-                "num_epochs": epochs,
-                "n_eval_samples": n_eval_samples,
-                "project_name": args.project_name,
-                "disable_jit": args.disable_jit,
-                "sample_seed": args.sample_seed
-            }
-
-            trainer = TrainerClass(base_config)
-            trainer.train()
+                trainer = TrainerClass(base_config)
+                trainer.train()
 
 
