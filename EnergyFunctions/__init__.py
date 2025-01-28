@@ -13,13 +13,17 @@ from .InferenceGym import InferenceGymClass
 from .Funnel import FunnelClass
 from .LGCP import LGCPClass
 from .GermanCredit import GermanCreditClass
+from .StudentTMixture import StudentTMixtureClass
+#from .FunnelDistrax import FunnelDistraxClass
 
 Energy_Registry = {"GaussianMixture": GaussianMixtureClass, "MexicanHat": MexicanHatClass, "Rastrigin": RastriginClass, "Pytheus": PytheusEnergyClass,
                 "WavePINN_hyperparam": WavePINN_hyperparam_Class, "WavePINN_latent": WavePINN_latent_Class, "LennardJones": LennardJonesClass,
                 "DoubleWellEquivariant": DoubleWellEquivariantClass, "DoubleWell": DoubleWellClass, "DoubleMoon": DoubleMoonClass,
                 "Lorenz": InferenceGymClass, "Brownian": InferenceGymClass, "Banana": InferenceGymClass, "Seeds": InferenceGymClass, 
-                "Ionosphere" : InferenceGymClass, "Sonar": InferenceGymClass, "Funnel": FunnelClass, "LGCP": LGCPClass, "GermanCredit": GermanCreditClass, "MW54": DoubleWellClass}
-
+                "Ionosphere" : InferenceGymClass, "Sonar": InferenceGymClass, "Funnel": FunnelClass, "LGCP": LGCPClass, "GermanCredit": GermanCreditClass, "MW54": DoubleWellClass,
+                "StudentTMixture": StudentTMixtureClass, 
+                #"FunnelDistrax": FunnelDistraxClass
+                }
 
 
 def get_Energy_class(EnergyConfig):

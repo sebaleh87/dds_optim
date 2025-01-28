@@ -8,6 +8,11 @@ from ott.problems.linear import linear_problem
 from ott.solvers.linear import sinkhorn
 from ott.tools import sinkhorn_divergence
 from ott.geometry import pointcloud
+import torch
+
+# POT imports
+#import ot as pot
+import numpy as np
 
 
 class OT:
@@ -73,18 +78,45 @@ class SD:
         sd = sinkhorn_divergence.sinkhorn_divergence(geom, x=geom.x, y=geom.y)
         return sd[1].divergence
     
-    def compute_approximate_W2(self, model_samples):
-        """
-        Compute approximation of W2 distance via square root of Sinkhorn divergence.
-        As epsilon → 0, this converges to the true W2 distance.
+    # def compute_approximate_W2(self, model_samples):
+    #     """
+    #     Compute approximation of W2 distance via square root of Sinkhorn divergence.
+    #     As epsilon → 0, this converges to the true W2 distance.
         
-        Args:
-            model_samples: Samples from the model to compare against ground truth
+    #     Args:
+    #         model_samples: Samples from the model to compare against ground truth
             
-        Returns:
-            float: Approximate W2 distance
-        """
-        return jnp.sqrt(self.compute_SD(model_samples))
+    #     Returns:
+    #         float: Approximate W2 distance
+    #     """
+    #     return jnp.sqrt(self.compute_SD(model_samples))
+    
+    # def compute_SD_POT(self, model_samples):
+    #     """
+    #     Compute Sinkhorn divergence using POT library for comparison.
+        
+    #     Args:
+    #         model_samples: Samples from the model to compare against ground truth
+            
+    #     Returns:
+    #         float: The Sinkhorn divergence computed via POT
+    #     """
+    #     # Convert to numpy as POT doesn't work with JAX arrays
+    #     a = np.ones((len(self.groundtruth),)) / len(self.groundtruth)
+    #     b = np.ones((len(model_samples),)) / len(model_samples)
+        
+    #     # Compute cost matrix (squared Euclidean)
+    #     M = pot.dist(np.array(self.groundtruth), np.array(model_samples), metric='sqeuclidean')
+        
+    #     # Compute Sinkhorn divergence
+    #     div = pot.sinkhorn(
+    #         a, b, 
+    #         M,
+    #         reg=self.epsilon,
+    #         numItermax=1000,
+    #         log=True
+    #     )
+    #     return float(div[0])  # Extract just the transport cost
 
 
 if __name__ == "__main__":
@@ -95,6 +127,7 @@ if __name__ == "__main__":
     
     # Import energy function
     from EnergyFunctions.FunnelDistrax import FunnelDistraxClass
+    from EnergyFunctions.StudentTMixture import StudentTMixtureClass
     
     # Print JAX configuration
     print("JAX Configuration:")
@@ -112,9 +145,28 @@ if __name__ == "__main__":
         key = jax.random.PRNGKey(seed)
         key1, key2 = jax.random.split(key)
         
-        funnel = FunnelDistraxClass({"dim_x": 10, 'scaling': 1.0})
-        samples1 = funnel.generate_samples(key1, n_samples)
-        samples2 = funnel.generate_samples(key2, n_samples)
+        # funnel = FunnelDistraxClass({"dim_x": 10, 'scaling': 1.0})
+        # samples1 = funnel.generate_samples(key1, n_samples)
+        # samples2 = funnel.generate_samples(key2, n_samples)
+
+        n_eval_samples = 2000
+        dim = 50
+        num_components = 10
+        df = 2.0
+
+
+
+        Energy_Config = {
+            "name": "StudentTMixture",
+            "dim_x": dim,
+            "num_components": num_components,
+            "df": df,
+            "scaling": 1.0
+        }
+
+        student_t = StudentTMixtureClass(Energy_Config)
+        samples1 = student_t.generate_samples(key1, n_samples)
+        samples2 = student_t.generate_samples(key2, n_samples)
         
         # Print sample statistics
         # print(f"Sample sums: {jnp.sum(samples1):.6f}, {jnp.sum(samples2):.6f}")
@@ -128,7 +180,8 @@ if __name__ == "__main__":
         # Print results
         print("\nDistance Metrics:")
         print(f"Sinkhorn divergence: {sd.compute_SD(samples2):.6f}")
-        print(f"Approximate W2 distance: {sd.compute_approximate_W2(samples2):.6f}")
+        #print(f"Sinkhorn divergence (POT): {sd.compute_SD_POT(samples2):.6f}")
+        #print(f"Approximate W2 distance: {sd.compute_approximate_W2(samples2):.6f}")
         print(f"OT cost (with entropy reg): {ot.compute_OT(samples2, entropy_reg=True):.6f}")
         print(f"OT cost (without entropy reg): {ot.compute_OT(samples2, entropy_reg=False):.6f}")
 
