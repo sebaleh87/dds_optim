@@ -27,6 +27,8 @@ class GaussianMixtureClass(EnergyModelClass):
         
         self.levels = 50
 
+        self.has_tractable_distribution = True
+
     # @partial(jax.jit, static_argnums=(0,))
     # def energy_function(self, x):
     #     """
@@ -48,8 +50,8 @@ class GaussianMixtureClass(EnergyModelClass):
         """
         Calculate the energy of the Gaussian Mixture Model using logsumexp.
         
-        :param x: Input array.
-        :return: Energy value.
+        :param x: Input array of shape (..., dim)
+        :return: Energy value
         """
         def gaussian_log_prob(x, mean, variance):
             return jnp.sum(-0.5 * ((x[None, ...] - mean) ** 2 / variance) - 0.5 * jnp.log(2 * jnp.pi * variance), axis=-1)
@@ -58,17 +60,36 @@ class GaussianMixtureClass(EnergyModelClass):
         log_probs = gaussian_log_prob(x, self.means, self.variances)
         return -logsumexp(log_probs, axis=0) + jnp.log(log_probs.shape[0])
     
-    def sample(self, num_samples):
+    def sample(self, key, sample_shape=()):
         """
         Generate samples from the Gaussian Mixture Model.
         
-        :param num_samples: Number of samples to generate.
-        :return: Samples.
+        :param key: JAX random key
+        :param sample_shape: Shape of samples to generate
+        :return: Array of samples
         """
-        num_components = len(self.means)
-        components = np.random.choice(num_components, num_samples, p=self.weights)
-        samples = np.array([np.random.normal(self.means[component], np.sqrt(self.variances[component])) for component in components])
+        key1, key2 = jax.random.split(key)
+        
+        # Sample component indices based on weights
+        components = jax.random.categorical(key1, jnp.log(self.weights), shape=sample_shape)
+        
+        # Sample from selected Gaussian components
+        noise = jax.random.normal(key2, sample_shape + (self.means.shape[-1],))
+        selected_means = self.means[components]
+        selected_stds = jnp.sqrt(self.variances[components])
+        
+        samples = selected_means + noise * selected_stds
         return samples
+
+    def generate_samples(self, key, n_samples):
+        """
+        Generate multiple samples from the Gaussian Mixture Model.
+        
+        :param key: JAX random key
+        :param n_samples: Number of samples to generate
+        :return: Array of samples with shape (n_samples, dim)
+        """
+        return self.sample(key, sample_shape=(n_samples,))
 
 
     

@@ -15,10 +15,14 @@ class FunnelClass(EnergyModelClass):
         xi ~ N(0, exp(x1)) for i = 2,...,dim
         
         :param config:
+            - dim_x: dimension of the distribution (default: 10)
+            - eta: scale parameter for x₁ (default: 3.0)
+            - sample_bounds: optional tuple of (min, max) for clipping samples
         """
         super().__init__(config)
         self.dim = config.get("dim_x", 10) 
         self.eta = config.get("eta", 3.0)
+        self.sample_bounds = config.get("sample_bounds", [-30, 30])
         
         # Constants for log probability computation
         self.log_2pi = jnp.log(2 * jnp.pi)
@@ -69,6 +73,11 @@ class FunnelClass(EnergyModelClass):
         
         # Combine samples
         samples = jnp.concatenate([dominant_x, x_others], axis=-1)
+        
+        # Apply clipping if sample_bounds are specified
+        if self.sample_bounds is not None:
+            samples = samples.clip(min=self.sample_bounds[0], max=self.sample_bounds[1])
+            
         return samples
 
     def generate_samples(self, key, n_samples):

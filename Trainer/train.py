@@ -219,19 +219,19 @@ class TrainerClass:
                     if hasattr(self, 'sd_calculator'):
                         model_samples = out_dict["X_0"][0:n_samples]
                         distance = self.sd_calculator.compute_SD(model_samples)
-                        approximate_distance = self.sd_calculator.compute_approximate_W2(model_samples)
+                        #approximate_distance = self.sd_calculator.compute_approximate_W2(model_samples)
                         
                         # Store Sinkhorn metrics
                         sd_metric_name = f"eval_{sample_mode}/sinkhorn_divergence"
-                        w2_metric_name = f"eval_{sample_mode}/approximate_W2"
+                        #w2_metric_name = f"eval_{sample_mode}/approximate_W2"
                         if sd_metric_name not in metric_history:
                             metric_history[sd_metric_name] = []
-                            metric_history[w2_metric_name] = []
+                            #metric_history[w2_metric_name] = []
                         metric_history[sd_metric_name].append(float(distance))
-                        metric_history[w2_metric_name].append(float(approximate_distance))
+                        #metric_history[w2_metric_name].append(float(approximate_distance))
                         
                         wandb.log({sd_metric_name: distance}, step=epoch+1)
-                        wandb.log({w2_metric_name: approximate_distance}, step=epoch+1)
+                        #wandb.log({w2_metric_name: approximate_distance}, step=epoch+1)
 
                     self.plot_figures(SDE_tracer, epoch, sample_mode = sample_mode)
 
