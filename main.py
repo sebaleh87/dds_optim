@@ -87,7 +87,7 @@ parser.add_argument("--model_seeds", type = int ,default=[0], nargs="+" , help="
 parser.add_argument("--Pytheus_challenge", type=int, default=1, choices=[0,1,2,3,4,5], help="Pyhteus Chellange Index")
 parser.add_argument("--Scaling_factor", type=float, default=40., help="Scaling factor for Energy Functions")
 parser.add_argument("--Variances", type=float, default=1., help="Variances of Gaussian Mixtures before scalling when means ~Unif([-1,1])")
-parser.add_argument("--base_net", type=str, default="PISgradnet", choices = ["PISgradnet", "Vanilla"], help="Variances of Gaussian Mixtures before scalling when means ~Unif([-1,1])")
+parser.add_argument("--base_net", type=str, default="Vanilla", choices = ["PISgradnet", "Vanilla"], help="Variances of Gaussian Mixtures before scalling when means ~Unif([-1,1])")
 
 
 
