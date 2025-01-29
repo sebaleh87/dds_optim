@@ -103,6 +103,7 @@ class VanillaBaseModelClass(nn.Module):
             grad = copy_grads
             grad_detach = jax.lax.stop_gradient(grad)
 
+            time_in_dict = {}
             time_out_dict = self.time_backbone(in_dict)
             time_encoding = time_out_dict["embedding"]
 
