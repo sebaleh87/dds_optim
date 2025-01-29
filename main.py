@@ -87,6 +87,8 @@ parser.add_argument("--model_seeds", type = int ,default=[0], nargs="+" , help="
 parser.add_argument("--Pytheus_challenge", type=int, default=1, choices=[0,1,2,3,4,5], help="Pyhteus Chellange Index")
 parser.add_argument("--Scaling_factor", type=float, default=40., help="Scaling factor for Energy Functions")
 parser.add_argument("--Variances", type=float, default=1., help="Variances of Gaussian Mixtures before scalling when means ~Unif([-1,1])")
+parser.add_argument("--base_net", type=str, default="PISgradnet", choices = ["PISgradnet", "Vanilla"], help="Variances of Gaussian Mixtures before scalling when means ~Unif([-1,1])")
+
 
 
 args = parser.parse_args()
@@ -141,7 +143,7 @@ if(__name__ == "__main__"):
                 }
 
                 Network_Config = {
-                    "base_name": "Vanilla",
+                    "base_name": args.base_net,
                     "name": args.Network_Type,
                     "feature_dim": args.feature_dim,
                     "n_hidden": args.n_hidden,
@@ -230,7 +232,7 @@ if(__name__ == "__main__"):
                     }
                 elif(args.Energy_Config == "GaussianMixture"):
                     n_eval_samples = 10000
-                    torch.manual_seed(0)
+                    torch.manual_seed(seed)
                     #np.random.seed(42)
                     dim = args.n_particles
                     num_gaussians = 40
@@ -368,7 +370,8 @@ if(__name__ == "__main__"):
                         "name": "StudentTMixture",
                         "dim_x": dim,
                         "num_components": num_components,
-                        "df": 2.0
+                        "df": 2.0,
+                        "seed": seed
                     }
 
                 else:

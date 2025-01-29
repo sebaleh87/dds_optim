@@ -23,13 +23,14 @@ class StudentTMixtureClass(EnergyModelClass):
         self.df = config.get("df", 2.0)
         
         # Initialize mixture parameters
-        key = jax.random.PRNGKey(0)
+        key = jax.random.PRNGKey(config.get("seed", 0))
         self.locs = jax.random.uniform(
             key, 
             minval=-10.0, 
             maxval=10.0, 
             shape=(self.num_components, self.dim)
         )
+        self.means = self.locs
         self.dofs = jnp.ones((self.num_components, self.dim)) * self.df
         self.scales = jnp.ones((self.num_components, self.dim))
         
