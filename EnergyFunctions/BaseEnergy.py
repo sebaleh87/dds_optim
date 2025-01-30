@@ -328,7 +328,7 @@ class EnergyModelClass:
 
     def plot_tsne_last_samples(self, Xs, panel = "fig"):
         print("TSNE plot")
-        Xs = Xs[:2000]
+        Xs = Xs[:1000]
         if(hasattr(self, 'means')):
             means_reshaped = self.means.reshape(-1, self.dim_x)
             Xs = np.concatenate([Xs, means_reshaped], axis=0)
