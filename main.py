@@ -120,11 +120,11 @@ if(__name__ == "__main__"):
     #     print("Warning: args.lr/args.SDE_lr  < 5, emperically this ratio is too high")
     zipped_lr_list = zip(args.lr, args.SDE_lr)
     temp_list = args.T_start
-    seed_list = args.model_seeds
+    seed_list = zip(args.model_seeds, args.sample_seed)
     beta_list = args.beta_max
 
     for beta_max in beta_list:
-        for seed in seed_list:
+        for seed, sample_seed in seed_list:
             for temp_start in temp_list:
                 for lr, SDE_lr in zipped_lr_list:
                         
@@ -180,41 +180,6 @@ if(__name__ == "__main__"):
                     if(not args.use_off_policy and args.sigma_scale_factor != 1.):
                         raise ValueError("Sigma scale factor != 0 and use_off_policy is off")
                     if(args.beta_min > beta_max):
-                        raise ValueError("Beta min >= beta max")
-
-                    SDE_Type_Config = {
-                        "name": args.SDE_Type,
-                        "beta_min": args.beta_min,
-                        "beta_max": beta_max,
-                        "use_interpol_gradient": args.use_interpol_gradient,
-                        "n_integration_steps": args.n_integration_steps,
-                        "SDE_weightening": args.SDE_weightening,
-                        "use_normal": args.use_normal,
-                        "learn_covar": args.learn_covar,
-                        "sigma_init": args.sigma_init,
-                        "repulsion_strength": args.repulsion_strength,
-                        "sigma_scale_factor": args.sigma_scale_factor,
-                        "batch_size": args.batch_size,
-                        "use_off_policy": args.use_off_policy,
-                        "learn_interpolation_params": args.learn_interpolation_params,
-                        "beta_schedule": args.beta_schedule
-                    }
-                    
-                    SDE_Loss_Config = {
-                        "name": args.SDE_Loss, # Reverse_KL_Loss, LogVariance_Loss
-                        "SDE_Type_Config": SDE_Type_Config,
-                        "batch_size": args.batch_size,
-                        "n_integration_steps": args.n_integration_steps,
-                        "minib_time_steps": args.minib_time_steps,
-                    }
-                else:
-                    #modified sampling distributions are only applicable for certain losses
-                    if(args.use_off_policy and (args.SDE_Loss != "LogVariance_Loss" and args.SDE_Loss != "Bridge_LogVarLoss" and args.SDE_Loss != "Reverse_KL_Loss_logderiv" and args.SDE_Loss != "Bridge_rKL_logderiv")):
-                        raise ValueError("Off policy only implemented for LogVariance_Loss")
-                    if(not args.use_off_policy and args.sigma_scale_factor != 1.):
-                        raise ValueError("Sigma scale factor != 0 and use_off_policy is off")
-                    if(args.beta_min > 
-                      ):
                         raise ValueError("Beta min >= beta max")
 
                     SDE_Type_Config = {
@@ -405,6 +370,7 @@ if(__name__ == "__main__"):
                         }
 
                     else:
+                        print(args.Energy_Config)
                         raise ValueError("Energy Config not found")
 
                     Energy_Config["scaling"] = args.Scaling_factor
@@ -414,18 +380,7 @@ if(__name__ == "__main__"):
                         SDE_Type_Config["use_interpol_gradient"] = False
                         if(args.latent_dim == None):
                             raise ValueError("Latent dim not defined")
-                    else:
-                        raise ValueError("Energy Config not found")
-                    
-                    Energy_Config["scaling"] = args.Scaling_factor
 
-                    Network_Config["x_dim"] = Energy_Config["dim_x"]
-                    if(Network_Config["model_mode"] == "latent"):
-                        SDE_Type_Config["use_interpol_gradient"] = False
-                        if(args.latent_dim == None):
-                            raise ValueError("Latent dim not defined")
-                        else:
-                            raise ValueError("Energy Config not found")
 
                     Anneal_Config = {
                         "name": args.AnnealSchedule,
