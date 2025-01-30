@@ -79,8 +79,9 @@ parser.add_argument('--no-use_normal', dest='use_normal', action='store_false', 
 parser.add_argument("--SDE_time_mode", type=str, default="Discrete_Time", choices=["Discrete_Time", "Continuous_Time"], help="SDE Time Mode")
 parser.add_argument("--Network_Type", type=str, default="FeedForward", choices=["FourierNetwork", "FeedForward", "LSTMNetwork", "ADAMNetwork"], help="SDE Time Mode")
 
-parser.add_argument("--sample_seed", type=int, default=42, help="Seed used to obtain target samples")
+parser.add_argument("--sample_seed", type=int, default=[42], nargs="+", help="Seeds used to obtain target samples")
 parser.add_argument("--model_seeds", type = int ,default=[0], nargs="+" , help="Seed used for model and sampling init")
+parser.add_argument("--n_eval_samples", type=int, default=2000, help="Number of samples to use for evaluation")
 
 
 #energy function specific args
@@ -120,8 +121,9 @@ if(__name__ == "__main__"):
     zipped_lr_list = zip(args.lr, args.SDE_lr)
     temp_list = args.T_start
     seed_list = args.model_seeds
+    sample_seed_list = args.sample_seed
 
-    for seed in seed_list:
+    for seed, sample_seed in zip(seed_list, sample_seed_list):
         for temp_start in temp_list:
             for lr, SDE_lr in zipped_lr_list:
                     
@@ -206,7 +208,7 @@ if(__name__ == "__main__"):
                     "update_params_mode": args.update_params_mode,
                     
                 }
-                n_eval_samples = 2000
+                n_eval_samples = args.n_eval_samples
                 ### TODO implement different scales
                 if(args.Energy_Config == "GaussianMixtureToy"):
                     torch.manual_seed(0)
@@ -231,7 +233,6 @@ if(__name__ == "__main__"):
                         
                     }
                 elif(args.Energy_Config == "GaussianMixture"):
-                    n_eval_samples = 10000
                     torch.manual_seed(seed)
                     #np.random.seed(42)
                     dim = args.n_particles
@@ -257,14 +258,12 @@ if(__name__ == "__main__"):
                         "shift": 5.0
                     }
                 elif(args.Energy_Config == "Pytheus"):
-                    n_eval_samples = 100
                     Energy_Config = {
                         "name": "Pytheus",
                         "challenge_index": args.Pytheus_challenge,
                     }
 
                 elif("LennardJones" in args.Energy_Config):
-                    n_eval_samples = 1000
                     Network_Config["base_name"] = "EGNN"
                     N = args.n_particles
                     out_dim = 3
@@ -304,7 +303,6 @@ if(__name__ == "__main__"):
                         "l2_d": 64,
                         "d_out": 1,
                     }
-                    n_eval_samples = 10
                 elif("DoubleMoon" in args.Energy_Config):
                     Energy_Config = {
                         "name": args.Energy_Config,
@@ -313,7 +311,6 @@ if(__name__ == "__main__"):
                         "l2_d": 64,
                         "d_out": 1,
                     }
-                    n_eval_samples = 10
                 elif("Banana" in args.Energy_Config or "Brownian" in args.Energy_Config or "Lorenz" in args.Energy_Config):
                     from EnergyFunctions.EnergyData.BrownianData import load_model_gym
                     _, dim = load_model_gym(args.Energy_Config)
@@ -359,12 +356,9 @@ if(__name__ == "__main__"):
                         "m": N,
                         "dim_x": N + N,
                     }
-                    n_eval_samples = 2000
                 elif(args.Energy_Config == "StudentTMixture"):
-                    n_eval_samples = 2000
                     dim = 50
                     num_components = 10
-
 
                     Energy_Config = {
                         "name": "StudentTMixture",
@@ -406,7 +400,7 @@ if(__name__ == "__main__"):
                     "n_eval_samples": n_eval_samples,
                     "project_name": args.project_name,
                     "disable_jit": args.disable_jit,
-                    "sample_seed": args.sample_seed
+                    "sample_seed": sample_seed
                 }
 
                 trainer = TrainerClass(base_config)
