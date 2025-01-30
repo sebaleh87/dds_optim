@@ -59,8 +59,8 @@ def stability_brownian():
     '''
 
     plot_dict = {"LogVarLoss": [{"id_list": LV_all_SDE_ids,"learn_SDE_params": True, "oracle": True, "label": r"CMCD-LV"}, {"id_list": LV_only_prior, "learn_SDE_params": False, "oracle": True, "label": r"CMCD-LV $ \star$"}], 
-                 "rKL_logderiv": [{"id_list": rKL_only_prior, "learn_SDE_params": False, "oracle": True, "label": r"CMCD-rKL w / LD $ \star$ "}, {"id_list": rKL_all_SDE_ids, "learn_SDE_params": True, "oracle": True, "label": r"CMCD-rKL w / LD $\sigma_\mathrm{start} = 0.01$"}],
-                 "rKL_logderiv_higher_sigma": [{"id_list": rKL_all_SDE_ids_higher_sigma, "learn_SDE_params": True, "oracle": True, "label": r"CMCD-rKL w / LD $\sigma_\mathrm{start} = 0.05$"}]}
+                 "rKL_logderiv": [{"id_list": rKL_only_prior, "learn_SDE_params": False, "oracle": True, "label": r"CMCD-rKL w / LD $ \star$ "}, {"id_list": rKL_all_SDE_ids, "learn_SDE_params": True, "oracle": True, "label": r"CMCD-rKL w / LD $\sigma_\mathrm{diff, init} = 0.01$"}],
+                 "rKL_logderiv_higher_sigma": [{"id_list": rKL_all_SDE_ids_higher_sigma, "learn_SDE_params": True, "oracle": True, "label": r"CMCD-rKL w / LD $\sigma_\mathrm{diff, init} = 0.05$"}]}
     
     def compute_average_and_error(id_list):
         all_free_energies = []

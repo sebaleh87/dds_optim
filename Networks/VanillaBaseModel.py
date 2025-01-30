@@ -91,8 +91,8 @@ class VanillaBaseModelClass(nn.Module):
 
 
 
-        x_and_t_embedding, t_embedding = self.encoding_network(in_dict, train = train, use_normal = self.use_normal)
-        in_dict["encoding"] = x_and_t_embedding
+        encoding = self.encoding_network(in_dict, train = train, use_normal = self.use_normal)
+        in_dict["encoding"] = encoding
 
         out_dict = self.backbone(in_dict)
         embedding = out_dict["embedding"]
@@ -103,8 +103,8 @@ class VanillaBaseModelClass(nn.Module):
             grad = copy_grads
             grad_detach = jax.lax.stop_gradient(grad)
 
-            time_in_dict = {"encoding": t_embedding}
-            time_out_dict = self.time_backbone(time_in_dict)
+            time_in_dict = {}
+            time_out_dict = self.time_backbone(in_dict)
             time_encoding = time_out_dict["embedding"]
 
             grad_drift = nn.Dense(x_dim, kernel_init=nn.initializers.zeros,

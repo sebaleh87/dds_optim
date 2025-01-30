@@ -30,8 +30,9 @@ class TrainerClass:
 
         # Generate ground truth samples for SD metric if available
         if hasattr(self.EnergyClass, 'has_tractable_distribution') and self.EnergyClass.has_tractable_distribution:
+            self.n_sinkhorn_samples = 2000
             key = jax.random.PRNGKey(self.config["sample_seed"])  # Use configured seed for reproducibility
-            self.gt_samples = self.EnergyClass.generate_samples(key, self.config["n_eval_samples"])
+            self.gt_samples = self.EnergyClass.generate_samples(key, self.n_sinkhorn_samples)
             self.sd_calculator = SD(self.gt_samples, epsilon=1e-3)
 
         self._init_wandb()
@@ -217,7 +218,7 @@ class TrainerClass:
 
                     # Calculate Sinkhorn divergence if the energy model has a tractable distribution
                     if hasattr(self, 'sd_calculator'):
-                        model_samples = out_dict["X_0"][0:n_samples]
+                        model_samples = out_dict["X_0"][0:self.n_sinkhorn_samples]
                         distance = self.sd_calculator.compute_SD(model_samples)
                         #approximate_distance = self.sd_calculator.compute_approximate_W2(model_samples)
                         

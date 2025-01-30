@@ -1,4 +1,5 @@
 
+### paper runs DDS_Seeds_paper_runs_dim_26
 
 checkpoints = ["iconic-butterfly-5", "radiant-moon-4", "clean-bird-3"]
 '''

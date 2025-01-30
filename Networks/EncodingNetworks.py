@@ -63,21 +63,19 @@ class EncodingNetwork(nn.Module):
         t = self.max_time * t
         t_encodings = get_sinusoidal_positional_encoding(t, self.feature_dim, self.max_time)
 
-        x = nn.Dense(self.feature_dim, kernel_init=nn.initializers.he_normal(),
-                                 bias_init=nn.initializers.zeros)(t_encodings)
-        x = nn.LayerNorm()(x)
-        x = nn.relu(x)
+        x_encode = nn.Dense(self.feature_dim, kernel_init=nn.initializers.he_normal(),
+                                 bias_init=nn.initializers.zeros)(x_in)
+        x_encode = nn.LayerNorm()(x_encode)
+        x_encode = nn.relu(x_encode)
+        x = jnp.concatenate([ x_encode, t, t_encodings], axis=-1)
 
-        x = nn.Dense(self.hidden_dim, kernel_init=nn.initializers.he_normal(),
-                                 bias_init=nn.initializers.zeros)(x)
-        x = nn.LayerNorm()(x)
-        t_embedding = nn.relu(x)
+        ### commented our to make architecture more similar to SEQUENTIAL CONTROLLED LANGEVIN DIFFUSIONS
+        #x = nn.Dense(self.hidden_dim, kernel_init=nn.initializers.he_normal(),
+        #                          bias_init=nn.initializers.zeros)(x)
+        # x = nn.LayerNorm()(x)
+        # x = nn.relu(x)
 
-        t_embedding = jnp.concatenate([  t, t_embedding], axis=-1)
-        x_and_t_embedding = jnp.concatenate([ x_in, t, t_embedding], axis=-1)
-        
-
-        return x_and_t_embedding, t_embedding
+        return x
     
 
 
