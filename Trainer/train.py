@@ -26,6 +26,17 @@ class TrainerClass:
         self.Optimizer_Config = base_config["Optimizer_Config"]
         self.model = get_network(self.Network_Config, self.SDE_Loss_Config)
 
+        # Define which metrics should be maximized (True) or minimized (False)
+        self.metric_objectives = {
+            "EUBO_at_T=1": False,
+            "n_eff": True,      # Higher is better for effective sample size
+            "sinkhorn_divergence": False,  # Lower is better for divergences
+            "Free_Energy_at_T=1": False,    # Lower is better for free energy
+            "Energy": False,     # Lower is better for energy
+            "ELBO_at_T=1": True,
+            "Sinkhorn": False    # Lower is better for Sinkhorn divergence
+        }
+
         self.EnergyClass = get_Energy_class(Energy_Config)
 
         # Generate ground truth samples for SD metric if available
@@ -186,16 +197,19 @@ class TrainerClass:
         wandb.log({f"figs_{sample_mode}/{key}": overall_dict[key] for key in overall_dict})
 
     def train(self):
-
         params = self.params
         key = jax.random.PRNGKey(self.Network_Config["model_seed"])
         Best_Energy_value_ever = np.infty
         Best_Free_Energy_value_ever = np.infty
-
+        Best_Sinkhorn_value_ever = np.infty
 
         # Initialize metric history dictionary
         metric_history = {}
-        save_metric_dict = {"Free_Energy_at_T=1": [], "EUBO_at_T": [],  "n_eff": [], "epoch": []}
+        best_running_avgs = {}  # Track best running averages
+        
+        save_metric_dict = {"Free_Energy_at_T=1": [], "ELBO_at_T=1": [],  "n_eff": [], "epoch": [], "EUBO_at_T=1": []}
+        if hasattr(self, 'sd_calculator'):
+            save_metric_dict["sinkhorn_divergence"] = []
 
         pbar = trange(self.num_epochs)
         for epoch in pbar:
@@ -206,38 +220,72 @@ class TrainerClass:
                 for sample_mode in sampling_modes:
                     n_samples = self.config["n_eval_samples"]
                     SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Interpol_params, self.SDE_LossClass.SDE_params, T_curr, key, sample_mode = sample_mode, n_integration_steps = self.n_integration_steps, n_states = n_samples)
-                    # Store metrics in history
+                    
+                    # Initialize metrics dict for this evaluation
+                    eval_metrics = {}
+
+                    # Store metrics in history and collect for logging
                     for metric_name, value in out_dict.items():
                         full_metric_name = f"eval_{sample_mode}/{metric_name}"
                         if full_metric_name not in metric_history:
                             metric_history[full_metric_name] = []
                         metric_history[full_metric_name].append(float(np.mean(value)))
-                    
-                    wandb.log({ f"eval_{sample_mode}/{key}": np.mean(out_dict[key]) for key in out_dict.keys()}, step=epoch+1)
+                        eval_metrics[f"eval_{sample_mode}/{metric_name}"] = np.mean(value)
 
                     # Calculate Sinkhorn divergence if the energy model has a tractable distribution
                     if hasattr(self, 'sd_calculator'):
                         model_samples = out_dict["X_0"][0:n_samples]
                         distance = self.sd_calculator.compute_SD(model_samples)
-                        #approximate_distance = self.sd_calculator.compute_approximate_W2(model_samples)
                         
                         # Store Sinkhorn metrics
                         sd_metric_name = f"eval_{sample_mode}/sinkhorn_divergence"
-                        #w2_metric_name = f"eval_{sample_mode}/approximate_W2"
                         if sd_metric_name not in metric_history:
                             metric_history[sd_metric_name] = []
-                            #metric_history[w2_metric_name] = []
                         metric_history[sd_metric_name].append(float(distance))
-                        #metric_history[w2_metric_name].append(float(approximate_distance))
                         
-                        wandb.log({sd_metric_name: distance}, step=epoch+1)
-                        #wandb.log({w2_metric_name: approximate_distance}, step=epoch+1)
+                        # Add Sinkhorn to metrics dict
+                        eval_metrics[sd_metric_name] = distance
+
+                        # Save model if this is the best Sinkhorn divergence so far
+                        if sample_mode == "eval":  # Only save on eval mode
+                            Best_Sinkhorn_value_ever = self.check_improvement(params, Best_Sinkhorn_value_ever, distance, "Sinkhorn", epoch=epoch+1)
+                            save_metric_dict["sinkhorn_divergence"].append(distance)
+
+                    # Calculate running averages for all metrics
+                    for metric_name, values in metric_history.items():
+                        if len(values) > 0:
+                            # Get current value (most recent)
+                            current_value = values[-1]
+                            eval_metrics[f"{metric_name}"] = current_value
+                            
+                            # Calculate running average of last 5 values
+                            last_n = values[-5:] if len(values) >= 5 else values
+                            running_avg = sum(last_n) / len(last_n)
+                            eval_metrics[f"{metric_name}_running_avg"] = running_avg
+                            
+                            # Get the base metric name without the eval_mode prefix
+                            base_metric_name = metric_name.split('/')[-1] if '/' in metric_name else metric_name
+                            
+                            # Update best running average based on whether metric should be maximized or minimized
+                            should_maximize = self.metric_objectives.get(base_metric_name, True)
+                            if metric_name not in best_running_avgs:
+                                best_running_avgs[metric_name] = running_avg
+                            elif should_maximize and running_avg > best_running_avgs[metric_name]:
+                                best_running_avgs[metric_name] = running_avg
+                            elif not should_maximize and running_avg < best_running_avgs[metric_name]:
+                                best_running_avgs[metric_name] = running_avg
+
+                    # Log all metrics at once
+                    wandb.log(eval_metrics, step=epoch+1)
 
                     self.plot_figures(SDE_tracer, epoch, sample_mode = sample_mode)
 
-                Energy_values = self.SDE_LossClass.vmap_Energy_function(SDE_tracer["y_final"])
+                
 
-                self.check_improvement(params, Best_Energy_value_ever, np.min(Energy_values), "Energy", epoch=epoch+1)
+                # Only save based on Energy if we don't have a tractable distribution
+                if not hasattr(self, 'sd_calculator'):
+                    Energy_values = self.SDE_LossClass.vmap_Energy_function(SDE_tracer["y_final"])
+                    Best_Free_Energy_value_ever = self.check_improvement(params, Best_Free_Energy_value_ever, np.min(Energy_values), "Energy", epoch=epoch+1)
 
                 if("beta_interpol_params" in self.SDE_LossClass.Interpol_params.keys()):
                     beta_interpol_params = self.SDE_LossClass.Interpol_params["beta_interpol_params"]
@@ -325,12 +373,13 @@ class TrainerClass:
             save_metric_dict["epoch"].append(epoch)
             self.save_metric_curves(save_metric_dict)
 
-            self.check_improvement(params, Best_Free_Energy_value_ever, Free_Energy_values, "Free_Energy_at_T=1", epoch, figs = None)
-
+            # We don't need this section anymore as model saving is handled by either Sinkhorn or Energy checks
             del self.aggregated_out_dict
             #print({key: np.exp(dict_val) for key, dict_val in self.SDE_LossClass.SDE_params.items()})
 
-        param_dict = self.load_params_and_config(filename="best_Free_Energy_at_T=1_checkpoint.pkl")
+        # Load the appropriate checkpoint based on whether we have a tractable distribution
+        checkpoint_filename = "best_Sinkhorn_checkpoint.pkl" if hasattr(self, 'sd_calculator') else "best_Free_Energy_at_T=1_checkpoint.pkl"
+        param_dict = self.load_params_and_config(filename=checkpoint_filename)
 
         self.SDE_LossClass.Interpol_params = param_dict["Interpol_params"]
         self.SDE_LossClass.SDE_params = param_dict["SDE_params"]
@@ -341,24 +390,39 @@ class TrainerClass:
         self.plot_figures(SDE_tracer, epoch)
 
         # After training loop, calculate and log running averages
-        running_avg_table = self._calculate_running_averages(metric_history)
+        running_avg_table = self._calculate_running_averages(metric_history, best_running_avgs)
         wandb.log({"final_metrics": running_avg_table})
 
         wandb.finish()
         return params
     
-    def check_improvement(self, params, best_metric_ever, metric, metric_name, epoch,figs = None):
-        best_metric_value = metric
-        if(best_metric_value < best_metric_ever or epoch==0):
-            best_metric_ever = best_metric_value
+    def check_improvement(self, params, best_metric_ever, metric, metric_name, epoch, figs = None):
+        current_metric_value = metric  # Renamed for clarity
+        base_metric_name = metric_name.split('/')[-1] if '/' in metric_name else metric_name
+        
+        should_maximize = self.metric_objectives[base_metric_name] 
+        
+        # Check if this is an improvement
+        is_improvement = False
+        if epoch == 0:
+            is_improvement = True
+            best_metric_ever = current_metric_value
+        elif should_maximize and current_metric_value > best_metric_ever:
+            is_improvement = True
+            best_metric_ever = current_metric_value
+        elif not should_maximize and current_metric_value < best_metric_ever:
+            is_improvement = True
+            best_metric_ever = current_metric_value
 
+        if is_improvement:
             param_dict = self.SDE_LossClass.get_param_dict(params)
-            ### TODO SDE paramters should also be saved!
             self.save_params_and_config(param_dict, self.config, filename=f"best_{metric_name}_checkpoint.pkl")
-            if(figs != None):
+            if figs is not None:
                 wandb.log(figs, step=epoch+1)
 
-            wandb.log({f"Best_{metric_name}": best_metric_ever},step=epoch+1)
+            wandb.log({f"Best_{metric_name}": best_metric_ever}, step=epoch+1)
+        
+        return best_metric_ever  # Return the updated best value
 
     def load_params_and_config(self, filename="params_and_config.pkl"):
         script_dir = os.path.dirname(os.path.abspath(__file__)) + "Checkpoints/" + self.wandb_id + "/"
@@ -386,19 +450,21 @@ class TrainerClass:
             pickle.dump(data, f)
 
 
-    def _calculate_running_averages(self, metric_history, window_size=5):
+    def _calculate_running_averages(self, metric_history, best_running_avgs, window_size=5):
         """Calculate running averages for all metrics and create a wandb table."""
-        table = wandb.Table(columns=["Metric", "Last Value", f"Last {window_size} Avg"])
+        table = wandb.Table(columns=["Metric", f"Last {window_size} Avg", "Best Running Avg"])
         
         for metric_name, values in metric_history.items():
             if len(values) > 0:
-                last_value = values[-1]
                 # Calculate running average of last window_size values
                 last_n = values[-window_size:] if len(values) >= window_size else values
                 running_avg = sum(last_n) / len(last_n)
                 
+                # Get the best running average achieved during training
+                best_avg = best_running_avgs.get(metric_name, running_avg)
+                
                 # Add row to table
-                table.add_data(metric_name, f"{last_value:.6f}", f"{running_avg:.6f}")
+                table.add_data(metric_name, f"{running_avg:.6f}", f"{best_avg:.6f}")
         
         return table
 
