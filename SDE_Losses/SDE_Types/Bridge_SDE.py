@@ -47,6 +47,13 @@ class Bridge_SDE_Class(Base_SDE_Class):
             log_pdf = jnp.sum(log_pdf_vec, axis = -1)
             return log_pdf
 
+    def prior_target_grad_interpolation(self, x, counter, Energy_params, SDE_params, temp, key):
+        #x = jax.lax.stop_gradient(x) ### TODO for bridges in rKL w repara this should not be stopped
+        #interpol = lambda x: self.Energy_Class.calc_energy(x, Energy_params, key)
+        (Energy, key), (grad)  = jax.value_and_grad(self.interpol_func, has_aux=True)( x, counter[0], SDE_params, Energy_params, temp, key)
+        #grad = jnp.clip(grad, -10**2, 10**2)
+        return jnp.expand_dims(Energy, axis = -1), grad
+
     def get_entropy_prior(self, SDE_params):
         if(self.invariance):
             raise ValueError("not implemented")

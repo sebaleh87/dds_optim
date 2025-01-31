@@ -322,7 +322,6 @@ class TrainerClass:
 
                 if("log_sigma" in self.SDE_LossClass.SDE_params):
                     sigma = np.exp(self.SDE_LossClass.SDE_params["log_sigma"])
-                    print("simga_Type", type(sigma))
                     if(type(sigma) == jnp.ndarray):
                         sigma_sorted = np.sort(sigma)
                         fig, ax = plt.subplots()
@@ -339,7 +338,7 @@ class TrainerClass:
                 start_grad_time = time.time()
                 params, self.opt_state, loss, out_dict = self.SDE_LossClass.update_step(params, self.opt_state, key, T_curr)
                 end_grad_time = time.time() 
-                key = out_dict["key"]	
+                key = out_dict["key"]
                 #print(out_dict)
                 if not hasattr(self, 'aggregated_out_dict'):
                     self.aggregated_out_dict = {k: [] for k in out_dict.keys() if k != "key" and k != "X_0"}

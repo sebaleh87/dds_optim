@@ -118,7 +118,7 @@ class Base_SDE_Class:
         return vmap_energy, vmap_grad, key
     
     def prior_target_grad_interpolation(self, x, counter, Energy_params, SDE_params, temp, key):
-        x_stopped = jax.lax.stop_gradient(x)
+        x_stopped = jax.lax.stop_gradient(x) ### TODO for bridges in rKL w repara this should not be stopped
         #interpol = lambda x: self.Energy_Class.calc_energy(x, Energy_params, key)
         (Energy, key), (grad)  = jax.value_and_grad(self.interpol_func, has_aux=True)( x_stopped, counter[0], SDE_params, Energy_params, temp, key)
         #grad = jnp.clip(grad, -10**2, 10**2)

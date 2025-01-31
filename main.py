@@ -256,7 +256,7 @@ if(__name__ == "__main__"):
                         Energy_Config = {
                             "name": "Rastrigin",
                             "dim_x": dim,
-                            "shift": 5.0
+                            "shift": 0.0
                         }
                     elif(args.Energy_Config == "Pytheus"):
                         Energy_Config = {
