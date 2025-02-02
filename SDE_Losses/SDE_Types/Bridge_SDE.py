@@ -31,6 +31,12 @@ class Bridge_SDE_Class(Base_SDE_Class):
                         "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
                         "log_sigma": jnp.log(1.)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)),
                         "log_sigma_prior": jnp.log(self.sigma_init)* jnp.ones((self.dim_x,))}
+            if(self.config["beta_schedule"] == "learned"):
+                SDE_params["log_beta_over_time"] = jnp.log(self.config["beta_max"] - self.config["beta_min"] + 10**-3)*jnp.ones((self.n_integration_steps, self.dim_x))
+                # del SDE_params["log_beta_delta"]
+                # del SDE_params["log_beta_min"]
+
+
         return SDE_params
 
     def get_log_prior(self, SDE_params, x, sigma_scale_factor = 1.):
@@ -81,10 +87,11 @@ class Bridge_SDE_Class(Base_SDE_Class):
     def get_SDE_sigma(self, SDE_params):
         if(self.invariance):
             sigma = jnp.exp(SDE_params["log_sigma"])*jnp.ones((self.dim_x,))
-            return sigma, None
         else:
             sigma = jnp.exp(SDE_params["log_sigma"])
-            return sigma, None
+        if(self.config["beta_schedule"]== "learned"):
+            sigma = jax.lax.stop_gradient(sigma)
+        return sigma, None
 
     def sample_prior(self, SDE_params, key, n_states, sigma_scale_factor = 1.):
         key, subkey = random.split(key)
@@ -106,14 +113,20 @@ class Bridge_SDE_Class(Base_SDE_Class):
             sigma = jnp.exp(SDE_params["log_sigma_prior"])
             return sigma*sigma_scale_factor
 
-    def beta(self, SDE_params, t, frac = 0.2):
+    def beta(self, SDE_params, t):
+        t_discrete = jnp.int32(t)
         t = t/self.n_integration_steps
-        beta_min, beta_max = self.get_beta_min_and_max(SDE_params)
         if(self.config["beta_schedule"] == "constant"):
+            beta_min, beta_max = self.get_beta_min_and_max(SDE_params)
             return beta_max
         elif(self.config["beta_schedule"] == "cosine"):
+            beta_min, beta_max = self.get_beta_min_and_max(SDE_params)
             beta_curr = jnp.clip(beta_min + (beta_max-beta_min)*jnp.cos(jnp.pi/2*(1-t)) , min = 10**-6)
             return beta_curr
+        elif(self.config["beta_schedule"] == "learned"):
+            return jnp.exp(SDE_params["log_beta_over_time"][t_discrete])
+        else:
+            raise ValueError("beta schedule not implemented")
 
 
     def get_diffusion(self, SDE_params, x, t):

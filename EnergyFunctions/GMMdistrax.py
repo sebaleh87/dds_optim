@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 
-class StudentTMixtureClass(EnergyModelClass):
+class GMMDistraxClass(EnergyModelClass):
     def __init__(self, config):
         """
         Initialize the Student-t Mixture distribution.
@@ -20,24 +20,21 @@ class StudentTMixtureClass(EnergyModelClass):
         """
         super().__init__(config)
         self.dim = config.get("dim_x", 2)
-        self.num_components = config.get("num_components", 5)
-        self.df = config.get("df", 2.0)
+        self.num_components = config.get("num_components", 40)
+        self.loc_scaling = config.get("loc_scaling", 40.)
+        self.variance = config.get("variances", 1.)
         
         # Initialize mixture parameters
         key = jax.random.PRNGKey(config.get("seed", 0))
-        self.locs = jax.random.uniform(
-            key, 
-            minval=-10.0, 
-            maxval=10.0, 
-            shape=(self.num_components, self.dim)
-        )
-        self.means = self.locs
-        self.dofs = jnp.ones((self.num_components, self.dim)) * self.df
-        self.scales = jnp.ones((self.num_components, self.dim))
+
+        mean = jax.random.uniform(shape=(self.num_components, self.dim), key=key, minval=-1.0, maxval=1.0) * self.loc_scaling
+        scale = jnp.ones(shape=(self.num_components, self.dim)) * self.variance
+        self.means = mean
+        self.scales = scale
         
         # Setup the mixture distribution
         component_dist = dist.Independent(
-            dist.StudentT(df=self.dofs, loc=self.locs, scale=self.scales), 
+            dist.Normal(loc=self.means, scale=self.scales), 
             1
         )
         mixture_weights = dist.Categorical(
@@ -50,13 +47,13 @@ class StudentTMixtureClass(EnergyModelClass):
         
         self.has_tractable_distribution = True
 
-        self.variances = self.scales
+        self.variances = self.variance
         self.x_min = np.min(self.means) + self.shift - 10 * np.max(self.variances)
         self.x_max = np.max(self.means) + self.shift + 10 * np.max(self.variances)
         self.y_min = np.min(self.means) + self.shift - 10 * np.max(self.variances)
         self.y_max = np.max(self.means) + self.shift + 10 * np.max(self.variances)  
         
-        self.levels = 50
+        self.levels = 80
 
     @partial(jax.jit, static_argnums=(0,))
     def energy_function(self, x):
@@ -88,7 +85,7 @@ class StudentTMixtureClass(EnergyModelClass):
         """
         return self.sample(key, sample_shape=(n_samples,))
 
-    def plot_samples(self, samples, title="Student-t Mixture Samples", save_path=None):
+    def plot_samples(self, samples, title="GMM", save_path=None):
         """
         Plot samples from the Student-t mixture distribution and optionally save to file.
         

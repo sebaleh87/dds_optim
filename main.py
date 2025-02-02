@@ -12,7 +12,7 @@ parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=
                                                                                  "Bridge_rKL", "Bridge_LogVarLoss", "Bridge_rKL_logderiv", "Bridge_rKL_logderiv_DiffUCO",
                                                                                 "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam"], help="select loss function")
 parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE", "VE_SDE", "Bridge_SDE", "Bridge_SDE_with_bug"], help="select SDE type, subVP_SDE is currently deprecated")
-parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "GaussianMixtureToy", "Rastrigin", "LennardJones", 
+parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "GMMDistrax", "GaussianMixtureToy", "Rastrigin", "LennardJones", 
                                                                                      "DoubleWellEquivariant", "DoubleWell", "Sonar", "Funnel",
                                                                                       "Pytheus", "WavePINN_latent", "WavePINN_hyperparam", "DoubleMoon",
                                                                                       "Banana", "Brownian", "Lorenz", "Seeds", "Ionosphere", "Sonar", "Funnel", "LGCP", "GermanCredit", "MW54",
@@ -53,7 +53,7 @@ parser.add_argument("--N_anneal", type=int, default=1000)
 parser.add_argument("--N_warmup", type=int, default=0)
 parser.add_argument("--steps_per_epoch", type=int, default=10)
 
-parser.add_argument("--beta_schedule", type=str, choices = ["constant", "cosine"], default="constant", help="defines the noise schedule for Bridge_SDE")
+parser.add_argument("--beta_schedule", type=str, choices = ["constant", "cosine", "learned"], default="constant", help="defines the noise schedule for Bridge_SDE")
 parser.add_argument("--update_params_mode", type=str, choices = ["all_in_one", "DKL"], default="all_in_one", help="keep all_in_one as default. This is currently not used")
 parser.add_argument("--epochs_per_eval", type=int, default=50)
 
@@ -251,6 +251,20 @@ if(__name__ == "__main__"):
                             "weights": [1/num_gaussians for i in range(num_gaussians)],
                             "num_modes": num_gaussians
                         }
+                    elif(args.Energy_Config == "GMMDistrax"):
+                        torch.manual_seed(seed)
+                        #np.random.seed(42)
+                        dim = args.n_particles
+                        num_gaussians = 40
+
+                        Energy_Config = {
+                            "name": "GMMDistrax",
+                            "dim_x": dim,
+                            "num_components": num_gaussians,
+                            "loc_scaling": 40.,
+                            "seed": seed
+
+                        }
                     elif(args.Energy_Config == "Rastrigin"):
                         dim = args.n_particles
                         Energy_Config = {
@@ -358,7 +372,9 @@ if(__name__ == "__main__"):
                             "dim_x": N + N,
                         }
                     elif(args.Energy_Config == "StudentTMixture"):
-                        dim = 50
+                        dim = args.n_particles
+                        if(args.n_particles != 50):
+                            Warning(f"StudentT Mixture now runs in dim {dim}")
                         num_components = 10
 
                         Energy_Config = {
