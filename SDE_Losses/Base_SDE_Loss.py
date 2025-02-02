@@ -144,10 +144,10 @@ class Base_SDE_Loss_Class:
         lr_min = l_max/10
         overall_steps = self.Optimizer_Config["epochs"]*self.Optimizer_Config["steps_per_epoch"]*self.lr_factor
         warmup_steps = int(0.1 * overall_steps)
-
+        clip_value = self.Optimizer_Config["clip_value"]
         self.schedule = self._init_lr_schedule(l_max, l_start, lr_min, overall_steps, warmup_steps)
 
-        optimizer = optax.chain(optax.zero_nans(), optax.clip_by_global_norm(1.0), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.schedule(epoch)))
+        optimizer = optax.chain(optax.zero_nans(), optax.clip(clip_value), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.schedule(epoch)))
         return optimizer
     
     def init_Interpol_params_optimizer(self):
@@ -160,7 +160,7 @@ class Base_SDE_Loss_Class:
         self.Interpol_schedule = self._init_lr_schedule(l_max, l_start, lr_min, overall_steps, warmup_steps)
         #optimizer = optax.adam(self.schedule)
         clip_value = self.Optimizer_Config["clip_value"]
-        optimizer = optax.chain(optax.zero_nans(), optax.clip_by_global_norm(clip_value), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.Interpol_schedule(epoch)))
+        optimizer = optax.chain(optax.zero_nans(), optax.clip(clip_value), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.Interpol_schedule(epoch)))
         return optimizer
     
     def init_SDE_params_optimizer(self):
@@ -177,7 +177,7 @@ class Base_SDE_Loss_Class:
 
         self.SDE_schedule = self._init_lr_schedule(l_max, l_start, lr_min, overall_steps, warmup_steps)
         #clipping is necessary due to lennard jones instabilities for some energy functions
-        optimizer = optax.chain(optax.zero_nans(), optax.clip_by_global_norm(clip_value), optax.add_decayed_weights(weight_decay), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.SDE_schedule(epoch)))
+        optimizer = optax.chain(optax.zero_nans(), optax.clip(clip_value), optax.add_decayed_weights(weight_decay), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.SDE_schedule(epoch)))
         
         return optimizer
     

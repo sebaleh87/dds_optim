@@ -19,20 +19,20 @@ class Bridge_SDE_Class(Base_SDE_Class):
     def get_SDE_params(self):
         if(self.invariance):
             ### if beta is learnable this also ahs to be dim(1)
-            SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"] - self.config["beta_min"]), 
-            "log_beta_min": jnp.log(self.config["beta_min"]),
-            "log_sigma": jnp.log(1), "mean": jnp.zeros((self.dim_x,)),
-            "log_sigma_prior": jnp.log(self.sigma_init)}
+            SDE_params = {"log_beta_delta": inverse_softplus(self.config["beta_max"] - self.config["beta_min"]), 
+            "log_beta_min": inverse_softplus(self.config["beta_min"]),
+            "log_sigma": inverse_softplus(1), "mean": jnp.zeros((self.dim_x,)),
+            "log_sigma_prior": inverse_softplus(self.sigma_init)}
 
         else:
             # rand_weights = jax.random.normal(random.PRNGKey(0), shape=(self.n_integration_steps,))
             # rand_weights_repulse = jax.random.normal(random.PRNGKey(0), shape=(self.n_integration_steps,))
-            SDE_params = {"log_beta_delta": jnp.log(self.config["beta_max"] - self.config["beta_min"] + 10**-3)* jnp.ones((self.dim_x,)), 
-                        "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
-                        "log_sigma": jnp.log(1.)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)),
+            SDE_params = {"log_beta_delta": inverse_softplus(self.config["beta_max"] - self.config["beta_min"] + 10**-3)* jnp.ones((self.dim_x,)), 
+                        "log_beta_min": inverse_softplus(self.config["beta_min"])* jnp.ones((self.dim_x,)),
+                        "log_sigma": inverse_softplus(1.)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)),
                         "log_sigma_prior": jnp.log(self.sigma_init)* jnp.ones((self.dim_x,))}
             if(self.config["beta_schedule"] == "learned"):
-                SDE_params["log_beta_over_time"] = jnp.log(self.config["beta_max"] - self.config["beta_min"] + 10**-3)*jnp.ones((self.n_integration_steps, self.dim_x))
+                SDE_params["log_beta_over_time"] = inverse_softplus(self.config["beta_max"] - self.config["beta_min"] + 10**-3)*jnp.ones((self.n_integration_steps, self.dim_x))
                 # del SDE_params["log_beta_delta"]
                 # del SDE_params["log_beta_min"]
 
@@ -86,9 +86,9 @@ class Bridge_SDE_Class(Base_SDE_Class):
 
     def get_SDE_sigma(self, SDE_params):
         if(self.invariance):
-            sigma = jnp.exp(SDE_params["log_sigma"])*jnp.ones((self.dim_x,))
+            sigma = nn.softplus(SDE_params["log_sigma"])*jnp.ones((self.dim_x,))
         else:
-            sigma = jnp.exp(SDE_params["log_sigma"])
+            sigma = nn.softplus(SDE_params["log_sigma"])
         if(self.config["beta_schedule"]== "learned"):
             sigma = jax.lax.stop_gradient(sigma)
         return sigma, None
@@ -106,11 +106,11 @@ class Bridge_SDE_Class(Base_SDE_Class):
     
     def return_prior_covar(self, SDE_params, sigma_scale_factor = 1.):
         if(self.invariance):
-            sigma = jnp.exp(SDE_params["log_sigma_prior"])*jnp.ones((self.dim_x,))
+            sigma = nn.softplus(SDE_params["log_sigma_prior"])*jnp.ones((self.dim_x,))
             overall_sigma = sigma*sigma_scale_factor
             return overall_sigma
         else:
-            sigma = jnp.exp(SDE_params["log_sigma_prior"])
+            sigma = nn.softplus(SDE_params["log_sigma_prior"])
             return sigma*sigma_scale_factor
 
     def beta(self, SDE_params, t):
@@ -124,7 +124,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
             beta_curr = jnp.clip(beta_min + (beta_max-beta_min)*jnp.cos(jnp.pi/2*(1-t)) , min = 10**-6)
             return beta_curr
         elif(self.config["beta_schedule"] == "learned"):
-            return jnp.exp(SDE_params["log_beta_over_time"][t_discrete])
+            return nn.softplus(SDE_params["log_beta_over_time"][t_discrete])
         else:
             raise ValueError("beta schedule not implemented")
 
@@ -291,4 +291,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
 
         return SDE_tracker, key
 
+
+def inverse_softplus(x):
+    return jnp.log(jnp.exp(x) - 1)
 

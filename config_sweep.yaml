@@ -1,5 +1,5 @@
 program: main.py
-project: Test
+project: LGCP_gridsearch_no_time_dependent
 command:
   - ${env}
   - python
@@ -7,56 +7,48 @@ command:
   - ${args}
   - --use_interpol_gradient
   - --use_normal
-  - --use_off_policy
+  - --gridsearch
 method: grid
 # name: GMM Bridge LV, use_off_policy, 2k Steps, SDE-learning, n_part 3 SCAN T
-name: GMM Bridge rKL_LD & LogVar On- & Off-Policy,use_off_policy, SDE-learning, 2K steps ,3 Seeds
+name: gridsearch
 parameters:
   Energy_Config:
-    value: GaussianMixture
-  Energy_lr:
-    value: 0
+    value: LGCP
   GPU:
     value: -1
   N_anneal:
-    value: 2000
-  Network_Type:
-    value: FeedForward
+    value: 800
+  base_net:
+    value: PISNet
   SDE_Loss:
-    values:
-      - Bridge_rKL_logderiv
-      - Bridge_LogVarLoss
+    value: Bridge_rKL_logderiv
   SDE_Type:
     value: Bridge_SDE
   SDE_lr:
-    value: 0.001
+    values: [0.001, 0.0001, 0.00001]
+  Interpol_lr:
+    values: [0.001, 0.01]
   T_end:
-    value: 1
+    value: 1.
   T_start:
-    values: [1, 1.01, 1.02, 1.05]
+    value: 1.
   batch_size:
-    value: 2000
-  beta_max:
-    value: 0.1
+    value: 300
   beta_min:
     value: 0.01
   feature_dim:
-    value: 64
-  lr:
-    value: 0.001
+    value: 90
   n_hidden:
-    value: 64
+    value: 90
   n_integration_steps:
     value: 128
+  beta_max:
+    values: [0.05, 0.2, 0.5]
   sigma_init:
-    values: [5]
+    values: [0.1, 1., 2.]
   model_seeds:
     # values: [1]
-    values: [1]
-  n_particles:
-    values: [4]
-  epochs_per_eval:
-    values: [6]
+    values: [0]
 
 
 

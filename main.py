@@ -29,7 +29,7 @@ parser.add_argument("--project_name", type=str, default="")
 parser.add_argument("--minib_time_steps", type=int, default=20)
 parser.add_argument("--batch_size", type=int, default=200)
 parser.add_argument( "--lr", type=float, default=[0.001], nargs="+")
-parser.add_argument("--lr_schedule", type=str, choices = ["cosine", "const", "cosine_warmup"], default = "cosine")
+parser.add_argument("--lr_schedule", type=str, choices = ["cosine", "const", "cosine_warmup"], default = "const")
 parser.add_argument("--Energy_lr", type=float, default=0.0)
 parser.add_argument("--Interpol_lr", type=float, default=0.001)
 parser.add_argument("--SDE_lr", type=float, default=[0.001], nargs="+")
@@ -89,7 +89,7 @@ parser.add_argument("--Pytheus_challenge", type=int, default=1, choices=[0,1,2,3
 parser.add_argument("--Scaling_factor", type=float, default=40., help="Scaling factor for Energy Functions")
 parser.add_argument("--Variances", type=float, default=1., help="Variances of Gaussian Mixtures before scalling when means ~Unif([-1,1])")
 parser.add_argument("--base_net", type=str, default="Vanilla", choices = ["PISgradnet", "Vanilla", "PISNet"], help="Variances of Gaussian Mixtures before scalling when means ~Unif([-1,1])")
-
+parser.add_argument('--gridsearch', action='store_true', default=False, help='when gridearch = True, lr is overwritten by SDE_lr')
 
 
 args = parser.parse_args()
@@ -115,6 +115,9 @@ if(__name__ == "__main__"):
     if(args.disable_jit):
         jax.config.update("jax_disable_jit", True)
         jax.config.update("jax_debug_nans", True)
+
+    if(args.gridsearch):
+        args.lr = args.SDE_lr
 
     # if(args.lr/args.SDE_lr  < 5):
     #     print("Warning: args.lr/args.SDE_lr  < 5, emperically this ratio is too high")
