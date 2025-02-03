@@ -12,7 +12,7 @@ parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=
                                                                                  "Bridge_rKL", "Bridge_LogVarLoss", "Bridge_rKL_logderiv", "Bridge_rKL_logderiv_DiffUCO",
                                                                                 "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam"], help="select loss function")
 parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE", "VE_SDE", "Bridge_SDE", "Bridge_SDE_with_bug"], help="select SDE type, subVP_SDE is currently deprecated")
-parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "GaussianMixtureToy", "Rastrigin", "LennardJones", 
+parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "GMMDistrax", "GaussianMixtureToy", "Rastrigin", "LennardJones", 
                                                                                      "DoubleWellEquivariant", "DoubleWell", "Sonar", "Funnel",
                                                                                       "Pytheus", "WavePINN_latent", "WavePINN_hyperparam", "DoubleMoon",
                                                                                       "Banana", "Brownian", "Lorenz", "Seeds", "Ionosphere", "Sonar", "Funnel", "LGCP", "GermanCredit", "MW54",
@@ -29,7 +29,7 @@ parser.add_argument("--project_name", type=str, default="")
 parser.add_argument("--minib_time_steps", type=int, default=20)
 parser.add_argument("--batch_size", type=int, default=200)
 parser.add_argument( "--lr", type=float, default=[0.001], nargs="+")
-parser.add_argument("--lr_schedule", type=str, choices = ["cosine", "const", "cosine_warmup"], default = "cosine")
+parser.add_argument("--lr_schedule", type=str, choices = ["cosine", "const", "cosine_warmup"], default = "const")
 parser.add_argument("--Energy_lr", type=float, default=0.0)
 parser.add_argument("--Interpol_lr", type=float, default=0.001)
 parser.add_argument("--SDE_lr", type=float, default=[0.001], nargs="+")
@@ -45,6 +45,7 @@ parser.add_argument("--repulsion_strength", type=float, default=0., help="repuls
 ### TODO explain the effect
 parser.add_argument('--use_off_policy', action='store_true', default=False, help='use off policy sampling')
 parser.add_argument('--no-use_off_policy', dest='use_off_policy', action='store_false', help='dont use off policy sampling')
+parser.add_argument('--off_policy_mode', type=str, default="no_scale_drift", choices = ["scale_drift", "no_scale_drift"], help='scale or not scale the drift')
 parser.add_argument("--sigma_scale_factor", type=float, default=1., help="amount of noise for off policy sampling, 0 has no effect = no-use_off_policy")
 
 parser.add_argument("--disable_jit", action='store_true', default=False, help="disable jit for debugging")
@@ -53,7 +54,7 @@ parser.add_argument("--N_anneal", type=int, default=1000)
 parser.add_argument("--N_warmup", type=int, default=0)
 parser.add_argument("--steps_per_epoch", type=int, default=10)
 
-parser.add_argument("--beta_schedule", type=str, choices = ["constant", "cosine"], default="constant", help="defines the noise schedule for Bridge_SDE")
+parser.add_argument("--beta_schedule", type=str, choices = ["constant", "cosine", "learned", "linear"], default="constant", help="defines the noise schedule for Bridge_SDE")
 parser.add_argument("--update_params_mode", type=str, choices = ["all_in_one", "DKL"], default="all_in_one", help="keep all_in_one as default. This is currently not used")
 parser.add_argument("--epochs_per_eval", type=int, default=50)
 
@@ -89,7 +90,7 @@ parser.add_argument("--Pytheus_challenge", type=int, default=1, choices=[0,1,2,3
 parser.add_argument("--Scaling_factor", type=float, default=40., help="Scaling factor for Energy Functions")
 parser.add_argument("--Variances", type=float, default=1., help="Variances of Gaussian Mixtures before scalling when means ~Unif([-1,1])")
 parser.add_argument("--base_net", type=str, default="Vanilla", choices = ["PISgradnet", "Vanilla", "PISNet"], help="Variances of Gaussian Mixtures before scalling when means ~Unif([-1,1])")
-
+parser.add_argument('--gridsearch', action='store_true', default=False, help='when gridearch = True, lr is overwritten by SDE_lr')
 
 
 args = parser.parse_args()
@@ -115,6 +116,9 @@ if(__name__ == "__main__"):
     if(args.disable_jit):
         jax.config.update("jax_disable_jit", True)
         jax.config.update("jax_debug_nans", True)
+
+    if(args.gridsearch):
+        args.lr = args.SDE_lr
 
     # if(args.lr/args.SDE_lr  < 5):
     #     print("Warning: args.lr/args.SDE_lr  < 5, emperically this ratio is too high")
@@ -196,6 +200,7 @@ if(__name__ == "__main__"):
                         "sigma_scale_factor": args.sigma_scale_factor,
                         "batch_size": args.batch_size,
                         "use_off_policy": args.use_off_policy,
+                        "off_policy_mode": args.off_policy_mode,
                         "learn_interpolation_params": args.learn_interpolation_params,
                         "beta_schedule": args.beta_schedule
                     }
@@ -251,12 +256,26 @@ if(__name__ == "__main__"):
                             "weights": [1/num_gaussians for i in range(num_gaussians)],
                             "num_modes": num_gaussians
                         }
+                    elif(args.Energy_Config == "GMMDistrax"):
+                        torch.manual_seed(seed)
+                        #np.random.seed(42)
+                        dim = args.n_particles
+                        num_gaussians = 40
+
+                        Energy_Config = {
+                            "name": "GMMDistrax",
+                            "dim_x": dim,
+                            "num_components": num_gaussians,
+                            "loc_scaling": 40.,
+                            "seed": seed
+
+                        }
                     elif(args.Energy_Config == "Rastrigin"):
                         dim = args.n_particles
                         Energy_Config = {
                             "name": "Rastrigin",
                             "dim_x": dim,
-                            "shift": 5.0
+                            "shift": 0.0
                         }
                     elif(args.Energy_Config == "Pytheus"):
                         Energy_Config = {
@@ -358,7 +377,9 @@ if(__name__ == "__main__"):
                             "dim_x": N + N,
                         }
                     elif(args.Energy_Config == "StudentTMixture"):
-                        dim = 50
+                        dim = args.n_particles
+                        if(args.n_particles != 50):
+                            Warning(f"StudentT Mixture now runs in dim {dim}")
                         num_components = 10
 
                         Energy_Config = {

@@ -217,7 +217,7 @@ class TrainerClass:
             T_curr = self.AnnealClass.update_temp()
             start_time = time.time()
             if((epoch % int(self.num_epochs/self.Optimizer_Config["epochs_per_eval"]) == 0 or epoch == 0) and not self.config["disable_jit"]):
-                sampling_modes = [ "val", "eval"]
+                sampling_modes = ["eval"]
                 for sample_mode in sampling_modes:
                     n_samples = self.config["n_eval_samples"]
                     SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Interpol_params, self.SDE_LossClass.SDE_params, T_curr, key, sample_mode = sample_mode, n_integration_steps = self.n_integration_steps, n_states = n_samples)
@@ -320,18 +320,21 @@ class TrainerClass:
                     wandb.log({"fig/repulsion_interpol_params": wandb.Image(fig)})
                     plt.close(fig)
 
-                if("log_sigma" in self.SDE_LossClass.SDE_params):
-                    sigma = np.exp(self.SDE_LossClass.SDE_params["log_sigma"])
-                    print("simga_Type", type(sigma))
-                    if(type(sigma) == jnp.ndarray):
-                        sigma_sorted = np.sort(sigma)
-                        fig, ax = plt.subplots()
-                        ax.scatter(np.arange(len(sigma_sorted)), sigma_sorted)
-                        ax.set_xlabel('Steps')
-                        ax.set_ylabel('Sigma')
-                        ax.set_title('Sorted Sigma over Steps')
-                        wandb.log({"fig/Sorted_Sigma_Scatter": wandb.Image(fig)})
-                        plt.close(fig)
+                if("log_beta_over_time" in self.SDE_LossClass.SDE_params.keys()):
+                    #beta_interpol_params = self.SDE_LossClass.SDE_params["repulsion_interpol_params"]
+                    sigma = jnp.exp(self.SDE_LossClass.SDE_params["log_sigma"])
+                    beta_per_step = sigma[None, :]*jnp.exp(self.SDE_LossClass.SDE_params["log_beta_over_time"])
+                    #print(beta_per_step.shape)
+                    steps = np.arange(0,len(beta_per_step) )
+                    fig, ax = plt.subplots()
+
+                    ax.plot(steps, beta_per_step, label='beta_per_step')
+                    ax.set_xlabel('T = 0 (target samples) T = T prior')
+                    ax.set_ylabel('beta_over_time')
+                    ax.set_title('beta_over_time over Steps')
+                    ax.legend()
+                    wandb.log({"fig/beta_over_time": wandb.Image(fig)})
+                    plt.close(fig)
 
                     
             loss_list = []
@@ -339,7 +342,7 @@ class TrainerClass:
                 start_grad_time = time.time()
                 params, self.opt_state, loss, out_dict = self.SDE_LossClass.update_step(params, self.opt_state, key, T_curr)
                 end_grad_time = time.time() 
-                key = out_dict["key"]	
+                key = out_dict["key"]
                 #print(out_dict)
                 if not hasattr(self, 'aggregated_out_dict'):
                     self.aggregated_out_dict = {k: [] for k in out_dict.keys() if k != "key" and k != "X_0"}

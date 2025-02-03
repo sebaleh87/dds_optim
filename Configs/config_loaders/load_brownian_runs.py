@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 
 def load_config(wandb_id):
-    script_dir = os.path.dirname(os.path.abspath(__file__)) + "/TrainerCheckpoints/" + wandb_id + "/"
+    script_dir = "/system/user/publicwork/sanokows/Denoising_diff_sampler" + "/TrainerCheckpoints/" + wandb_id + "/"
     
     with open(script_dir + "metric_dict.pkl", "rb") as f:
         save_metric_dict = pickle.load( f)
@@ -57,11 +57,16 @@ def stability_brownian():
     ''' Bridge_rKL_logderiv learn SDE params: wandb_id = "lyric-fog-19"
     python main.py --SDE_Loss Bridge_rKL_logderiv --Energy_Config Brownian --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 2000 --lr 0.005 --Energy_lr 0.0 --SDE_lr 0.005 --N_anneal 4000 --feature_dim 64 --n_hidden 64 --GPU 3 --beta_max 0.01 --beta_min 0.001 --use_interpol_gradient --Network_Type FeedForward --project_name stability_final --use_normal --SDE_Type Bridge_SDE --repulsion_strength 0.0 --sigma_init 0.2
     '''
-
+    rKL_all_SDE_average_sigma = ["serene-thunder-48", "curious-cherry-47"]
     plot_dict = {"LogVarLoss": [{"id_list": LV_all_SDE_ids,"learn_SDE_params": True, "oracle": True, "label": r"CMCD-LV"}, {"id_list": LV_only_prior, "learn_SDE_params": False, "oracle": True, "label": r"CMCD-LV $ \star$"}], 
-                 "rKL_logderiv": [{"id_list": rKL_only_prior, "learn_SDE_params": False, "oracle": True, "label": r"CMCD-rKL w / LD $ \star$ "}, {"id_list": rKL_all_SDE_ids, "learn_SDE_params": True, "oracle": True, "label": r"CMCD-rKL w / LD $\sigma_\mathrm{diff, init} = 0.01$"}],
-                 "rKL_logderiv_higher_sigma": [{"id_list": rKL_all_SDE_ids_higher_sigma, "learn_SDE_params": True, "oracle": True, "label": r"CMCD-rKL w / LD $\sigma_\mathrm{diff, init} = 0.05$"}]}
+                 "rKL_logderiv": [{"id_list": rKL_only_prior, "learn_SDE_params": False, "oracle": True, "label": r"CMCD-rKL-LD $ \star$ "}, {"id_list": rKL_all_SDE_average_sigma, "learn_SDE_params": True, "oracle": True, "label": r"CMCD-rKL-LD $ \star$ $\sigma_\mathrm{diff, init} \approx 0.018$"}],
+                 "rKL_logderiv_higher_sigma": [{"id_list": rKL_all_SDE_ids_higher_sigma, "learn_SDE_params": True, "oracle": True, "label": r"CMCD-rKL-LD $\sigma_\mathrm{diff, init} = 0.05$"}]}
     
+
+    # plot_dict = {"LogVarLoss": [{"id_list": LV_all_SDE_ids,"learn_SDE_params": True, "oracle": True, "label": r"CMCD-LV"}, {"id_list": LV_only_prior, "learn_SDE_params": False, "oracle": True, "label": r"CMCD-LV $ \star$"}], 
+    #              "rKL_logderiv": [{"id_list": rKL_only_prior, "learn_SDE_params": False, "oracle": True, "label": r"CMCD-rKL w / LD $ \star$ "}], 
+    #              "rKL_logderiv_higher_sigma": [{"id_list": rKL_all_SDE_ids_higher_sigma, "learn_SDE_params": True, "oracle": True, "label": r"CMCD-rKL w / LD"}]}
+
     def compute_average_and_error(id_list):
         all_free_energies = []
         for wandb_id in id_list:
@@ -113,7 +118,8 @@ def stability_brownian():
     plt.legend(fontsize=16)
     plt.grid()
     plt.tight_layout()
-    plt.savefig(os.getcwd() + '/Figures/free_energy_plot.png', dpi=1000)
+    print(os.path.dirname(os.path.abspath(__file__)) + '/Figures/avg_sigma_plot.png')
+    plt.savefig(os.path.dirname(os.path.abspath(__file__))  + '/Figures/free_energy_plot.png', dpi=1000)
     plt.show()
 
 

@@ -2,6 +2,7 @@ from .Base_SDE_Loss import Base_SDE_Loss_Class
 import jax
 from jax import numpy as jnp
 from functools import partial
+from jax import nn
 
 #see Sequential Controlled Langevin Diffusions (16)
 
@@ -38,8 +39,7 @@ class Bridge_rKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
             log_prob_prior_scaled = SDE_tracer["log_prob_prior_scaled"]
             log_prob_noise = SDE_tracer["log_prob_noise"]
             log_weights = reverse_log_probs - log_prob_noise + log_prior - log_prob_prior_scaled 
-            ### TODO use softmax and then sum!!!!!!!!!!!
-            #off_policy_weights = jax.lax.stop_gradient(jnp.exp(log_weights - jnp.max(log_weights)))
+            
             off_policy_weights_normed = jax.lax.stop_gradient(jax.nn.softmax(log_weights, axis = 0))
             off_policy_weights_normed_times_n_samples = off_policy_weights_normed* log_weights.shape[0] ### multiply wiht numer of states so that mean instead of sum can be used later on
             loss = self.compute_rKL_log_deriv(SDE_params, log_prior, reverse_log_probs, forward_diff_log_probs, entropy_minus_noise,Energy, temp, 

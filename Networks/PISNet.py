@@ -9,6 +9,7 @@ class PISNetBaseClass(nn.Module):
 
     num_layers: int = 2
     num_hid: int = 90
+    out_clip: float = 10**4
 
 
     def setup(self):
@@ -24,14 +25,8 @@ class PISNetBaseClass(nn.Module):
         self.timestep_phase = self.param('timestep_phase', nn.initializers.zeros_init(), (1, self.num_hid))
         self.timestep_coeff = jnp.linspace(start=0.1, stop=100, num=self.num_hid)[None]
 
-        self.time_coder_state = nn.Sequential([
-            nn.Dense(self.num_hid),
-            nn.gelu,
-            nn.Dense(self.num_hid),
-        ])
-
         self.state_time_coder = TimeEncoder(self.num_hid)
-        self.state_time_net = StateTimeEncoder(num_layers=self.num_layers, num_hid=self.num_hid,
+        self.state_time_net = StateTimeEncoder(num_layers=self.num_layers, out_dim = self.dim,  num_hid=self.num_hid,
                                                name='state_time_net', parent=self)
 
     def get_fourier_features(self, timesteps):
@@ -56,18 +51,19 @@ class PISNetBaseClass(nn.Module):
         out_state_p_grad =  jnp.clip(out_state, -self.out_clip, self.out_clip)
         out_score =  out_state_p_grad + grad/2
         out_dict["score"] = out_score   
+        #print("core", jnp.mean(out_score))
         return out_dict
 
 
 class TimeEncoder(nn.Module):
-    num_hid: int = 2
+    num_hid: int = 90
 
     def setup(self):
         self.timestep_phase = self.param('timestep_phase', nn.initializers.zeros_init(), (1, self.num_hid))
         self.timestep_coeff = jnp.linspace(start=0.1, stop=100, num=self.num_hid)[None]
 
         self.mlp = [
-            nn.Dense(2 * self.num_hid),
+            nn.Dense(self.num_hid),
             nn.gelu,
             nn.Dense(self.num_hid),
         ]
@@ -90,26 +86,23 @@ class TimeEncoder(nn.Module):
 
 class StateTimeEncoder(nn.Module):
     num_layers: int = 2
+    out_dim: int = 2
     num_hid: int = 64
     zero_init: bool = False
 
     def setup(self):
-        if self.zero_init:
-            last_layer = [
-                nn.Dense(self.parent.dim, kernel_init=nn.initializers.zeros_init(),
-                         bias_init=nn.initializers.zeros_init())]
-        else:
-            # last_layer = [nn.Dense(self.parent.dim)]
-            last_layer = [
-                nn.Dense(self.parent.dim, kernel_init=nn.initializers.normal(stddev=1e-7),
-                         bias_init=nn.initializers.zeros_init())]
-
-        self.state_time_net = [
-                                  nn.Sequential([nn.Dense(self.num_hid), nn.gelu]) for _ in
-                                  range(self.num_layers)
-                              ] + last_layer
+        self.mlp = [
+            nn.Dense(self.num_hid),
+            nn.gelu,
+            nn.Dense(self.num_hid),
+            nn.gelu,
+        ]
+        self.out_layer = nn.Dense(self.out_dim, kernel_init=nn.initializers.zeros,
+                                                bias_init=nn.initializers.zeros)
 
     def __call__(self, extended_input):
-        for layer in self.state_time_net:
+        for layer in self.mlp:
             extended_input = layer(extended_input)
-        return extended_input
+
+        output = self.out_layer(extended_input)
+        return output

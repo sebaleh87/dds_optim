@@ -105,11 +105,11 @@ class Base_SDE_Class:
         batched_subkey = random.split(subkey, x.shape[0])
         vmap_energy, vmap_grad = jax.vmap(self.prior_target_grad_interpolation, in_axes=(0, 0, None, None, None, 0))(x, counter, Energy_params, SDE_params, temp, batched_subkey)
         #print("vmap_grad", jnp.mean(jax.lax.stop_gradient(vmap_grad)))
-        vmap_grad = jnp.where(jnp.isfinite(vmap_grad), vmap_grad, 0)
+        #vmap_grad = jnp.where(jnp.isfinite(vmap_grad), vmap_grad, 0)
         vmap_grad = jnp.where(jnp.isnan(vmap_grad), 0, vmap_grad)
-        #vmap_grad = jnp.clip(vmap_grad, -10**4, 10**4)
-        grad_norm = jnp.linalg.norm(vmap_grad, axis = -1, keepdims = True)
-        vmap_grad = jnp.where(grad_norm > clip_overall_score, clip_overall_score*vmap_grad/grad_norm, vmap_grad)
+        # #vmap_grad = jnp.clip(vmap_grad, -10**4, 10**4)
+        # grad_norm = jnp.linalg.norm(vmap_grad, axis = -1, keepdims = True)
+        # vmap_grad = jnp.where(grad_norm > clip_overall_score, clip_overall_score*vmap_grad/grad_norm, vmap_grad)
 
         #vmap_div_energy, vmap_grad_div = self.get_diversity_log_prob_grad(x,counter,SDE_params) 
         vmap_energy = vmap_energy #+ vmap_div_energy
@@ -118,7 +118,7 @@ class Base_SDE_Class:
         return vmap_energy, vmap_grad, key
     
     def prior_target_grad_interpolation(self, x, counter, Energy_params, SDE_params, temp, key):
-        x_stopped = jax.lax.stop_gradient(x)
+        x_stopped = jax.lax.stop_gradient(x) ### TODO for bridges in rKL w repara this should not be stopped
         #interpol = lambda x: self.Energy_Class.calc_energy(x, Energy_params, key)
         (Energy, key), (grad)  = jax.value_and_grad(self.interpol_func, has_aux=True)( x_stopped, counter[0], SDE_params, Energy_params, temp, key)
         #grad = jnp.clip(grad, -10**2, 10**2)
@@ -511,6 +511,10 @@ class Base_SDE_Class:
         )
 
         return x_final, SDE_tracker_steps
+
+
+def inverse_softplus(x):
+    return jnp.log(jnp.exp(x) - 1)
     
 
 
