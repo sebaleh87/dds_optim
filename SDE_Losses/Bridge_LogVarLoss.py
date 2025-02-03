@@ -2,6 +2,7 @@ from .Base_SDE_Loss import Base_SDE_Loss_Class
 import jax
 from jax import numpy as jnp
 from functools import partial
+from jax import nn
 
 #see Sequential Controlled Langevin Diffusions (18)
 

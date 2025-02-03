@@ -1,5 +1,5 @@
 program: main.py
-project: LGCP_gridsearch_no_time_dependent
+project: LGCP_gridsearch_test
 command:
   - ${env}
   - python
@@ -9,6 +9,11 @@ command:
   - --use_normal
   - --gridsearch
 method: grid
+metric:
+  name: "Free_Energy_at_T=1"
+  goal: minimize
+
+
 # name: GMM Bridge LV, use_off_policy, 2k Steps, SDE-learning, n_part 3 SCAN T
 name: gridsearch
 parameters:
@@ -25,7 +30,7 @@ parameters:
   SDE_Type:
     value: Bridge_SDE
   SDE_lr:
-    values: [0.001, 0.0001, 0.00001]
+    values: [0.001, 0.0001, 0.0005]
   Interpol_lr:
     values: [0.001, 0.01]
   T_end:
@@ -43,12 +48,18 @@ parameters:
   n_integration_steps:
     value: 128
   beta_max:
-    values: [0.05, 0.2, 0.5]
+    values: [0.3, 0.5, 1.]
   sigma_init:
-    values: [0.1, 1., 2.]
+    values: [0.5, 1., 2.]
   model_seeds:
     # values: [1]
     values: [0]
+
+run_cap: 50
+
+# early_terminate:
+#   type: hyperband
+#   min_iter: 100
 
 
 

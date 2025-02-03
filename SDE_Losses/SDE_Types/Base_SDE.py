@@ -511,6 +511,10 @@ class Base_SDE_Class:
         )
 
         return x_final, SDE_tracker_steps
+
+
+def inverse_softplus(x):
+    return jnp.log(jnp.exp(x) - 1)
     
 
 

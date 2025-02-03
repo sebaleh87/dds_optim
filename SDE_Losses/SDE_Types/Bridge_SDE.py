@@ -7,7 +7,7 @@ import flax.linen as nn
 from .Time_Importance_Sampler.numerical_inverse import NumericalIntSampler
 import wandb
 from matplotlib import pyplot as plt
-from .Base_SDE import Base_SDE_Class
+from .Base_SDE import Base_SDE_Class, inverse_softplus
 
 ### Bridge as in SEQUENTIAL CONTROLLED LANGEVIN DIFFUSIONS
 class Bridge_SDE_Class(Base_SDE_Class):
@@ -19,20 +19,20 @@ class Bridge_SDE_Class(Base_SDE_Class):
     def get_SDE_params(self):
         if(self.invariance):
             ### if beta is learnable this also ahs to be dim(1)
-            SDE_params = {"log_beta_delta": inverse_softplus(self.config["beta_max"] - self.config["beta_min"]), 
-            "log_beta_min": inverse_softplus(self.config["beta_min"]),
-            "log_sigma": inverse_softplus(1), "mean": jnp.zeros((self.dim_x,)),
-            "log_sigma_prior": inverse_softplus(self.sigma_init)}
+            SDE_params = {"log_beta_delta": jnp.log((self.config["beta_max"] - self.config["beta_min"])), 
+            "log_beta_min": jnp.log(self.config["beta_min"]),
+            "log_sigma": jnp.log(1.), "mean": jnp.zeros((self.dim_x,)),
+            "log_sigma_prior": jnp.log(self.sigma_init)}
 
         else:
             # rand_weights = jax.random.normal(random.PRNGKey(0), shape=(self.n_integration_steps,))
             # rand_weights_repulse = jax.random.normal(random.PRNGKey(0), shape=(self.n_integration_steps,))
-            SDE_params = {"log_beta_delta": inverse_softplus(self.config["beta_max"] - self.config["beta_min"] + 10**-3)* jnp.ones((self.dim_x,)), 
-                        "log_beta_min": inverse_softplus(self.config["beta_min"])* jnp.ones((self.dim_x,)),
-                        "log_sigma": inverse_softplus(1.)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)),
+            SDE_params = {"log_beta_delta": jnp.log((self.config["beta_max"] - self.config["beta_min"] + 10**-3))* jnp.ones((self.dim_x,)), 
+                        "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
+                        "log_sigma": jnp.log(1.)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)),
                         "log_sigma_prior": jnp.log(self.sigma_init)* jnp.ones((self.dim_x,))}
             if(self.config["beta_schedule"] == "learned"):
-                SDE_params["log_beta_over_time"] = inverse_softplus(self.config["beta_max"] - self.config["beta_min"] + 10**-3)*jnp.ones((self.n_integration_steps, self.dim_x))
+                SDE_params["log_beta_over_time"] = jnp.log(self.config["beta_max"])*jnp.ones((self.n_integration_steps, self.dim_x))
                 # del SDE_params["log_beta_delta"]
                 # del SDE_params["log_beta_min"]
 
@@ -86,9 +86,10 @@ class Bridge_SDE_Class(Base_SDE_Class):
 
     def get_SDE_sigma(self, SDE_params):
         if(self.invariance):
-            sigma = nn.softplus(SDE_params["log_sigma"])*jnp.ones((self.dim_x,))
+            sigma = jnp.exp(SDE_params["log_sigma"])*jnp.ones((self.dim_x,))
         else:
-            sigma = nn.softplus(SDE_params["log_sigma"])
+            sigma = jnp.exp(SDE_params["log_sigma"])
+
         if(self.config["beta_schedule"]== "learned"):
             sigma = jax.lax.stop_gradient(sigma)
         return sigma, None
@@ -106,25 +107,45 @@ class Bridge_SDE_Class(Base_SDE_Class):
     
     def return_prior_covar(self, SDE_params, sigma_scale_factor = 1.):
         if(self.invariance):
-            sigma = nn.softplus(SDE_params["log_sigma_prior"])*jnp.ones((self.dim_x,))
+            sigma = jnp.exp(SDE_params["log_sigma_prior"])*jnp.ones((self.dim_x,))
             overall_sigma = sigma*sigma_scale_factor
             return overall_sigma
         else:
-            sigma = nn.softplus(SDE_params["log_sigma_prior"])
+            sigma = jnp.exp(SDE_params["log_sigma_prior"])
             return sigma*sigma_scale_factor
+
+    def get_beta_min_and_max(self, SDE_params):
+        if(self.invariance):
+            beta_min = jnp.exp(SDE_params["log_beta_min"])*jnp.ones((self.dim_x,))
+            beta_delta = jnp.exp(SDE_params["log_beta_delta"])*jnp.ones((self.dim_x,))
+            beta_max = beta_min + beta_delta
+            return beta_min, beta_max
+        else:
+            beta_delta = jnp.exp(SDE_params["log_beta_delta"])
+            beta_min = jnp.exp(SDE_params["log_beta_min"])
+            beta_max = beta_min + beta_delta
+            return beta_min, beta_max
+
 
     def beta(self, SDE_params, t):
         t_discrete = jnp.int32(t)
         t = t/self.n_integration_steps
         if(self.config["beta_schedule"] == "constant"):
             beta_min, beta_max = self.get_beta_min_and_max(SDE_params)
-            return beta_max
+            return jax.lax.stop_gradient(beta_max)
+        elif(self.config["beta_schedule"] == "linear"):
+            beta_min = 0.01
+            _, beta_max = self.get_beta_min_and_max(SDE_params)
+            beta_curr = beta_min + (beta_max-beta_min)*t
+            return beta_curr
         elif(self.config["beta_schedule"] == "cosine"):
-            beta_min, beta_max = self.get_beta_min_and_max(SDE_params)
-            beta_curr = jnp.clip(beta_min + (beta_max-beta_min)*jnp.cos(jnp.pi/2*(1-t)) , min = 10**-6)
+            beta_min = 0.01
+            offset = 1.008
+            _, beta_max = self.get_beta_min_and_max(SDE_params)
+            beta_curr = beta_min + (beta_max-beta_min)*jnp.cos(jnp.pi/2*(offset-t)/offset) 
             return beta_curr
         elif(self.config["beta_schedule"] == "learned"):
-            return nn.softplus(SDE_params["log_beta_over_time"][t_discrete])
+            return jnp.exp(SDE_params["log_beta_over_time"][t_discrete])
         else:
             raise ValueError("beta schedule not implemented")
 
@@ -162,9 +183,12 @@ class Bridge_SDE_Class(Base_SDE_Class):
     
     def reverse_sde(self, SDE_params, score, grad, x, t, dt, key, sigma_scale_factor = 1.):
         diffusion = self.get_diffusion(SDE_params, x, t)
-        scaled_diffusion = diffusion*sigma_scale_factor
+        if(self.config["off_policy_mode"] == "scale_drift"):
+            diffusion_for_drift = diffusion*sigma_scale_factor
+        else:
+            diffusion_for_drift = diffusion
 
-        reverse_drift_t_g_s = self.compute_reverse_drift(scaled_diffusion, score, grad) #TODO check is this power of two correct? I think yes because U = diffusion*score
+        reverse_drift_t_g_s = self.compute_reverse_drift(diffusion_for_drift, score, grad) #TODO check is this power of two correct? I think yes because U = diffusion*score
         x_drift_update = reverse_drift_t_g_s
 
         dx, log_prob_noise, key = self.sample_noise(SDE_params, x, t, dt, key, sigma_scale_factor = sigma_scale_factor)
@@ -292,6 +316,4 @@ class Bridge_SDE_Class(Base_SDE_Class):
         return SDE_tracker, key
 
 
-def inverse_softplus(x):
-    return jnp.log(jnp.exp(x) - 1)
 

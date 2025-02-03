@@ -113,8 +113,8 @@ class Base_SDE_Loss_Class:
         SDE_params = optax.apply_updates(SDE_params, SDE_params_updates)
 
         if( self.Optimizer_Config["learn_SDE_params_mode"] == "all"):
-            SDE_params["log_beta_min"] = jnp.log(self.SDE_type.config["beta_min"])*jnp.ones_like(SDE_params["log_beta_min"])
-            SDE_params["log_beta_delta"] = jnp.log(self.SDE_type.config["beta_max"])*jnp.ones_like(SDE_params["log_beta_delta"])
+            SDE_params["log_beta_min"] = self.init_SDE_params["log_beta_min"]
+            SDE_params["log_beta_delta"] = self.init_SDE_params["log_beta_delta"]
         elif( self.Optimizer_Config["learn_SDE_params_mode"] == "prior_only"):
             for SDE_param_key in SDE_params.keys():
                 if(SDE_param_key == "log_sigma_prior" or SDE_param_key == "mean"):
@@ -123,7 +123,7 @@ class Base_SDE_Loss_Class:
                     SDE_params[SDE_param_key] = self.init_SDE_params[SDE_param_key]
         elif( self.Optimizer_Config["learn_SDE_params_mode"] == "all_and_beta"):
             if(self.SDE_type.config["name"] == "Bridge_SDE"):
-                SDE_params["log_sigma"] = jnp.log(1.)*jnp.ones_like(SDE_params["log_sigma"]) ### log sigma does not exist in config as it is controled via beta
+                SDE_params["log_sigma"] = self.init_SDE_params["log_beta_delta"] ### log sigma does not exist in config as it is controled via beta
             pass			
         
         return params, Interpol_params, SDE_params, opt_state, Interpol_params_state, SDE_params_state, loss_value, out_dict
@@ -147,7 +147,7 @@ class Base_SDE_Loss_Class:
         clip_value = self.Optimizer_Config["clip_value"]
         self.schedule = self._init_lr_schedule(l_max, l_start, lr_min, overall_steps, warmup_steps)
 
-        optimizer = optax.chain(optax.zero_nans(), optax.clip(clip_value), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.schedule(epoch)))
+        optimizer = optax.chain(optax.zero_nans(), optax.clip_by_global_norm(clip_value), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.schedule(epoch)))
         return optimizer
     
     def init_Interpol_params_optimizer(self):
@@ -160,7 +160,7 @@ class Base_SDE_Loss_Class:
         self.Interpol_schedule = self._init_lr_schedule(l_max, l_start, lr_min, overall_steps, warmup_steps)
         #optimizer = optax.adam(self.schedule)
         clip_value = self.Optimizer_Config["clip_value"]
-        optimizer = optax.chain(optax.zero_nans(), optax.clip(clip_value), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.Interpol_schedule(epoch)))
+        optimizer = optax.chain(optax.zero_nans(), optax.clip_by_global_norm(clip_value), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.Interpol_schedule(epoch)))
         return optimizer
     
     def init_SDE_params_optimizer(self):
@@ -177,7 +177,7 @@ class Base_SDE_Loss_Class:
 
         self.SDE_schedule = self._init_lr_schedule(l_max, l_start, lr_min, overall_steps, warmup_steps)
         #clipping is necessary due to lennard jones instabilities for some energy functions
-        optimizer = optax.chain(optax.zero_nans(), optax.clip(clip_value), optax.add_decayed_weights(weight_decay), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.SDE_schedule(epoch)))
+        optimizer = optax.chain(optax.zero_nans(), optax.clip_by_global_norm(clip_value), optax.add_decayed_weights(weight_decay), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.SDE_schedule(epoch)))
         
         return optimizer
     
@@ -361,3 +361,6 @@ def check_nans(tree, path=""):
             nan_paths.append(path)
 
     return nan_paths
+
+def inverse_softplus(x):
+    return jnp.log(jnp.exp(x) - 1)
