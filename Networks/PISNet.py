@@ -14,11 +14,13 @@ class PISNetBaseClass(nn.Module):
 
     def setup(self):
         self.SDE_mode = self.SDE_Loss_Config["SDE_Type_Config"]["name"]
+        self.beta_schedule = self.SDE_Loss_Config["SDE_Type_Config"]["beta_schedule"]
         self.use_interpol_gradient = self.SDE_Loss_Config["SDE_Type_Config"]["use_interpol_gradient"]
         self.use_normal = self.SDE_Loss_Config["SDE_Type_Config"]["use_normal"]
         self.model_mode = self.network_config["model_mode"] # is either normal or latent
         self.n_integration_steps = self.SDE_Loss_Config["n_integration_steps"]
 
+        #self.num_hid = self.network_config["n_hidden"]
         self.x_dim = self.network_config["x_dim"]
         self.dim = self.x_dim
 
@@ -28,6 +30,11 @@ class PISNetBaseClass(nn.Module):
         self.state_time_coder = TimeEncoder(self.num_hid)
         self.state_time_net = StateTimeEncoder(num_layers=self.num_layers, out_dim = self.dim,  num_hid=self.num_hid,
                                                name='state_time_net', parent=self)
+        
+        self.out_layer = nn.Dense(self.x_dim, kernel_init=nn.initializers.zeros,
+                                                bias_init=nn.initializers.zeros)
+        self.beta_layer = nn.Dense(self.x_dim, kernel_init=nn.initializers.zeros,
+                                                bias_init=nn.initializers.zeros)
 
     def get_fourier_features(self, timesteps):
         sin_embed_cond = jnp.sin(
@@ -47,11 +54,17 @@ class PISNetBaseClass(nn.Module):
         t_embed = self.state_time_coder(time_array)
 
         extended_input = jnp.concatenate((input_array, t_embed), axis=-1)
-        out_state = self.state_time_net(extended_input)
+        extended_output = self.state_time_net(extended_input)
+        
+        out_state = self.out_layer(extended_output)
+
         out_state_p_grad =  jnp.clip(out_state, -self.out_clip, self.out_clip)
         out_score =  out_state_p_grad + grad/2
         out_dict["score"] = out_score   
-        #print("core", jnp.mean(out_score))
+
+        if(self.beta_schedule == "neural"):
+            log_beta_x_t = self.beta_layer(extended_output)
+            out_dict["log_beta_x_t"] = log_beta_x_t
         return out_dict
 
 
@@ -104,5 +117,4 @@ class StateTimeEncoder(nn.Module):
         for layer in self.mlp:
             extended_input = layer(extended_input)
 
-        output = self.out_layer(extended_input)
-        return output
+        return extended_input

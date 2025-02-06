@@ -35,6 +35,8 @@ class Bridge_SDE_Class(Base_SDE_Class):
                 SDE_params["log_beta_over_time"] = jnp.log(self.config["beta_max"])*jnp.ones((self.n_integration_steps, self.dim_x))
                 # del SDE_params["log_beta_delta"]
                 # del SDE_params["log_beta_min"]
+            elif(self.config["beta_schedule"] == "neural"):
+                self.inverse_beta_init = inverse_softplus((self.config["beta_max"] - self.config["beta_min"] + 10**-3))
 
 
         return SDE_params
@@ -146,17 +148,23 @@ class Bridge_SDE_Class(Base_SDE_Class):
             return beta_curr
         elif(self.config["beta_schedule"] == "learned"):
             return jnp.exp(SDE_params["log_beta_over_time"][t_discrete])
+        elif(self.config["beta_schedule"] == "neural"):
+            inverse_beta_x_t = SDE_params["log_beta_x_t"]
+            inverse_beta = jax.lax.stop_gradient(self.inverse_beta_init)
+            return jax.nn.softplus(inverse_beta_x_t + inverse_beta)
         else:
             raise ValueError("beta schedule not implemented")
 
 
     def get_diffusion(self, SDE_params, x, t):
         sigma, _ = self.get_SDE_sigma(SDE_params)
-        diffusion = sigma*self.beta(SDE_params, t)
-        return diffusion[None, :] 
+        if(self.config["beta_schedule"] == "neural"):
+            return jax.lax.stop_gradient(sigma[None, ...])*self.beta(SDE_params, t)
+        else:
+            diffusion = sigma*self.beta(SDE_params, t)
+            return diffusion[None, :] 
 
     def calc_diff_log_prob(self, mean, loc, scale):
-        ### TODO adapt this in case of EN invariance
         if(self.invariance):
             log_pdf_vec = jax.scipy.stats.norm.logpdf(mean, loc=loc, scale=scale) + 0.5*jnp.log(2 * jnp.pi * scale)/scale.shape[0]*self.Energy_Class.particle_dim
         else:
@@ -169,12 +177,37 @@ class Bridge_SDE_Class(Base_SDE_Class):
 
     def sample_noise(self, SDE_params, x, t, dt, key, sigma_scale_factor = 1.):
         key, subkey = random.split(key)
-        noise = random.normal(subkey, shape=x.shape)
-        log_prob_noise = jnp.sum(jax.scipy.stats.norm.logpdf(noise, loc=0, scale=1), axis = -1)
-        
-        diffusion = self.get_diffusion(SDE_params, x, t)*sigma_scale_factor
 
-        dx = jnp.sqrt(dt)*diffusion * noise
+        if(self.config["off_policy_mode"] == "laplace"):
+            sigma_scale_factor = sigma_scale_factor
+            laplace_prob = sigma_scale_factor - 1.
+            vec_ps = jnp.ones((x.shape[0], ))*(laplace_prob)
+            ps = random.uniform(subkey, shape = (x.shape[0], 1))
+            key, subkey = random.split(key)
+
+            laplace_scale = jnp.sqrt(jnp.pi/(2*jnp.exp(1.)))
+            laplace_noise = random.laplace(subkey, shape=x.shape)*laplace_scale
+            diffusion = self.get_diffusion(SDE_params, x, t)
+
+            gauss_noise = random.normal(subkey, shape=x.shape)
+            gauss_log_prob_noise = jnp.sum(jax.scipy.stats.norm.logpdf(gauss_noise, loc=0, scale=1), axis = -1)
+
+            mixed_noise = jnp.where(ps < laplace_prob, laplace_noise, gauss_noise)
+
+            dx = jnp.sqrt(dt)*diffusion * mixed_noise
+
+            laplace_log_prob_noise = jnp.sum(jax.scipy.stats.laplace.logpdf(mixed_noise, loc=0, scale=laplace_scale), axis=-1)
+            gauss_log_prob_noise = jnp.sum(jax.scipy.stats.norm.logpdf(mixed_noise, loc=0, scale=1), axis = -1)
+            log_prob_noise_mixed = jax.scipy.special.logsumexp(
+                jnp.stack([laplace_log_prob_noise + jnp.log(vec_ps), gauss_log_prob_noise + jnp.log(1 - vec_ps)], axis=-1),
+                axis=-1
+            )
+            log_prob_noise = jnp.where(vec_ps == 0, gauss_log_prob_noise, log_prob_noise_mixed)
+        else:
+            noise = random.normal(subkey, shape=x.shape)
+            log_prob_noise = jnp.sum(jax.scipy.stats.norm.logpdf(noise, loc=0, scale=1), axis = -1)
+            diffusion = self.get_diffusion(SDE_params, x, t)*sigma_scale_factor
+            dx = jnp.sqrt(dt)*diffusion * noise
         return dx, log_prob_noise, key
     
     def compute_reverse_drift(self, diffusion, score, grad):
@@ -195,14 +228,11 @@ class Bridge_SDE_Class(Base_SDE_Class):
 
         if(self.invariance == True):
             dx = self.subtract_COM(dx)
-            #reverse_drift = self.subtract_COM(reverse_drift)
 
         if(self.stop_gradient):
             x_next = jax.lax.stop_gradient(x + x_drift_update*dt  + dx)
-            #log_prob_t_g_s = self.calc_diff_log_prob(x_next, x + x_drift_update*dt, diffusion*jnp.sqrt(dt))
         else:
             x_next = x + x_drift_update * dt  + dx
-            #log_prob_t_g_s = self.calc_diff_log_prob(x_next, x + x_drift_update*dt, diffusion*jnp.sqrt(dt)) # jnp.sum(jax.scipy.stats.norm.logpdf(dx, loc=0, scale=diffusion*jnp.sqrt(dt)), axis = -1)#
 
 
         ### TODO check at which x drift ref should be evaluated?
@@ -225,10 +255,10 @@ class Bridge_SDE_Class(Base_SDE_Class):
 
             hidden_state = carry_dict["hidden_state"]
 
-            score, new_hidden_state, grad, key = self.apply_model(model, x, t/self.n_integration_steps, counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
+            score, new_hidden_state, grad, SDE_params_extended, key = self.apply_model(model, x, t/self.n_integration_steps, counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
             carry_dict["hidden_state"] = new_hidden_state
 
-            reverse_out_dict, key = self.reverse_sde(SDE_params, score, grad, x, t, dt, key, sigma_scale_factor= sigma_scale)
+            reverse_out_dict, key = self.reverse_sde(SDE_params_extended, score, grad, x, t, dt, key, sigma_scale_factor= sigma_scale)
 
             SDE_tracker_step = {
             "interpolated_grad": grad,
@@ -247,8 +277,12 @@ class Bridge_SDE_Class(Base_SDE_Class):
             t = reverse_out_dict["t_next"]
             return (x, t, key, carry_dict), SDE_tracker_step
 
-        x_prior, key = self.sample_prior(SDE_params, key, n_states, sigma_scale_factor = sigma_scale)
-        log_prob_prior_scaled = self.vmap_get_log_prior(SDE_params, x_prior, sigma_scale)
+        if(self.config["off_policy_mode"] == "laplace"):
+            x_prior, key = self.sample_prior(SDE_params, key, n_states, sigma_scale_factor = 1.)
+            log_prob_prior_scaled = self.vmap_get_log_prior(SDE_params, x_prior, 1.*jnp.ones((n_states,self.dim_x)))
+        else:
+            x_prior, key = self.sample_prior(SDE_params, key, n_states, sigma_scale_factor = sigma_scale)
+            log_prob_prior_scaled = self.vmap_get_log_prior(SDE_params, x_prior, sigma_scale)
     
         if(self.stop_gradient):
             x_prior = jax.lax.stop_gradient(x_prior)
@@ -267,8 +301,8 @@ class Bridge_SDE_Class(Base_SDE_Class):
 
         ### TODO make last forward pass here
         hidden_state = carry_dict["hidden_state"]
-        score, new_hidden_state, grad, key = self.apply_model(model, x_final, t_final/self.n_integration_steps, counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
-        diffusion_final = self.get_diffusion(SDE_params, x_final, t_final)
+        score, new_hidden_state, grad, SDE_params_extended, key = self.apply_model(model, x_final, t_final/self.n_integration_steps, counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
+        diffusion_final = self.get_diffusion(SDE_params_extended, x_final, t_final)
         reverse_drift_final = self.compute_reverse_drift(diffusion_final, score, grad)
         #carry_dict["hidden_state"] = new_hidden_state
 

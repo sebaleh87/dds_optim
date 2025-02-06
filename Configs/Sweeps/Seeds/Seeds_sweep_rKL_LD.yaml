@@ -1,5 +1,5 @@
 program: main.py
-project: LGCP_gridsearch_test
+project: Seeds_gridsearch_05_02_LD
 command:
   - ${env}
   - python
@@ -13,44 +13,43 @@ metric:
   name: "Free_Energy_at_T=1"
   goal: minimize
 
-
 # name: GMM Bridge LV, use_off_policy, 2k Steps, SDE-learning, n_part 3 SCAN T
 name: gridsearch
 parameters:
   Energy_Config:
-    value: LGCP
+    value: Seeds
   GPU:
     value: -1
   N_anneal:
     value: 800
   base_net:
-    value: PISNet
+    value: Vanilla
   SDE_Loss:
     value: Bridge_rKL_logderiv
   SDE_Type:
     value: Bridge_SDE
   SDE_lr:
-    values: [0.001, 0.0001, 0.0005]
+    values: [0.005, 0.002, 0.001]
   Interpol_lr:
-    values: [0.001, 0.01]
+    values: [0.001]
   T_end:
     value: 1.
   T_start:
     value: 1.
   batch_size:
-    value: 300
+    value: 2000
   beta_min:
     value: 0.01
   feature_dim:
-    value: 90
+    value: 64
   n_hidden:
-    value: 90
+    value: 64
   n_integration_steps:
     value: 128
   beta_max:
-    values: [0.3, 0.5, 1.]
+    values: [0.1, 0.3]
   sigma_init:
-    values: [0.5, 1., 2.]
+    values: [1, 0.5]
   model_seeds:
     # values: [1]
     values: [0]

@@ -303,22 +303,42 @@ class Base_SDE_Class:
             in_dict = {"x": x, "t": t_arr, "Energy_value": jnp.zeros((x.shape[0], 1)),  "grads": grad}
             out_dict = model.apply(params, in_dict, train = True)
             score = out_dict["score"]
-        return score, new_hidden_state, grad, key
+
+        if(self.config["beta_schedule"] == "neural"):
+            SDE_params["log_beta_x_t"] = out_dict["log_beta_x_t"]
+
+        return score, new_hidden_state, grad, SDE_params, key
     
     def get_sigma_noise(self,  n_states, key, sample_mode, temp):
         ### if self.config['use_off_policy'] true temp is not treated as a temperature but as an annealed scaling for self.sigma_scale_factor, assumes temp >= 1.
         shape= [n_states, self.dim_x]
         if self.config['use_off_policy']:    
-            annealed_scale = temp - 1. 
-            if(sample_mode == "train"):
-                sigma_scale, scale_log_prob, key = self.return_sigma_scale_factor(self.sigma_scale_factor*annealed_scale, shape, key)
-            elif(sample_mode == "val"):
-                sigma_scale, scale_log_prob, key = self.return_sigma_scale_factor(self.sigma_scale_factor*annealed_scale, shape, key)
-                # sigma_scale = (self.sigma_scale_factor**2 + 1)*jnp.ones(shape)    #this is the mode, not the expectation value
-                # scale_log_prob = jnp.zeros((n_states,))
+            if(self.config["off_policy_mode"] == "laplace"):
+                annealed_scale = temp - 1. 
+                if(sample_mode == "train"):
+                    sigma_scale = temp
+                    scale_log_prob = jnp.zeros((n_states,))                   
+                elif(sample_mode == "val"):
+                    sigma_scale = temp
+                    scale_log_prob = jnp.zeros((n_states,))
+                    # sigma_scale = (self.sigma_scale_factor**2 + 1)*jnp.ones(shape)    #this is the mode, not the expectation value
+                    # scale_log_prob = jnp.zeros((n_states,))
+                else:
+                    sigma_scale = 1.
+                    scale_log_prob = jnp.zeros((n_states,))
+
             else:
-                sigma_scale = 1.*jnp.ones(shape)
-                scale_log_prob = jnp.zeros((n_states,))
+                annealed_scale = temp - 1. 
+                if(sample_mode == "train"):
+                    sigma_scale, scale_log_prob, key = self.return_sigma_scale_factor(self.sigma_scale_factor*annealed_scale, shape, key)
+                elif(sample_mode == "val"):
+                    sigma_scale, scale_log_prob, key = self.return_sigma_scale_factor(self.sigma_scale_factor*annealed_scale, shape, key)
+                    # sigma_scale = (self.sigma_scale_factor**2 + 1)*jnp.ones(shape)    #this is the mode, not the expectation value
+                    # scale_log_prob = jnp.zeros((n_states,))
+                else:
+                    sigma_scale = 1.*jnp.ones(shape)
+                    scale_log_prob = jnp.zeros((n_states,))
+            
 
             temp = 1.
         else:
@@ -338,12 +358,12 @@ class Base_SDE_Class:
         def scan_fn(carry, step):
             x, t, counter, key, carry_dict = carry
             hidden_state = carry_dict["hidden_state"]
-            score, new_hidden_state, grad, key = self.apply_model(model, x, t, counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
+            score, new_hidden_state, grad, SDE_params_extended, key = self.apply_model(model, x, t, counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
             carry_dict["hidden_state"] = new_hidden_state
 
             dt = self.reversed_dt_values[step]
             
-            reverse_out_dict, key = self.reverse_sde(SDE_params, score, x, t, dt, sigma_scale, key)
+            reverse_out_dict, key = self.reverse_sde(SDE_params_extended, score, x, t, dt, sigma_scale, key)
 
             SDE_tracker_step = {
             "interpolated_grad": grad,
@@ -443,75 +463,6 @@ class Base_SDE_Class:
 
         return SDE_tracker, key
     
-    def simulated_SDE_from_x(self, model, params, Energy_params, SDE_params, x, key, n_integration_steps = 1000):
-        def scan_fn(carry, step):
-            x, t, key, carry_dict = carry
-            # if(jnp.isnan(x).any()):
-            #     print("score", x)
-            #     raise ValueError("score is nan")
-            t_arr = t*jnp.ones((x.shape[0], 1)) 
-            if(self.use_interpol_gradient):
-                if(self.network_has_hidden_state):
-                    Energy, grad, key = self.vmap_prior_target_grad_interpolation(x, t, Energy_params, SDE_params, key) 
-                    Energy_value = Energy #Energy[...,None]
-                    in_dict = {"x": x, "Energy_value": Energy_value, "t": t_arr, "grads": grad, "hidden_state": carry_dict["hidden_state"]}
-                    out_dict = model.apply(params, in_dict, train = True)
-                    score = out_dict["score"]
-                    carry_dict["hidden_state"] = out_dict["hidden_state"]
-                else:
-                    Energy, grad, key = self.vmap_prior_target_grad_interpolation(x, t, Energy_params, SDE_params, key) 
-                    Energy_value = Energy
-                    in_dict = {"x": x, "Energy_value": Energy_value,  "t": t_arr, "grads": grad}
-                    out_dict = model.apply(params, in_dict, train = True)
-                    score = out_dict["score"]
-            # if(jnp.isnan(concat_values).any()):
-            #     print("concat_values", concat_values)
-            #     raise ValueError("concat_values is nan")
-                
-            else:
-                ### TODO x dim should be increased by 1
-                grad = jnp.zeros((x.shape[0], self.dim_x))
-                in_dict = {"x": x, "t": t_arr, "Energy_value": jnp.zeros((x.shape[0], 1)),  "grads": grad}
-                out_dict = model.apply(params, in_dict, train = True)
-                score = out_dict["score"]
-
-
-            dt = self.reversed_dt_values[step]
-            reverse_out_dict, key = self.reverse_sde(SDE_params, score, x, t, dt, key)
-
-            SDE_tracker_step = {
-            "interpolated_grad": grad,
-            "dW": reverse_out_dict["dW"],
-            "xs": x,
-            "ts": t,
-            "scores": score,
-            "forward_drift": reverse_out_dict["forward_drift"],
-            "reverse_drift": reverse_out_dict["reverse_drift"],
-            "drift_ref": reverse_out_dict["drift_ref"],
-            "dts": dt
-            }
-
-            x = reverse_out_dict["x_next"]
-            t = reverse_out_dict["t_next"]
-            return (x, t, key, carry_dict), SDE_tracker_step
-
-        if(self.invariance == True):
-            x = self.subtract_COM(x)
-
-        t = 1.0
-        dt = 1. / n_integration_steps
-        ### this function is primarily so that i can test the equivaraicne of the sde
-        init_carry = jnp.zeros((x.shape[0], self.Network_Config["n_hidden"]))
-        carry_dict = {"hidden_state": [(init_carry, init_carry)  for i in range(self.Network_Config["n_layers"])]}
-
-        (x_final, t_final, key, carry_dict), SDE_tracker_steps = jax.lax.scan(
-            scan_fn,
-            (x, t, key, carry_dict),
-            jnp.arange(n_integration_steps)
-        )
-
-        return x_final, SDE_tracker_steps
-
 
 def inverse_softplus(x):
     return jnp.log(jnp.exp(x) - 1)

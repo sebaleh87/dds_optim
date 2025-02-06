@@ -17,11 +17,14 @@ class PisgradnetBaseClass(nn.Module):
 
     def setup(self):
         self.SDE_mode = self.SDE_Loss_Config["SDE_Type_Config"]["name"]
+    
+        self.beta_schedule = self.SDE_Loss_Config["SDE_Type_Config"]["beta_schedule"]
         self.use_interpol_gradient = self.SDE_Loss_Config["SDE_Type_Config"]["use_interpol_gradient"]
         self.use_normal = self.SDE_Loss_Config["SDE_Type_Config"]["use_normal"]
         self.model_mode = self.network_config["model_mode"] # is either normal or latent
         self.n_integration_steps = self.SDE_Loss_Config["n_integration_steps"]
 
+        #self.num_hid = self.network_config["n_hidden"]
         self.x_dim = self.network_config["x_dim"]
         self.dim = self.x_dim
 
@@ -38,6 +41,12 @@ class PisgradnetBaseClass(nn.Module):
             [nn.gelu, nn.Dense(self.num_hid)]) for _ in range(self.num_layers)] + [
                                                  nn.Dense(self.dim, kernel_init=nn.initializers.constant(self.weight_init),
                                                           bias_init=nn.initializers.constant(self.bias_init))])
+        
+        self.time_coder_grad_zero_init = nn.Sequential([nn.Dense(self.num_hid)] + [nn.Sequential(
+            [nn.gelu, nn.Dense(self.num_hid, kernel_init=nn.initializers.zeros,
+                                                          bias_init=nn.initializers.zeros)]) for _ in range(self.num_layers)] + [
+                                                 nn.Dense(self.dim, kernel_init=nn.initializers.zeros,
+                                                          bias_init=nn.initializers.zeros)])
 
         self.state_time_net = nn.Sequential([nn.Sequential(
             [nn.Dense(self.num_hid), nn.gelu]) for _ in range(self.num_layers)] + [
@@ -65,13 +74,25 @@ class PisgradnetBaseClass(nn.Module):
         #     time_array_emb = time_array_emb[0]
 
         t_net1 = self.time_coder_state(time_array_emb)
-        t_net2 = self.time_coder_grad(time_array_emb)
 
         extended_input = jnp.concatenate((input_array, t_net1), axis=-1)
         out_state = self.state_time_net(extended_input)
-        out_state = jnp.clip(out_state, -self.outer_clip, self.outer_clip)
-        lgv_term = jnp.clip(lgv_term, -self.inner_clip, self.inner_clip)
-        out_state_p_grad = out_state + t_net2 * lgv_term
-        out_score =  out_state_p_grad + grad/2
-        out_dict["score"] = out_score   
+
+
+        if(self.beta_schedule == "neural"):
+            t_net2 = self.time_coder_grad_zero_init(time_array_emb)
+            out_state = jnp.clip(out_state, -self.outer_clip, self.outer_clip)
+            log_beta_x_t = t_net2
+            out_dict["log_beta_x_t"] = log_beta_x_t
+            correction_grad_score = out_state 
+            score = jnp.clip(correction_grad_score, -10**4, 10**4 )
+            out_dict["score"] = score  + grad /2  
+        else:
+            
+            t_net2 = self.time_coder_grad(time_array_emb)
+            out_state = jnp.clip(out_state, -self.outer_clip, self.outer_clip)
+            lgv_term = jnp.clip(lgv_term, -self.inner_clip, self.inner_clip)
+            out_state_p_grad = out_state + t_net2 * lgv_term
+            out_score =  out_state_p_grad + grad/2
+            out_dict["score"] = out_score   
         return out_dict

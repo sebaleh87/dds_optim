@@ -2,7 +2,7 @@
 
 (
     # Step 1: Initialize the sweep and retrieve the sweep ID
-    SWEEP_OUTPUT=$(wandb sweep ./config_sweep.yaml 2>&1) # Capture stdout and stderr
+    SWEEP_OUTPUT=$(wandb sweep ./Configs/Sweeps/MoS/sweep_all_frozen.yaml 2>&1) # Capture stdout and stderr
     AGENT_COMMAND=$(echo "$SWEEP_OUTPUT" | grep -oP 'Run sweep agent with: \K.*')
     echo "Command to start agents: $AGENT_COMMAND" 
 
@@ -36,14 +36,14 @@
     }
 
     # Step 3: Start agents on GPU 0
-    # start_agents 0 $AGENTS_PER_GPU
-    # start_agents 1 $AGENTS_PER_GPU
+    start_agents 0 $AGENTS_PER_GPU
+    start_agents 1 $AGENTS_PER_GPU
     # start_agents 2 $AGENTS_PER_GPU
-    start_agents 3 $AGENTS_PER_GPU
-    start_agents 4 $AGENTS_PER_GPU
+    # start_agents 3 $AGENTS_PER_GPU
+    # start_agents 4 $AGENTS_PER_GPU
     # start_agents 5 $AGENTS_PER_GPU
     # start_agents 6 $AGENTS_PER_GPU
-    # start_agents 7 $AGENTS_PER_GPU
+    #start_agents 7 $AGENTS_PER_GPU
 
     echo "All agents started in separate tmux sessions."
 
