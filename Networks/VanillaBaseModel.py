@@ -11,7 +11,8 @@ class VanillaBaseModelClass(nn.Module):
     SDE_Loss_Config: dict
 
     def setup(self):
-        self.SDE_mode = self.SDE_Loss_Config["SDE_Type_Config"]["name"]
+        self.SDE_mode = self.SDE_Loss_Config["SDE_Type_Config"]["name"]      
+        self.beta_schedule = self.SDE_Loss_Config["SDE_Type_Config"]["beta_schedule"]
         self.use_interpol_gradient = self.SDE_Loss_Config["SDE_Type_Config"]["use_interpol_gradient"]
         self.encoding_network = EncodingNetwork(feature_dim=self.network_config["feature_dim"], hidden_dim=self.network_config["n_hidden"], max_time = self.SDE_Loss_Config["n_integration_steps"])
         self.backbone = get_network(self.network_config, self.SDE_Loss_Config)
@@ -113,11 +114,18 @@ class VanillaBaseModelClass(nn.Module):
             correction_drift = nn.Dense(x_dim, kernel_init=nn.initializers.zeros,
                                                 bias_init=nn.initializers.zeros)(embedding)
             
-            grad_score = grad_drift * jnp.clip(grad_detach, -10**2, 10**2) #* nn.softplus(interpolated_grad) 
-            correction_grad_score = correction_drift + grad_score
-            score = jnp.clip(correction_grad_score, -10**4, 10**4 )
+            if(self.beta_schedule == "neural"):
+                log_beta_x_t = grad_drift
+                out_dict["log_beta_x_t"] = log_beta_x_t
+                correction_grad_score = correction_drift 
+                score = jnp.clip(correction_grad_score, -10**4, 10**4 )
+                out_dict["score"] = score  + grad /2  
+            else:
+                grad_score = grad_drift * jnp.clip(grad_detach, -10**2, 10**2)
+                correction_grad_score = correction_drift + grad_score
+                score = jnp.clip(correction_grad_score, -10**4, 10**4 )
 
-            out_dict["score"] = score  + grad /2     
+                out_dict["score"] = score  + grad /2     
             return out_dict
         elif(self.SDE_mode == "Bridge_SDE_with_bug" and self.use_normal):
             # follows SEQUENTIAL CONTROLLED LANGEVIN DIFFUSIONS (32)

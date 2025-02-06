@@ -44,3 +44,7 @@
 ### init at mean
 
 python main.py --SDE_Loss Bridge_rKL_logderiv --Energy_Config Brownian --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 2000 --lr 0.005 --Energy_lr 0.0 --SDE_lr 0.005 --N_anneal 4000 --feature_dim 64 --n_hidden 64 --GPU 0 --beta_max 0.02 --beta_min 0.001 --use_interpol_gradient --Network_Type FeedForward --project_name stability_final --use_normal --SDE_Type Bridge_SDE --repulsion_strength 0.0 --sigma_init 0.5 --model_seeds 0 1 2 --learn_SDE_params_mode prior_only
+
+
+Best sweep run:
+python main.py --SDE_Loss Bridge_rKL_logderiv --Energy_Config Brownian --n_integration_steps 128 --T_start 1.0 --T_end 1. --batch_size 2000 --lr 0.001 --Interpol_lr 0.001 --SDE_lr 0.001 --N_anneal 4000 --feature_dim 64 --n_hidden 64 --GPU 1 --beta_max 0.3 --beta_min 0.001 --use_interpol_gradient --Network_Type FeedForward --project_name Best_gridsearch_run --use_normal --SDE_Type Bridge_SDE --repulsion_strength 0.0 --sigma_init 0.5 --model_seeds 0 

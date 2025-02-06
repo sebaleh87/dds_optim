@@ -382,16 +382,19 @@ class TrainerClass:
             #print({key: np.exp(dict_val) for key, dict_val in self.SDE_LossClass.SDE_params.items()})
 
         # Load the appropriate checkpoint based on whether we have a tractable distribution
-        checkpoint_filename = "best_Sinkhorn_checkpoint.pkl" if hasattr(self, 'sd_calculator') else "best_Free_Energy_at_T=1_checkpoint.pkl"
-        param_dict = self.load_params_and_config(filename=checkpoint_filename)
+        try:
+            checkpoint_filename = "best_Sinkhorn_checkpoint.pkl" if hasattr(self, 'sd_calculator') else "best_Free_Energy_at_T=1_checkpoint.pkl"
+            param_dict = self.load_params_and_config(filename=checkpoint_filename)
 
-        self.SDE_LossClass.Interpol_params = param_dict["Interpol_params"]
-        self.SDE_LossClass.SDE_params = param_dict["SDE_params"]
+            self.SDE_LossClass.Interpol_params = param_dict["Interpol_params"]
+            self.SDE_LossClass.SDE_params = param_dict["SDE_params"]
 
-        n_samples = self.config["n_eval_samples"]
-        SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Interpol_params, self.SDE_LossClass.SDE_params, T_curr, key, sample_mode = "eval", n_integration_steps = self.n_integration_steps, n_states = n_samples)
-        
-        self.plot_figures(SDE_tracer, epoch)
+            n_samples = self.config["n_eval_samples"]
+            SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Interpol_params, self.SDE_LossClass.SDE_params, T_curr, key, sample_mode = "eval", n_integration_steps = self.n_integration_steps, n_states = n_samples)
+            
+            self.plot_figures(SDE_tracer, epoch)
+        except:
+            pass
 
         # After training loop, calculate and log running averages
         running_avg_table = self._calculate_running_averages(metric_history, best_running_avgs)

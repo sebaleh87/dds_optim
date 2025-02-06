@@ -29,7 +29,7 @@ parser.add_argument("--project_name", type=str, default="")
 parser.add_argument("--minib_time_steps", type=int, default=20)
 parser.add_argument("--batch_size", type=int, default=200)
 parser.add_argument( "--lr", type=float, default=[0.001], nargs="+")
-parser.add_argument("--lr_schedule", type=str, choices = ["cosine", "const", "cosine_warmup"], default = "const")
+parser.add_argument("--lr_schedule", type=str, choices = ["cosine", "const", "cosine_warmup"], default = "cosine")
 parser.add_argument("--Energy_lr", type=float, default=0.0)
 parser.add_argument("--Interpol_lr", type=float, default=0.001)
 parser.add_argument("--SDE_lr", type=float, default=[0.001], nargs="+")
@@ -45,7 +45,7 @@ parser.add_argument("--repulsion_strength", type=float, default=0., help="repuls
 ### TODO explain the effect
 parser.add_argument('--use_off_policy', action='store_true', default=False, help='use off policy sampling')
 parser.add_argument('--no-use_off_policy', dest='use_off_policy', action='store_false', help='dont use off policy sampling')
-parser.add_argument('--off_policy_mode', type=str, default="no_scale_drift", choices = ["scale_drift", "no_scale_drift"], help='scale or not scale the drift')
+parser.add_argument('--off_policy_mode', type=str, default="no_scale_drift", choices = ["scale_drift", "no_scale_drift", "laplace"], help='scale or not scale the drift')
 parser.add_argument("--sigma_scale_factor", type=float, default=1., help="amount of noise for off policy sampling, 0 has no effect = no-use_off_policy")
 
 parser.add_argument("--disable_jit", action='store_true', default=False, help="disable jit for debugging")
@@ -54,7 +54,7 @@ parser.add_argument("--N_anneal", type=int, default=1000)
 parser.add_argument("--N_warmup", type=int, default=0)
 parser.add_argument("--steps_per_epoch", type=int, default=10)
 
-parser.add_argument("--beta_schedule", type=str, choices = ["constant", "cosine", "learned", "linear"], default="constant", help="defines the noise schedule for Bridge_SDE")
+parser.add_argument("--beta_schedule", type=str, choices = ["constant", "cosine", "learned", "neural", "linear"], default="constant", help="defines the noise schedule for Bridge_SDE")
 parser.add_argument("--update_params_mode", type=str, choices = ["all_in_one", "DKL"], default="all_in_one", help="keep all_in_one as default. This is currently not used")
 parser.add_argument("--epochs_per_eval", type=int, default=50)
 
@@ -120,313 +120,320 @@ if(__name__ == "__main__"):
     if(args.gridsearch):
         args.lr = args.SDE_lr
 
-    # if(args.lr/args.SDE_lr  < 5):
-    #     print("Warning: args.lr/args.SDE_lr  < 5, emperically this ratio is too high")
+    if(len(args.lr) != len(args.SDE_lr)):
+        raise ValueError("Length of lr and SDE_lr must be equal")
+    if(len(args.model_seeds) != len(args.sample_seed)):
+        raise ValueError("Length of model_seeds and sample_seed must be equal")
+
     zipped_lr_list = zip(args.lr, args.SDE_lr)
     temp_list = args.T_start
-    seed_list = zip(args.model_seeds, args.sample_seed)
+    seed_list = args.model_seeds#zip(args.model_seeds, args.sample_seed)
     beta_list = args.beta_max
 
-    for beta_max in beta_list:
-        for seed, sample_seed in seed_list:
-            for temp_start in temp_list:
-                for lr, SDE_lr in zipped_lr_list:
-                        
-                    N_anneal = args.N_anneal
-                    epochs = N_anneal + args.N_warmup
-
-                    Optimizer_Config = {
-                        "name": "Adam",
-                        "lr": lr,
-                        "Interpol_lr": args.Interpol_lr,
-                        "SDE_lr": SDE_lr,
-                        "learn_SDE_params_mode": args.learn_SDE_params_mode,
-                        "epochs": epochs,
-                        "steps_per_epoch": args.steps_per_epoch,
-                        "epochs_per_eval": args.epochs_per_eval,
-                        "SDE_weight_decay": args.SDE_weight_decay,
-                        "clip_value": args.clip_value,
-                        "lr_schedule": args.lr_schedule,
-                    }
-
-                    Network_Config = {
-                        "base_name": args.base_net,
-                        "name": args.Network_Type,
-                        "feature_dim": args.feature_dim,
-                        "n_hidden": args.n_hidden,
-                        "n_layers": args.n_layers,
-                        "model_seed": seed,
-                        "model_mode": args.model_mode
-                    }
-
-                    if("Discrete_Time_rKL_Loss" in args.SDE_Loss):
-
-                        SDE_Type_Config = {
-                            "name": "DiscreteTime_SDE", 
-                            "n_diff_steps": args.n_integration_steps,
-                            "temp_mode": args.temp_mode,
-                            "n_integration_steps": args.n_integration_steps,
-                            "SDE_weightening": args.SDE_weightening,
-                            "use_normal": False,
-                        }
-                        
-                        SDE_Loss_Config = {
-                            "name": args.SDE_Loss, # Reverse_KL_Loss, LogVariance_Loss
-                            "SDE_Type_Config": SDE_Type_Config,
-                            "batch_size": args.batch_size,
-                            "n_integration_steps": args.n_integration_steps,
-                            "minib_time_steps": args.minib_time_steps,
-                    }
-                else:
-                    #modified sampling distributions are only applicable for certain losses
-                    if(args.use_off_policy and (args.SDE_Loss != "LogVariance_Loss" and args.SDE_Loss != "Bridge_LogVarLoss" and args.SDE_Loss != "Reverse_KL_Loss_logderiv" and args.SDE_Loss != "Bridge_rKL_logderiv")):
-                        raise ValueError("Off policy only implemented for LogVariance_Loss")
-                    if(not args.use_off_policy and args.sigma_scale_factor != 1.):
-                        raise ValueError("Sigma scale factor != 0 and use_off_policy is off")
-                    if(args.beta_min > beta_max):
-                        raise ValueError("Beta min >= beta max")
-
-                    SDE_Type_Config = {
-                        "name": args.SDE_Type,
-                        "beta_min": args.beta_min,
-                        "beta_max": beta_max,
-                        "use_interpol_gradient": args.use_interpol_gradient,
-                        "n_integration_steps": args.n_integration_steps,
-                        "SDE_weightening": args.SDE_weightening,
-                        "use_normal": args.use_normal,
-                        "learn_covar": args.learn_covar,
-                        "sigma_init": args.sigma_init,
-                        "repulsion_strength": args.repulsion_strength,
-                        "sigma_scale_factor": args.sigma_scale_factor,
-                        "batch_size": args.batch_size,
-                        "use_off_policy": args.use_off_policy,
-                        "off_policy_mode": args.off_policy_mode,
-                        "learn_interpolation_params": args.learn_interpolation_params,
-                        "beta_schedule": args.beta_schedule
-                    }
-
-                    SDE_Loss_Config = {
-                        "name": args.SDE_Loss, # Reverse_KL_Loss, LogVariance_Loss
-                        "SDE_Type_Config": SDE_Type_Config,
-                        "batch_size": args.batch_size,
-                        "n_integration_steps": args.n_integration_steps,
-                        "minib_time_steps": args.minib_time_steps,
-                        "update_params_mode": args.update_params_mode,
-
-                    }
-                    n_eval_samples = args.n_eval_samples
-                    ### TODO implement different scales
-                    if(args.Energy_Config == "GaussianMixtureToy"):
-                        torch.manual_seed(0)
-                        #np.random.seed(42)
-                        dim = 2
-                        num_gaussians = 1
-                        x_min = -1
-                        x_max = 1
-                        loc_scaling = 1
-                        log_var_scaling = 0.1
-
-                        mean = (torch.rand((num_gaussians, dim)) - 0.5)*2 * loc_scaling
-                        log_var = torch.ones((num_gaussians, dim)) * log_var_scaling
-
-                        #rand_func = lambda x: np.random.uniform(x_min, x_max, 2)
-                        Energy_Config = {
-                            "name": "GaussianMixture",
-                            "dim_x": 2,
-                            "means": mean,
-                            "variances": np.exp(log_var),
-                            "weights": [1/num_gaussians for i in range(num_gaussians)],
-
-                        }
-                    elif(args.Energy_Config == "GaussianMixture"):
-                        torch.manual_seed(seed)
-                        #np.random.seed(42)
-                        dim = args.n_particles
-                        num_gaussians = 40
-
-                        loc_scaling = args.Scaling_factor
-                        var_scaling = args.Variances
-                        mean = (torch.rand((num_gaussians, dim)) - 0.5)*2*loc_scaling
-                        variances = torch.ones((num_gaussians, dim)) * var_scaling
-                        Energy_Config = {
-                            "name": "GaussianMixture",
-                            "dim_x": dim,
-                            "means": mean,
-                            "variances": variances,#torch.nn.functional.softplus(log_var),
-                            "weights": [1/num_gaussians for i in range(num_gaussians)],
-                            "num_modes": num_gaussians
-                        }
-                    elif(args.Energy_Config == "GMMDistrax"):
-                        torch.manual_seed(seed)
-                        #np.random.seed(42)
-                        dim = args.n_particles
-                        num_gaussians = 40
-
-                        Energy_Config = {
-                            "name": "GMMDistrax",
-                            "dim_x": dim,
-                            "num_components": num_gaussians,
-                            "loc_scaling": 40.,
-                            "seed": seed
-
-                        }
-                    elif(args.Energy_Config == "Rastrigin"):
-                        dim = args.n_particles
-                        Energy_Config = {
-                            "name": "Rastrigin",
-                            "dim_x": dim,
-                            "shift": 0.0
-                        }
-                    elif(args.Energy_Config == "Pytheus"):
-                        Energy_Config = {
-                            "name": "Pytheus",
-                            "challenge_index": args.Pytheus_challenge,
-                        }
-
-                    elif("LennardJones" in args.Energy_Config):
-                        Network_Config["base_name"] = "EGNN"
-                        N = args.n_particles
-                        out_dim = 3
-                        Network_Config["n_particles"] = N
-                        Network_Config["out_dim"] = out_dim 
-                        Energy_Config = {
-                            "name": args.Energy_Config,
-                            "N": N,
-                            "dim_x": N*out_dim,
-                        }
-                    elif("DoubleWellEquivariant" in args.Energy_Config):
-                        Network_Config["base_name"] = "EGNN"
-                        N = 4
-                        out_dim = 2
-                        Network_Config["n_particles"] = N
-                        Network_Config["out_dim"] = out_dim 
-                        Energy_Config = {
-                            "name": args.Energy_Config,
-                            "N": N,
-                            "dim_x": N*out_dim,
-                        }
-                    elif("DoubleWell" in args.Energy_Config):
-                        N = args.n_particles
-                        Energy_Config = {
-                            "name": args.Energy_Config,
-                            "d": N,
-                            "m": N,
-                            "dim_x": N + N,
-                        }
-
-                    elif("WavePINN" in args.Energy_Config):
-                        Energy_Config = {
-                            "name": args.Energy_Config,
-                            "dim_x": 3, ### x dim is here the latent dim
-                            "d_in": 1,
-                            "l1_d": 64,
-                            "l2_d": 64,
-                            "d_out": 1,
-                        }
-                    elif("DoubleMoon" in args.Energy_Config):
-                        Energy_Config = {
-                            "name": args.Energy_Config,
-                            "d_in": 1,
-                            "l1_d": 64,
-                            "l2_d": 64,
-                            "d_out": 1,
-                        }
-                    elif("Banana" in args.Energy_Config or "Brownian" in args.Energy_Config or "Lorenz" in args.Energy_Config):
-                        from EnergyFunctions.EnergyData.BrownianData import load_model_gym
-                        _, dim = load_model_gym(args.Energy_Config)
-                        Energy_Config = {
-                            "name": args.Energy_Config,
-                            "dim_x": dim
-                        }
-                    elif("Seeds" in args.Energy_Config or "Ionosphere" in args.Energy_Config or "Sonar" in args.Energy_Config):
-                        from EnergyFunctions.EnergyData.SeedsData import load_model_other
-                        _, dim = load_model_other(args.Energy_Config)
-                        Energy_Config = {
-                            "name": args.Energy_Config,
-                            "dim_x": dim
-                        }
-                    elif(args.Energy_Config == "Funnel"):
-                        dim = args.n_particles
-                        Energy_Config = {
-                            "name": "Funnel",
-                            "dim_x": dim,
-                            "eta": 3,
-                            "scaling": args.Scaling_factor
-                        }
-
-                    elif(args.Energy_Config == "LGCP"):
-                        Energy_Config = {
-                            "name": "LGCP",  # Your 2D array of point coordinates
-                            "num_grid_per_dim": 40,      # Grid size (40x40=1600)
-                            "use_whitened": False,       # Whether to use whitened parameterization
-                            "dim_x": 1600,              # Total dimension (grid_size^2)
-                            "scaling": 1.0              # Required by base class
-                        }
-
-                    elif(args.Energy_Config == "GermanCredit"):
-                        Energy_Config = {
-                            "name": "GermanCredit",
-                            "dim_x": 25,
-                        }
-                    elif(args.Energy_Config == "MW54"):
-                        N = args.n_particles
-                        Energy_Config = {
-                            "name": args.Energy_Config,
-                            "d": N,
-                            "m": N,
-                            "dim_x": N + N,
-                        }
-                    elif(args.Energy_Config == "StudentTMixture"):
-                        dim = args.n_particles
-                        if(args.n_particles != 50):
-                            Warning(f"StudentT Mixture now runs in dim {dim}")
-                        num_components = 10
-
-                        Energy_Config = {
-                            "name": "StudentTMixture",
-                            "dim_x": dim,
-                            "num_components": num_components,
-                            "df": 2.0,
-                            "seed": seed
-                        }
-
-                    else:
-                        print(args.Energy_Config)
-                        raise ValueError("Energy Config not found")
-
-                    Energy_Config["scaling"] = args.Scaling_factor
-
-                    Network_Config["x_dim"] = Energy_Config["dim_x"]
-                    if(Network_Config["model_mode"] == "latent"):
-                        SDE_Type_Config["use_interpol_gradient"] = False
-                        if(args.latent_dim == None):
-                            raise ValueError("Latent dim not defined")
+    beta_max = args.beta_max[0]
+    lr = args.lr[0]
+    SDE_lr = args.SDE_lr[0]
+    temp_start = args.T_start[0]
 
 
-                    Anneal_Config = {
-                        "name": args.AnnealSchedule,
-                        "T_start": temp_start,
-                        "T_end": args.T_end,
-                        "N_anneal": args.N_anneal,
-                        "N_warmup": args.N_warmup,
-                        "lam": 10.
-                    }
+    for seed, sample_seed in enumerate(seed_list):
+        print(seed, sample_seed, seed_list, args.model_seeds, args.sample_seed)
+            
+        N_anneal = args.N_anneal
+        epochs = N_anneal + args.N_warmup
 
-                    base_config = {
-                        "EnergyConfig": Energy_Config,
-                        "Anneal_Config": Anneal_Config,
-                        "SDE_Loss_Config": SDE_Loss_Config,
-                        "Optimizer_Config": Optimizer_Config,
-                        "Network_Config": Network_Config,
-                        "num_epochs": epochs,
-                        "n_eval_samples": n_eval_samples,
-                        "project_name": args.project_name,
-                        "disable_jit": args.disable_jit,
-                        "sample_seed": sample_seed
-                    }
+        Optimizer_Config = {
+            "name": "Adam",
+            "lr": lr,
+            "Interpol_lr": args.Interpol_lr,
+            "SDE_lr": SDE_lr,
+            "learn_SDE_params_mode": args.learn_SDE_params_mode,
+            "epochs": epochs,
+            "steps_per_epoch": args.steps_per_epoch,
+            "epochs_per_eval": args.epochs_per_eval,
+            "SDE_weight_decay": args.SDE_weight_decay,
+            "clip_value": args.clip_value,
+            "lr_schedule": args.lr_schedule,
+        }
 
-                    trainer = TrainerClass(base_config)
-                    trainer.train()
+        Network_Config = {
+            "base_name": args.base_net,
+            "name": args.Network_Type,
+            "feature_dim": args.feature_dim,
+            "n_hidden": args.n_hidden,
+            "n_layers": args.n_layers,
+            "model_seed": seed,
+            "model_mode": args.model_mode
+        }
+
+        if("Discrete_Time_rKL_Loss" in args.SDE_Loss):
+
+            SDE_Type_Config = {
+                "name": "DiscreteTime_SDE", 
+                "n_diff_steps": args.n_integration_steps,
+                "temp_mode": args.temp_mode,
+                "n_integration_steps": args.n_integration_steps,
+                "SDE_weightening": args.SDE_weightening,
+                "use_normal": False,
+            }
+            
+            SDE_Loss_Config = {
+                "name": args.SDE_Loss, # Reverse_KL_Loss, LogVariance_Loss
+                "SDE_Type_Config": SDE_Type_Config,
+                "batch_size": args.batch_size,
+                "n_integration_steps": args.n_integration_steps,
+                "minib_time_steps": args.minib_time_steps,
+        }
+        else:
+            #modified sampling distributions are only applicable for certain losses
+            if(args.use_off_policy and (args.SDE_Loss != "LogVariance_Loss" and args.SDE_Loss != "Bridge_LogVarLoss" and args.SDE_Loss != "Reverse_KL_Loss_logderiv" and args.SDE_Loss != "Bridge_rKL_logderiv")):
+                raise ValueError("Off policy only implemented for LogVariance_Loss")
+            if(not args.use_off_policy and args.sigma_scale_factor != 1.):
+                raise ValueError("Sigma scale factor != 0 and use_off_policy is off")
+            if(args.beta_min > beta_max):
+                raise ValueError("Beta min >= beta max")
+
+            SDE_Type_Config = {
+                "name": args.SDE_Type,
+                "beta_min": args.beta_min,
+                "beta_max": beta_max,
+                "use_interpol_gradient": args.use_interpol_gradient,
+                "n_integration_steps": args.n_integration_steps,
+                "SDE_weightening": args.SDE_weightening,
+                "use_normal": args.use_normal,
+                "learn_covar": args.learn_covar,
+                "sigma_init": args.sigma_init,
+                "repulsion_strength": args.repulsion_strength,
+                "sigma_scale_factor": args.sigma_scale_factor,
+                "batch_size": args.batch_size,
+                "use_off_policy": args.use_off_policy,
+                "off_policy_mode": args.off_policy_mode,
+                "learn_interpolation_params": args.learn_interpolation_params,
+                "beta_schedule": args.beta_schedule
+            }
+
+            SDE_Loss_Config = {
+                "name": args.SDE_Loss, # Reverse_KL_Loss, LogVariance_Loss
+                "SDE_Type_Config": SDE_Type_Config,
+                "batch_size": args.batch_size,
+                "n_integration_steps": args.n_integration_steps,
+                "minib_time_steps": args.minib_time_steps,
+                "update_params_mode": args.update_params_mode,
+
+            }
+        n_eval_samples = args.n_eval_samples
+        ### TODO implement different scales
+        if(args.Energy_Config == "GaussianMixtureToy"):
+            torch.manual_seed(0)
+            #np.random.seed(42)
+            dim = 2
+            num_gaussians = 1
+            x_min = -1
+            x_max = 1
+            loc_scaling = 1
+            log_var_scaling = 0.1
+
+            mean = (torch.rand((num_gaussians, dim)) - 0.5)*2 * loc_scaling
+            log_var = torch.ones((num_gaussians, dim)) * log_var_scaling
+
+            #rand_func = lambda x: np.random.uniform(x_min, x_max, 2)
+            Energy_Config = {
+                "name": "GaussianMixture",
+                "dim_x": 2,
+                "means": mean,
+                "variances": np.exp(log_var),
+                "weights": [1/num_gaussians for i in range(num_gaussians)],
+
+            }
+        elif(args.Energy_Config == "GaussianMixture"):
+            torch.manual_seed(seed)
+            #np.random.seed(42)
+            dim = args.n_particles
+            num_gaussians = 40
+
+            loc_scaling = args.Scaling_factor
+            var_scaling = args.Variances
+            mean = (torch.rand((num_gaussians, dim)) - 0.5)*2*loc_scaling
+            variances = torch.ones((num_gaussians, dim)) * var_scaling
+            Energy_Config = {
+                "name": "GaussianMixture",
+                "dim_x": dim,
+                "means": mean,
+                "variances": variances,#torch.nn.functional.softplus(log_var),
+                "weights": [1/num_gaussians for i in range(num_gaussians)],
+                "num_modes": num_gaussians
+            }
+        elif(args.Energy_Config == "GMMDistrax"):
+            torch.manual_seed(seed)
+            #np.random.seed(42)
+            dim = args.n_particles
+            num_gaussians = 40
+
+            Energy_Config = {
+                "name": "GMMDistrax",
+                "dim_x": dim,
+                "num_components": num_gaussians,
+                "loc_scaling": 40.,
+                "seed": seed
+
+            }
+        elif(args.Energy_Config == "Rastrigin"):
+            dim = args.n_particles
+            Energy_Config = {
+                "name": "Rastrigin",
+                "dim_x": dim,
+                "shift": 0.0
+            }
+        elif(args.Energy_Config == "Pytheus"):
+            Energy_Config = {
+                "name": "Pytheus",
+                "challenge_index": args.Pytheus_challenge,
+            }
+
+        elif("LennardJones" in args.Energy_Config):
+            Network_Config["base_name"] = "EGNN"
+            N = args.n_particles
+            out_dim = 3
+            Network_Config["n_particles"] = N
+            Network_Config["out_dim"] = out_dim 
+            Energy_Config = {
+                "name": args.Energy_Config,
+                "N": N,
+                "dim_x": N*out_dim,
+            }
+        elif("DoubleWellEquivariant" in args.Energy_Config):
+            Network_Config["base_name"] = "EGNN"
+            N = 4
+            out_dim = 2
+            Network_Config["n_particles"] = N
+            Network_Config["out_dim"] = out_dim 
+            Energy_Config = {
+                "name": args.Energy_Config,
+                "N": N,
+                "dim_x": N*out_dim,
+            }
+        elif("DoubleWell" in args.Energy_Config):
+            N = args.n_particles
+            Energy_Config = {
+                "name": args.Energy_Config,
+                "d": N,
+                "m": N,
+                "dim_x": N + N,
+            }
+
+        elif("WavePINN" in args.Energy_Config):
+            Energy_Config = {
+                "name": args.Energy_Config,
+                "dim_x": 3, ### x dim is here the latent dim
+                "d_in": 1,
+                "l1_d": 64,
+                "l2_d": 64,
+                "d_out": 1,
+            }
+        elif("DoubleMoon" in args.Energy_Config):
+            Energy_Config = {
+                "name": args.Energy_Config,
+                "d_in": 1,
+                "l1_d": 64,
+                "l2_d": 64,
+                "d_out": 1,
+            }
+        elif("Banana" in args.Energy_Config or "Brownian" in args.Energy_Config or "Lorenz" in args.Energy_Config):
+            from EnergyFunctions.EnergyData.BrownianData import load_model_gym
+            _, dim = load_model_gym(args.Energy_Config)
+            Energy_Config = {
+                "name": args.Energy_Config,
+                "dim_x": dim
+            }
+        elif("Seeds" in args.Energy_Config or "Ionosphere" in args.Energy_Config or "Sonar" in args.Energy_Config):
+            from EnergyFunctions.EnergyData.SeedsData import load_model_other
+            _, dim = load_model_other(args.Energy_Config)
+            Energy_Config = {
+                "name": args.Energy_Config,
+                "dim_x": dim
+            }
+        elif(args.Energy_Config == "Funnel"):
+            dim = args.n_particles
+            Energy_Config = {
+                "name": "Funnel",
+                "dim_x": dim,
+                "eta": 3,
+                "scaling": args.Scaling_factor
+            }
+
+        elif(args.Energy_Config == "LGCP"):
+            Energy_Config = {
+                "name": "LGCP",  # Your 2D array of point coordinates
+                "num_grid_per_dim": 40,      # Grid size (40x40=1600)
+                "use_whitened": False,       # Whether to use whitened parameterization
+                "dim_x": 1600,              # Total dimension (grid_size^2)
+                "scaling": 1.0              # Required by base class
+            }
+
+        elif(args.Energy_Config == "GermanCredit"):
+            Energy_Config = {
+                "name": "GermanCredit",
+                "dim_x": 25,
+            }
+        elif(args.Energy_Config == "MW54"):
+            N = args.n_particles
+            Energy_Config = {
+                "name": args.Energy_Config,
+                "d": N,
+                "m": N,
+                "dim_x": N + N,
+            }
+        elif(args.Energy_Config == "StudentTMixture"):
+            dim = args.n_particles
+            if(args.n_particles != 50):
+                Warning(f"StudentT Mixture now runs in dim {dim}")
+            num_components = 10
+
+            Energy_Config = {
+                "name": "StudentTMixture",
+                "dim_x": dim,
+                "num_components": num_components,
+                "df": 2.0,
+                "seed": seed
+            }
+
+        else:
+            print(args.Energy_Config)
+            raise ValueError("Energy Config not found")
+
+        Energy_Config["scaling"] = args.Scaling_factor
+
+        Network_Config["x_dim"] = Energy_Config["dim_x"]
+        if(Network_Config["model_mode"] == "latent"):
+            SDE_Type_Config["use_interpol_gradient"] = False
+            if(args.latent_dim == None):
+                raise ValueError("Latent dim not defined")
+
+
+        Anneal_Config = {
+            "name": args.AnnealSchedule,
+            "T_start": temp_start,
+            "T_end": args.T_end,
+            "N_anneal": args.N_anneal,
+            "N_warmup": args.N_warmup,
+            "lam": 10.
+        }
+
+        base_config = {
+            "EnergyConfig": Energy_Config,
+            "Anneal_Config": Anneal_Config,
+            "SDE_Loss_Config": SDE_Loss_Config,
+            "Optimizer_Config": Optimizer_Config,
+            "Network_Config": Network_Config,
+            "num_epochs": epochs,
+            "n_eval_samples": n_eval_samples,
+            "project_name": args.project_name,
+            "disable_jit": args.disable_jit,
+            "sample_seed": sample_seed
+        }
+
+        trainer = TrainerClass(base_config)
+        trainer.train()
 
 
 
