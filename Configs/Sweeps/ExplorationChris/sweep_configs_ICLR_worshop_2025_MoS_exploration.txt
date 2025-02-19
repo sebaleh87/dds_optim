@@ -1,0 +1,203 @@
+#off-policy
+command:
+  - ${env}
+  - python
+  - ${program}
+  - ${args}
+  - --use_interpol_gradient
+  - --use_normal
+method: grid
+name: MoS, rKL, NO use_off_policy, T_start=1. SCAN sigma_init
+parameters:
+  Energy_Config:
+    value: StudentTMixture
+  Energy_lr:
+    value: 0
+  GPU:
+    value: -1
+  Interpol_lr:
+    value: 0
+  N_anneal:
+    value: 4000
+  Network_Type:
+    value: FeedForward
+  SDE_Loss:
+    values:
+      - Bridge_rKL_logderiv
+  SDE_Type:
+    value: Bridge_SDE
+  SDE_lr:
+    value: 0.005
+  T_end:
+    value: 1
+  T_start:
+    values:
+      - 1
+  batch_size:
+    value: 2000
+  beta_max:
+    value: 0.1
+  beta_min:
+    value: 0.01
+  epochs_per_eval:
+    value: 6
+  feature_dim:
+    value: 128
+  lr:
+    value: 0.005
+  model_seed:
+    value: 0
+  n_hidden:
+    value: 128
+  n_integration_steps:
+    value: 128
+  n_particles:
+    value: 10
+  repulsion_strength:
+    value: 0
+  sigma_init:
+    values:
+      - 1
+      - 2
+      - 5
+      - 10
+      - 20
+      - 40
+program: main.py
+project: DDS_MoS_10d_exploration
+
+
+##annealing
+command:
+  - ${env}
+  - python
+  - ${program}
+  - ${args}
+  - --use_interpol_gradient
+  - --use_normal
+method: grid
+name: MoS, rKL, NO use_off_policy, sigma_init=1. SCAN T_start
+parameters:
+  Energy_Config:
+    value: StudentTMixture
+  Energy_lr:
+    value: 0
+  GPU:
+    value: -1
+  Interpol_lr:
+    value: 0
+  N_anneal:
+    value: 4000
+  Network_Type:
+    value: FeedForward
+  SDE_Loss:
+    values:
+      - Bridge_rKL_logderiv
+  SDE_Type:
+    value: Bridge_SDE
+  SDE_lr:
+    value: 0.005
+  T_end:
+    value: 1
+  T_start:
+    values:
+      - 1
+      - 2
+      - 5
+      - 10
+  batch_size:
+    value: 2000
+  beta_max:
+    value: 0.1
+  beta_min:
+    value: 0.01
+  epochs_per_eval:
+    value: 6
+  feature_dim:
+    value: 128
+  lr:
+    value: 0.005
+  model_seed:
+    value: 0
+  n_hidden:
+    value: 128
+  n_integration_steps:
+    value: 128
+  n_particles:
+    value: 10
+  repulsion_strength:
+    value: 0
+  sigma_init:
+    values:
+      - 1
+program: main.py
+project: DDS_MoS_10d_exploration
+
+
+##tune sigma_init
+command:
+  - ${env}
+  - python
+  - ${program}
+  - ${args}
+  - --use_interpol_gradient
+  - --use_normal
+method: grid
+name: MoS, rKL, NO use_off_policy, T_start=1. SCAN sigma_init
+parameters:
+  Energy_Config:
+    value: StudentTMixture
+  Energy_lr:
+    value: 0
+  GPU:
+    value: -1
+  Interpol_lr:
+    value: 0
+  N_anneal:
+    value: 4000
+  Network_Type:
+    value: FeedForward
+  SDE_Loss:
+    values:
+      - Bridge_rKL_logderiv
+  SDE_Type:
+    value: Bridge_SDE
+  SDE_lr:
+    value: 0.005
+  T_end:
+    value: 1
+  T_start:
+    values:
+      - 1
+  batch_size:
+    value: 2000
+  beta_max:
+    value: 0.1
+  beta_min:
+    value: 0.01
+  epochs_per_eval:
+    value: 6
+  feature_dim:
+    value: 128
+  lr:
+    value: 0.005
+  model_seed:
+    value: 0
+  n_hidden:
+    value: 128
+  n_integration_steps:
+    value: 128
+  n_particles:
+    value: 10
+  repulsion_strength:
+    value: 0
+  sigma_init:
+    values:
+      - 1
+      - 2
+      - 5
+      - 10
+      - 20
+      - 40
+program: main.py
+project: DDS_MoS_10d_exploration

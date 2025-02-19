@@ -103,7 +103,7 @@ class Base_SDE_Class:
     def vmap_prior_target_grad_interpolation(self, x, counter, Energy_params, SDE_params, temp, key, clip_overall_score = 10**3):
         key, subkey = random.split(key)
         batched_subkey = random.split(subkey, x.shape[0])
-        vmap_energy, vmap_grad = jax.vmap(self.prior_target_grad_interpolation, in_axes=(0, 0, None, None, None, 0))(x, counter, Energy_params, SDE_params, temp, batched_subkey)
+        vmap_log_prob, vmap_grad = jax.vmap(self.prior_target_grad_interpolation, in_axes=(0, 0, None, None, None, 0))(x, counter, Energy_params, SDE_params, temp, batched_subkey)
         #print("vmap_grad", jnp.mean(jax.lax.stop_gradient(vmap_grad)))
         #vmap_grad = jnp.where(jnp.isfinite(vmap_grad), vmap_grad, 0)
         vmap_grad = jnp.where(jnp.isnan(vmap_grad), 0, vmap_grad)
@@ -112,17 +112,17 @@ class Base_SDE_Class:
         # vmap_grad = jnp.where(grad_norm > clip_overall_score, clip_overall_score*vmap_grad/grad_norm, vmap_grad)
 
         #vmap_div_energy, vmap_grad_div = self.get_diversity_log_prob_grad(x,counter,SDE_params) 
-        vmap_energy = vmap_energy #+ vmap_div_energy
+        vmap_log_prob = vmap_log_prob #+ vmap_div_energy
         vmap_grad = vmap_grad #+ vmap_grad_div
 
-        return vmap_energy, vmap_grad, key
+        return vmap_log_prob, vmap_grad, key
     
     def prior_target_grad_interpolation(self, x, counter, Energy_params, SDE_params, temp, key):
         x_stopped = jax.lax.stop_gradient(x) ### TODO for bridges in rKL w repara this should not be stopped
         #interpol = lambda x: self.Energy_Class.calc_energy(x, Energy_params, key)
-        (Energy, key), (grad)  = jax.value_and_grad(self.interpol_func, has_aux=True)( x_stopped, counter[0], SDE_params, Energy_params, temp, key)
+        (log_prob, key), (grad)  = jax.value_and_grad(self.interpol_func, has_aux=True)( x_stopped, counter[0], SDE_params, Energy_params, temp, key)
         #grad = jnp.clip(grad, -10**2, 10**2)
-        return jnp.expand_dims(Energy, axis = -1), grad
+        return jnp.expand_dims(log_prob, axis = -1), grad
 
     def interpol_func(self, x, counter, SDE_params, Energy_params, temp, key):
         clipped_temp = jnp.clip(temp, min = 0.0001)
@@ -282,15 +282,15 @@ class Base_SDE_Class:
         new_hidden_state = hidden_state
         if(self.use_interpol_gradient):
             if(self.network_has_hidden_state):
-                Energy, grad, key = self.vmap_prior_target_grad_interpolation(x, counter_arr, Energy_params, SDE_params, temp, key) 
-                Energy_value = Energy #Energy[...,None]
+                log_prob, grad, key = self.vmap_prior_target_grad_interpolation(x, counter_arr, Energy_params, SDE_params, temp, key) 
+                log_prob_value = log_prob #Energy[...,None]
                 in_dict = {"x": x, "Energy_value": Energy_value, "t": t_arr, "grads": grad, "hidden_state": hidden_state}
                 out_dict = model.apply(params, in_dict, train = True)
                 score = out_dict["score"]
                 new_hidden_state = out_dict["hidden_state"]
             else:
-                Energy, grad, key = self.vmap_prior_target_grad_interpolation(x, counter_arr, Energy_params, SDE_params, temp, key) 
-                Energy_value = Energy
+                log_prob, grad, key = self.vmap_prior_target_grad_interpolation(x, counter_arr, Energy_params, SDE_params, temp, key) 
+                log_prob_value = log_prob
                 in_dict = {"x": x, "grads": grad,  "t": t_arr}
                 out_dict = model.apply(params, in_dict, train = True)
                 score = out_dict["score"]
@@ -307,7 +307,7 @@ class Base_SDE_Class:
         if(self.config["beta_schedule"] == "neural"):
             SDE_params["log_beta_x_t"] = out_dict["log_beta_x_t"]
 
-        return score, new_hidden_state, grad, SDE_params, key
+        return score, new_hidden_state, grad, SDE_params, log_prob, key
     
     def get_sigma_noise(self,  n_states, key, sample_mode, temp):
         ### if self.config['use_off_policy'] true temp is not treated as a temperature but as an annealed scaling for self.sigma_scale_factor, assumes temp >= 1.
@@ -358,7 +358,7 @@ class Base_SDE_Class:
         def scan_fn(carry, step):
             x, t, counter, key, carry_dict = carry
             hidden_state = carry_dict["hidden_state"]
-            score, new_hidden_state, grad, SDE_params_extended, key = self.apply_model(model, x, t, counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
+            score, new_hidden_state, grad, SDE_params_extended, interpol_log_prob, key = self.apply_model(model, x, t, counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
             carry_dict["hidden_state"] = new_hidden_state
 
             dt = self.reversed_dt_values[step]
@@ -376,7 +376,8 @@ class Base_SDE_Class:
             "drift_ref": reverse_out_dict["drift_ref"],
             "dts": dt,
             "key": key,
-            "hidden_state": carry_dict["hidden_state"]
+            "hidden_state": carry_dict["hidden_state"],
+            "interpol_log_probs": interpol_log_prob
             }
 
             x = reverse_out_dict["x_next"]
@@ -423,7 +424,8 @@ class Base_SDE_Class:
             "x_prior": x_prior,
             "hidden_states": SDE_tracker_steps["hidden_state"],
             "keys": SDE_tracker_steps["key"],
-            "interpolated_grads": SDE_tracker_steps["interpolated_grad"]
+            "interpolated_grads": SDE_tracker_steps["interpolated_grad"],
+            "interpol_log_probs": SDE_tracker_steps["interpol_log_probs"]
 
         }
 

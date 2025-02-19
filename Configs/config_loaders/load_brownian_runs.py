@@ -59,8 +59,8 @@ def stability_brownian():
     '''
     rKL_all_SDE_average_sigma = ["serene-thunder-48", "curious-cherry-47"]
     plot_dict = {"LogVarLoss": [{"id_list": LV_all_SDE_ids,"learn_SDE_params": True, "oracle": True, "label": r"CMCD-LV"}, {"id_list": LV_only_prior, "learn_SDE_params": False, "oracle": True, "label": r"CMCD-LV $ \star$"}], 
-                 "rKL_logderiv": [{"id_list": rKL_only_prior, "learn_SDE_params": False, "oracle": True, "label": r"CMCD-rKL-LD $ \star$ "}, {"id_list": rKL_all_SDE_average_sigma, "learn_SDE_params": True, "oracle": True, "label": r"CMCD-rKL-LD $ \star$ $\sigma_\mathrm{diff, init} \approx 0.018$"}],
-                 "rKL_logderiv_higher_sigma": [{"id_list": rKL_all_SDE_ids_higher_sigma, "learn_SDE_params": True, "oracle": True, "label": r"CMCD-rKL-LD $\sigma_\mathrm{diff, init} = 0.05$"}]}
+                 "rKL_logderiv": [{"id_list": rKL_only_prior, "learn_SDE_params": False, "oracle": True, "label": r"CMCD-rKL-LD $ \star$ "}, {"id_list": rKL_all_SDE_average_sigma, "learn_SDE_params": True, "oracle": True, "label": r"CMCD-rKL-LD $ \star$ $\sigma_\mathrm{diff, avrg}$"}],
+                 "rKL_logderiv_higher_sigma": [{"id_list": rKL_all_SDE_ids_higher_sigma, "learn_SDE_params": True, "oracle": True, "label": r"CMCD-rKL-LD"}]}
     
 
     # plot_dict = {"LogVarLoss": [{"id_list": LV_all_SDE_ids,"learn_SDE_params": True, "oracle": True, "label": r"CMCD-LV"}, {"id_list": LV_only_prior, "learn_SDE_params": False, "oracle": True, "label": r"CMCD-LV $ \star$"}], 

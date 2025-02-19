@@ -6,8 +6,8 @@ import jax
 
 
 class FeedForwardNetwork(nn.Module):
-    n_layers: int = 2
-    hidden_dim: int = 32
+    n_layers: int = 3
+    hidden_dim: int = 64
 
     @nn.compact
     #@partial(flax.linen.jit, static_argnums=(0,))
