@@ -38,7 +38,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
                 # del SDE_params["log_beta_min"]
             elif(self.config["beta_schedule"] == "neural"):
                 #self.inverse_beta_init = inverse_softplus((self.config["beta_max"] - self.config["beta_min"] + 10**-3))
-                self.inverse_beta_init = jnp.log((self.config["beta_max"] - self.config["beta_min"] + 10**-3))
+                self.inverse_beta_init = jnp.log((self.config["beta_max"]))
 
 
         return SDE_params
@@ -180,7 +180,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
     def sample_noise(self, SDE_params, x, t, dt, key, sigma_scale_factor = 1.):
         key, subkey = random.split(key)
 
-        if(self.config["off_policy_mode"] == "laplace"):
+        if(self.config["use_off_policy"] and self.config["off_policy_mode"] == "laplace"):
             sigma_scale_factor = sigma_scale_factor
             entropy_factor = self.laplace_width
             laplace_prob = sigma_scale_factor - 1.
@@ -281,7 +281,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
             t = reverse_out_dict["t_next"]
             return (x, t, key, carry_dict), SDE_tracker_step
 
-        if(self.config["off_policy_mode"] == "laplace"):
+        if(self.config["use_off_policy"] and self.config["off_policy_mode"] == "laplace"):
             x_prior, key = self.sample_prior(SDE_params, key, n_states, sigma_scale_factor = 1.)
             log_prob_prior_scaled = self.vmap_get_log_prior(SDE_params, x_prior, 1.*jnp.ones((n_states,self.dim_x)))
         else:

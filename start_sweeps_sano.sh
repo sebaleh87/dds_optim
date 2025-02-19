@@ -36,10 +36,10 @@
     }
 
     # Step 3: Start agents on GPU 0
-    # start_agents 0 $AGENTS_PER_GPU
-    # start_agents 1 $AGENTS_PER_GPU
-    start_agents 2 $AGENTS_PER_GPU
-    start_agents 3 $AGENTS_PER_GPU
+    start_agents 0 $AGENTS_PER_GPU
+    start_agents 1 $AGENTS_PER_GPU
+    # start_agents 2 $AGENTS_PER_GPU
+    # start_agents 3 $AGENTS_PER_GPU
     # start_agents 4 $AGENTS_PER_GPU
     # start_agents 5 $AGENTS_PER_GPU
     # start_agents 6 $AGENTS_PER_GPU
