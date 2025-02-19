@@ -45,7 +45,7 @@ parser.add_argument("--repulsion_strength", type=float, default=0., help="repuls
 ### TODO explain the effect
 parser.add_argument('--use_off_policy', action='store_true', default=False, help='use off policy sampling')
 parser.add_argument('--no-use_off_policy', dest='use_off_policy', action='store_false', help='dont use off policy sampling')
-parser.add_argument('--off_policy_mode', type=str, default="no_scale_drift", choices = ["scale_drift", "no_scale_drift", "laplace"], help='scale or not scale the drift')
+parser.add_argument('--off_policy_mode', type=str, default="laplace", choices = ["scale_drift", "no_scale_drift", "laplace"], help='scale or not scale the drift')
 parser.add_argument('--laplace_width', type=float, default=1., help='fixes the width of the laplace proposal, only has effect if off_policy_mode = laplace')
 parser.add_argument("--sigma_scale_factor", type=float, default=1., help="amount of noise for off policy sampling, 0 has no effect = no-use_off_policy")
 
@@ -61,7 +61,7 @@ parser.add_argument("--update_params_mode", type=str, choices = ["all_in_one", "
 parser.add_argument("--epochs_per_eval", type=int, default=50)
 
 parser.add_argument("--beta_min", type=float, default=0.05)
-parser.add_argument("--beta_max", type=float ,default=[0.1], nargs="+" )
+parser.add_argument("--beta_max", type=float ,default=[0.1], nargs="+" , help='serves at initial beta for all beta schedules')
 parser.add_argument('--temp_mode', action='store_true', default=True, help='only for discrete time model')
 parser.add_argument('--no-temp_mode', action='store_false', dest='temp_mode', help='')
 

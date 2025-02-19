@@ -1,5 +1,5 @@
 program: main.py
-project: time_dependent_sigma_neural_explore
+project: time_dependent_sigma_neural_explore_bugfix
 command:
   - ${env}
   - python
@@ -38,7 +38,7 @@ parameters:
   off_policy_mode:
     values: ["laplace"]
   Interpol_lr:
-    values: [0.0001]
+    values: [0.0002]
   beta_schedule:
     values: ["neural"]
   time_encoder_mode: 
