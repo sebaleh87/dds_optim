@@ -4,6 +4,7 @@ from functools import partial
 import jax.numpy as jnp
 import jax
 from .model_registry import get_network
+from .EncodingNetworks import get_sinusoidal_positional_encoding
 
 
 class VanillaBaseModelClass(nn.Module):
@@ -19,6 +20,7 @@ class VanillaBaseModelClass(nn.Module):
         self.time_backbone = get_network(self.network_config, self.SDE_Loss_Config)
         self.use_normal = self.SDE_Loss_Config["SDE_Type_Config"]["use_normal"]
         self.model_mode = self.network_config["model_mode"] # is either normal or latent
+        self.time_encoder_mode = self.network_config["time_encoder_mode"]
 
         self.x_dim = self.network_config["x_dim"]
         if(self.model_mode == "latent"):
@@ -104,8 +106,22 @@ class VanillaBaseModelClass(nn.Module):
             grad = copy_grads
             grad_detach = jax.lax.stop_gradient(grad)
 
-            time_in_dict = {}
-            time_out_dict = self.time_backbone(in_dict)
+            ### control what input the time encoder network receives
+            if(self.time_encoder_mode == "all"):
+                time_in_dict = in_dict
+            elif(self.time_encoder_mode == "time_fourier"):
+                sin_time = get_sinusoidal_positional_encoding(t, self.feature_dim, self.max_time)
+                encoding = jnp.concatenate([in_dict["t"], sin_time], axis=-1)
+                time_in_dict = {"encoding": encoding}
+            elif(self.time_encoder_mode == "normal_embedding"):
+                time_in_dict = {"encoding": in_dict["t"]}
+            elif(self.time_encoder_mode == "normal_x_t_embedding"):
+                encoding = jnp.concatenate([in_dict["t"],in_dict["x"]], axis=-1)
+                time_in_dict = {"encoding": encoding}
+            else:
+                raise ValueError(f"Unknown time_encoder_mode: {self.time_encoder_mode}")
+
+            time_out_dict = self.time_backbone(time_in_dict)
             time_encoding = time_out_dict["embedding"]
 
             grad_drift = nn.Dense(x_dim, kernel_init=nn.initializers.zeros,

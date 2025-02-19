@@ -10,7 +10,7 @@ parser.add_argument("--latent_dim", type=int, default=None)
 parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=["Reverse_KL_Loss","Reverse_KL_Loss_stop_grad","LogVariance_Loss", "LogVariance_Loss_MC", 
                                                                                  "LogVariance_Loss_with_grad", "LogVariance_Loss_weighted", "Reverse_KL_Loss_logderiv",
                                                                                  "Bridge_rKL", "Bridge_LogVarLoss", "Bridge_rKL_logderiv", "Bridge_rKL_logderiv_DiffUCO",
-                                                                                "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam"], help="select loss function")
+                                                                                "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam", "Bridge_fKL_subtraj"], help="select loss function")
 parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE", "VE_SDE", "Bridge_SDE", "Bridge_SDE_with_bug"], help="select SDE type, subVP_SDE is currently deprecated")
 parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "GMMDistrax", "GaussianMixtureToy", "Rastrigin", "LennardJones", 
                                                                                      "DoubleWellEquivariant", "DoubleWell", "Sonar", "Funnel",
@@ -46,6 +46,7 @@ parser.add_argument("--repulsion_strength", type=float, default=0., help="repuls
 parser.add_argument('--use_off_policy', action='store_true', default=False, help='use off policy sampling')
 parser.add_argument('--no-use_off_policy', dest='use_off_policy', action='store_false', help='dont use off policy sampling')
 parser.add_argument('--off_policy_mode', type=str, default="no_scale_drift", choices = ["scale_drift", "no_scale_drift", "laplace"], help='scale or not scale the drift')
+parser.add_argument('--laplace_width', type=float, default=1., help='fixes the width of the laplace proposal, only has effect if off_policy_mode = laplace')
 parser.add_argument("--sigma_scale_factor", type=float, default=1., help="amount of noise for off policy sampling, 0 has no effect = no-use_off_policy")
 
 parser.add_argument("--disable_jit", action='store_true', default=False, help="disable jit for debugging")
@@ -55,6 +56,7 @@ parser.add_argument("--N_warmup", type=int, default=0)
 parser.add_argument("--steps_per_epoch", type=int, default=10)
 
 parser.add_argument("--beta_schedule", type=str, choices = ["constant", "cosine", "learned", "neural", "linear"], default="constant", help="defines the noise schedule for Bridge_SDE")
+parser.add_argument("--time_encoder_mode", type=str, default="all", choices=["all", "fourier_embedding", "normal_embedding", "normal_x_t_embedding"], help="Time encoder mode")
 parser.add_argument("--update_params_mode", type=str, choices = ["all_in_one", "DKL"], default="all_in_one", help="keep all_in_one as default. This is currently not used")
 parser.add_argument("--epochs_per_eval", type=int, default=50)
 
@@ -163,7 +165,8 @@ if(__name__ == "__main__"):
             "n_hidden": args.n_hidden,
             "n_layers": args.n_layers,
             "model_seed": seed,
-            "model_mode": args.model_mode
+            "model_mode": args.model_mode,
+            "time_encoder_mode": args.time_encoder_mode,
         }
 
         if("Discrete_Time_rKL_Loss" in args.SDE_Loss):
@@ -208,6 +211,7 @@ if(__name__ == "__main__"):
                 "batch_size": args.batch_size,
                 "use_off_policy": args.use_off_policy,
                 "off_policy_mode": args.off_policy_mode,
+                "laplace_width": args.laplace_width,
                 "learn_interpolation_params": args.learn_interpolation_params,
                 "beta_schedule": args.beta_schedule
             }

@@ -108,3 +108,4 @@ htmlcov/
 
 # PyCharm specific
 .idea/
+*.sh
