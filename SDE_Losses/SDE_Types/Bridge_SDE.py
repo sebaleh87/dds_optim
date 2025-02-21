@@ -15,6 +15,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
         super().__init__(SDE_Type_Config, Network_Config, Energy_Class)
         self.vmap_get_log_prior = jax.vmap(self.get_log_prior, in_axes=(None, 0, 0))
         self.laplace_width = self.config["laplace_width"]
+        self.mixture_prob = self.config["mixture_probs"]
         ### TODO remove learnability of diffusion parameters
 
     def get_SDE_params(self):
@@ -61,6 +62,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
         #x = jax.lax.stop_gradient(x) ### TODO for bridges in rKL w repara this should not be stopped
         #interpol = lambda x: self.Energy_Class.calc_energy(x, Energy_params, key)
         (log_prob, key), (grad)  = jax.value_and_grad(self.interpol_func, has_aux=True)( x, counter[0], SDE_params, Energy_params, temp, key)
+
         #grad = jnp.clip(grad, -10**2, 10**2)
         return jnp.expand_dims(log_prob, axis = -1), grad
 
@@ -180,38 +182,58 @@ class Bridge_SDE_Class(Base_SDE_Class):
     def sample_noise(self, SDE_params, x, t, dt, key, sigma_scale_factor = 1.):
         key, subkey = random.split(key)
 
-        if(self.config["use_off_policy"] and self.config["off_policy_mode"] == "laplace"):
-            sigma_scale_factor = sigma_scale_factor
-            entropy_factor = self.laplace_width
-            laplace_prob = sigma_scale_factor - 1.
-            vec_ps = jnp.ones((x.shape[0], ))*(laplace_prob)
+        if(self.config["use_off_policy"] and (self.config["off_policy_mode"] == "laplace" or self.config["off_policy_mode"] == "gaussian")):
+            decay_value = sigma_scale_factor - 1.
+            curr_mixture_prob = self.mixture_prob*decay_value
+            entropy_factor = self.laplace_width#1. + (self.laplace_width-1.)*decay_value
+            vec_ps = jnp.ones((x.shape[0], ))*(curr_mixture_prob )
             ps = random.uniform(subkey, shape = (x.shape[0], 1))
-            key, subkey = random.split(key)
 
-            laplace_scale = jnp.sqrt(jnp.pi/(2*jnp.exp(1.)))*entropy_factor
-            laplace_noise = random.laplace(subkey, shape=x.shape)*laplace_scale
-            diffusion = self.get_diffusion(SDE_params, x, t)
+            if(self.config["off_policy_mode"] == "gaussian"):
+                key, subkey = random.split(key)
+                laplace_scale = entropy_factor
+                laplace_noise = random.normal(subkey, shape=x.shape)*laplace_scale
+                diffusion = self.get_diffusion(SDE_params, x, t)
+            elif(self.config["off_policy_mode"] == "laplace"):
+                key, subkey = random.split(key)
+                laplace_scale = jnp.sqrt(jnp.pi/(2*jnp.exp(1.)))*entropy_factor
+                laplace_noise = random.laplace(subkey, shape=x.shape)*laplace_scale
+                diffusion = self.get_diffusion(SDE_params, x, t)
+
+            else:
+                raise ValueError("off policy mode not implemented")
 
             gauss_noise = random.normal(subkey, shape=x.shape)
-            gauss_log_prob_noise = jnp.sum(jax.scipy.stats.norm.logpdf(gauss_noise, loc=0, scale=1), axis = -1)
-
-            mixed_noise = jnp.where(ps < laplace_prob, laplace_noise, gauss_noise)
+            mixed_noise = jnp.where(ps < curr_mixture_prob, laplace_noise, gauss_noise)
 
             dx = jnp.sqrt(dt)*diffusion * mixed_noise
 
-            laplace_log_prob_noise = jnp.sum(jax.scipy.stats.laplace.logpdf(mixed_noise, loc=0, scale=laplace_scale), axis=-1)
+            if(self.config["off_policy_mode"] == "gaussian"):
+                laplace_log_prob_noise = jnp.sum(jax.scipy.stats.norm.logpdf(mixed_noise, loc=0, scale=laplace_scale), axis=-1)
+            elif(self.config["off_policy_mode"] == "laplace"):
+                laplace_log_prob_noise = jnp.sum(jax.scipy.stats.laplace.logpdf(mixed_noise, loc=0, scale=laplace_scale), axis=-1)
+            else:
+                raise ValueError("off policy mode not implemented")
+            
             gauss_log_prob_noise = jnp.sum(jax.scipy.stats.norm.logpdf(mixed_noise, loc=0, scale=1), axis = -1)
             log_prob_noise_mixed = jax.scipy.special.logsumexp(
-                jnp.stack([laplace_log_prob_noise + jnp.log(vec_ps), gauss_log_prob_noise + jnp.log(1 - vec_ps)], axis=-1),
+                jnp.stack([laplace_log_prob_noise + jnp.log(vec_ps), gauss_log_prob_noise + jnp.log1p(-vec_ps)], axis=-1),
                 axis=-1
             )
             log_prob_noise = jnp.where(vec_ps == 0, gauss_log_prob_noise, log_prob_noise_mixed)
+            log_prob_on_policy = gauss_log_prob_noise
+            off_policy_log_weights = jax.scipy.special.logsumexp(
+                jnp.stack([laplace_log_prob_noise - gauss_log_prob_noise + jnp.log(vec_ps), jnp.log1p(-vec_ps)], axis=-1),
+                axis=-1
+            )
         else:
             noise = random.normal(subkey, shape=x.shape)
             log_prob_noise = jnp.sum(jax.scipy.stats.norm.logpdf(noise, loc=0, scale=1), axis = -1)
             diffusion = self.get_diffusion(SDE_params, x, t)*sigma_scale_factor
             dx = jnp.sqrt(dt)*diffusion * noise
-        return dx, log_prob_noise, key
+            log_prob_on_policy  = log_prob_noise
+            off_policy_log_weights = jnp.ones_like(log_prob_noise)
+        return dx, log_prob_noise, log_prob_on_policy, off_policy_log_weights, key
     
     def compute_reverse_drift(self, diffusion, score, grad):
         reverse_drift = diffusion**2*score
@@ -227,7 +249,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
         reverse_drift_t_g_s = self.compute_reverse_drift(diffusion_for_drift, score, grad) #TODO check is this power of two correct? I think yes because U = diffusion*score
         x_drift_update = reverse_drift_t_g_s
 
-        dx, log_prob_noise, key = self.sample_noise(SDE_params, x, t, dt, key, sigma_scale_factor = sigma_scale_factor)
+        dx, log_prob_noise, log_prob_on_policy, off_policy_log_weights, key = self.sample_noise(SDE_params, x, t, dt, key, sigma_scale_factor = sigma_scale_factor)
 
         if(self.invariance == True):
             dx = self.subtract_COM(dx)
@@ -239,7 +261,8 @@ class Bridge_SDE_Class(Base_SDE_Class):
 
 
         ### TODO check at which x drift ref should be evaluated?
-        reverse_out_dict = {"x_next": x_next, "t_next": t - dt, "diffusion": diffusion, "reverse_drift": reverse_drift_t_g_s, "dx": dx, "log_prob_noise": log_prob_noise} #"reverse_log_prob": log_prob_t_g_s
+        reverse_out_dict = {"x_next": x_next, "t_next": t - dt, "diffusion": diffusion, "log_prob_on_policy": log_prob_on_policy, "off_policy_log_weights": off_policy_log_weights,
+                            "reverse_drift": reverse_drift_t_g_s, "dx": dx, "log_prob_noise": log_prob_noise} #"reverse_log_prob": log_prob_t_g_s
         return reverse_out_dict, key
 
 
@@ -255,7 +278,6 @@ class Bridge_SDE_Class(Base_SDE_Class):
         def scan_fn(carry, step):
             x, t, key, carry_dict = carry
             counter = step
-
             hidden_state = carry_dict["hidden_state"]
 
             score, new_hidden_state, grad, SDE_params_extended, interpol_log_prob, key = self.apply_model(model, x, t/self.n_integration_steps, counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
@@ -274,14 +296,16 @@ class Bridge_SDE_Class(Base_SDE_Class):
             "key": key,
             #"hidden_state": carry_dict["hidden_state"],
             "log_prob_noise": reverse_out_dict["log_prob_noise"],
-            "interpol_log_probs": interpol_log_prob
+            "interpol_log_probs": interpol_log_prob,
+            "log_prob_on_policy": reverse_out_dict["log_prob_on_policy"],
+            "off_policy_log_weights": reverse_out_dict["off_policy_log_weights"]
             }
 
             x = reverse_out_dict["x_next"]
             t = reverse_out_dict["t_next"]
             return (x, t, key, carry_dict), SDE_tracker_step
 
-        if(self.config["use_off_policy"] and self.config["off_policy_mode"] == "laplace"):
+        if(self.config["use_off_policy"] and (self.config["off_policy_mode"] == "laplace" or self.config["off_policy_mode"] == "gaussian")):
             x_prior, key = self.sample_prior(SDE_params, key, n_states, sigma_scale_factor = 1.)
             log_prob_prior_scaled = self.vmap_get_log_prior(SDE_params, x_prior, 1.*jnp.ones((n_states,self.dim_x)))
         else:
@@ -349,7 +373,9 @@ class Bridge_SDE_Class(Base_SDE_Class):
             "x_prior": x_prior,
             "keys": SDE_tracker_steps["key"],
             "interpolated_grads": interpol_grads,
-            "interpol_log_probs": interpol_log_probs
+            "interpol_log_probs": interpol_log_probs,
+            "log_prob_on_policy": SDE_tracker_steps["log_prob_on_policy"],
+            "off_policy_log_weights": SDE_tracker_steps["off_policy_log_weights"]
 
         }
 

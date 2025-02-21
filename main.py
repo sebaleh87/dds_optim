@@ -36,7 +36,7 @@ parser.add_argument("--SDE_lr", type=float, default=[0.001], nargs="+")
 parser.add_argument("--SDE_weight_decay", type=float, default=0.)
 parser.add_argument("--clip_value", type=float, default=1., help = "clip value of sde param gradients")
 parser.add_argument("--learn_SDE_params_mode", type=str, default="all", choices=["prior_only", "all", "all_and_beta"], 
-                    help="prior_only: only learn prior params are learned, all: learn all SDE params except betas, all_and_beta: learn all params including beta")
+                    help="prior_only: only learn prior params are learned, all: learn all SDE params except betas, all_and_beta: not relevant for CMCD, learn all params including beta")
 
 parser.add_argument("--learn_covar", action='store_true', default=False, help="learn additional covar of target")
 parser.add_argument("--sigma_init", type=float, default=1., help="init value of sigma")
@@ -45,8 +45,9 @@ parser.add_argument("--repulsion_strength", type=float, default=0., help="repuls
 ### TODO explain the effect
 parser.add_argument('--use_off_policy', action='store_true', default=False, help='use off policy sampling')
 parser.add_argument('--no-use_off_policy', dest='use_off_policy', action='store_false', help='dont use off policy sampling')
-parser.add_argument('--off_policy_mode', type=str, default="laplace", choices = ["scale_drift", "no_scale_drift", "laplace"], help='scale or not scale the drift')
+parser.add_argument('--off_policy_mode', type=str, default="laplace", choices = ["scale_drift", "no_scale_drift", "laplace", "gaussian"], help='scale or not scale the drift')
 parser.add_argument('--laplace_width', type=float, default=1., help='fixes the width of the laplace proposal, only has effect if off_policy_mode = laplace')
+parser.add_argument('--mixture_probs', type=float, default=0.1, help='propbs for mixture probabilities')
 parser.add_argument("--sigma_scale_factor", type=float, default=1., help="amount of noise for off policy sampling, 0 has no effect = no-use_off_policy")
 
 parser.add_argument("--disable_jit", action='store_true', default=False, help="disable jit for debugging")
@@ -56,12 +57,13 @@ parser.add_argument("--N_warmup", type=int, default=0)
 parser.add_argument("--steps_per_epoch", type=int, default=10)
 
 parser.add_argument("--beta_schedule", type=str, choices = ["constant", "cosine", "learned", "neural", "linear"], default="constant", help="defines the noise schedule for Bridge_SDE")
-parser.add_argument("--time_encoder_mode", type=str, default="all", choices=["all", "fourier_embedding", "normal_embedding", "normal_x_t_embedding"], help="Time encoder mode")
+parser.add_argument("--time_encoder_mode", type=str, default="normal_embedding", choices=["all", "fourier_embedding", "normal_embedding", "normal_x_t_embedding"], 
+                    help="Time encoder mode: onyl applied when beta_schedule == neural and base_net == Vanilla")
 parser.add_argument("--update_params_mode", type=str, choices = ["all_in_one", "DKL"], default="all_in_one", help="keep all_in_one as default. This is currently not used")
 parser.add_argument("--epochs_per_eval", type=int, default=50)
 
 parser.add_argument("--beta_min", type=float, default=0.05)
-parser.add_argument("--beta_max", type=float ,default=[0.1], nargs="+" , help='serves at initial beta for all beta schedules')
+parser.add_argument("--beta_max", type=float ,default=[0.1], nargs="+" , help=r'serves at initial beta for all beta schedules, initial \sigma_diff is controlled with beta as $\sigma*beta$')
 parser.add_argument('--temp_mode', action='store_true', default=True, help='only for discrete time model')
 parser.add_argument('--no-temp_mode', action='store_false', dest='temp_mode', help='')
 
@@ -212,6 +214,7 @@ if(__name__ == "__main__"):
                 "use_off_policy": args.use_off_policy,
                 "off_policy_mode": args.off_policy_mode,
                 "laplace_width": args.laplace_width,
+                "mixture_probs": args.mixture_probs,
                 "learn_interpolation_params": args.learn_interpolation_params,
                 "beta_schedule": args.beta_schedule
             }

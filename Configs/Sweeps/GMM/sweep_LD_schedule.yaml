@@ -1,5 +1,5 @@
 program: main.py
-project: laplace_width
+project: GMMDistrax_gridsearch_06_02_LV_and_LD
 command:
   - ${env}
   - python
@@ -8,7 +8,6 @@ command:
   - --use_interpol_gradient
   - --use_normal
   - --gridsearch
-  - --use_off_policy
 method: grid
 metric:
   name: "Free_Energy_at_T=1"
@@ -18,34 +17,28 @@ metric:
 name: gridsearch
 parameters:
   n_particles:
-    value: 5
+    value: 50
   Energy_Config:
     value: GMMDistrax
   GPU:
     value: -1
   N_anneal:
-    value: 4000
+    value: 800
   base_net:
-    value: Vanilla
+    value: PISgradnet
   SDE_Loss:
     values: [Bridge_rKL_logderiv]
+  beta_schedule:
+    values: ["learned", "neural"]
   SDE_Type:
     value: Bridge_SDE
   SDE_lr:
-    values: [0.001]
-  T_start:
-    values: [ 2.]
-  laplace_width:
-    values: [1.3, 1.4]
-  mixture_probs:
-    values: [0.1, 0.2]
-  off_policy_mode:
-    values: ["laplace"]
+    values: [0.0005, 0.0001, 0.00005]
   Interpol_lr:
-    values: [0.0002]
-  beta_schedule:
-    values: ["learned"]
+    values: [0.01, 0.001]
   T_end:
+    value: 1.
+  T_start:
     value: 1.
   batch_size:
     value: 2000
@@ -58,9 +51,9 @@ parameters:
   n_integration_steps:
     value: 128
   beta_max:
-    values: [1.]
+    values: [1., 2.5]
   sigma_init:
-    values: [1.]
+    values: [80.]
   model_seeds:
     # values: [1]
     values: [0]
