@@ -38,16 +38,22 @@ class Bridge_rKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
         if self.SDE_type.config['use_off_policy']:  
             log_prob_prior_scaled = SDE_tracer["log_prob_prior_scaled"]
             log_prob_noise = SDE_tracer["log_prob_noise"]
-            log_weights = jnp.sum(reverse_log_probs - log_prob_noise, axis = 0) + log_prior - log_prob_prior_scaled 
+            log_prob_on_policy = SDE_tracer["log_prob_on_policy"]
+            # off_policy_log_weights = jnp.sum(SDE_tracer["off_policy_log_weights"], axis = 0)
+            # off_policy_weights_normed = jax.lax.stop_gradient(jax.nn.softmax(off_policy_log_weights, axis = -1))
+            delta_log_prior = log_prior - log_prob_prior_scaled 
+            log_weights = jnp.sum(log_prob_on_policy - log_prob_noise, axis = 0) + delta_log_prior
+            # log_weights = jnp.nan_to_num(log_weights, nan=0.0, posinf=1e10, neginf=-1e10)
+            # Energy = jnp.nan_to_num(Energy, nan=1e10, posinf=1e10)
             off_policy_weights_normed = jax.lax.stop_gradient(jax.nn.softmax(log_weights, axis = -1))
-            off_policy_weights_normed_times_n_samples = off_policy_weights_normed* log_weights.shape[-1] ### multiply wiht numer of states so that mean instead of sum can be used later on
-            loss = self.compute_rKL_log_deriv(SDE_params, log_prior, reverse_log_probs, forward_diff_log_probs, entropy_minus_noise,Energy, temp, 
+            off_policy_weights_normed_times_n_samples = off_policy_weights_normed* log_prob_on_policy.shape[-1] ### multiply wiht numer of states so that mean instead of sum can be used later on
+            loss, unbiased_loss, centered_loss = self.compute_rKL_log_deriv(SDE_params, log_prior, reverse_log_probs, forward_diff_log_probs, entropy_minus_noise,Energy, temp, 
                         off_policy_weights_normed_times_n_samples, use_off_policy = True)
         else:
             off_policy_weights_normed_times_n_samples = 1.
-            loss = self.compute_rKL_log_deriv(SDE_params, log_prior, reverse_log_probs, forward_diff_log_probs, entropy_minus_noise,Energy, temp)
+            loss, unbiased_loss, centered_loss = self.compute_rKL_log_deriv(SDE_params, log_prior, reverse_log_probs, forward_diff_log_probs, entropy_minus_noise,Energy, temp)
 
-        log_dict = {"loss": loss, "mean_energy": mean_Energy, 
+        log_dict = {"loss": loss, "mean_energy": mean_Energy, "losses/unbiased_loss": unbiased_loss, "losses/centered_loss": centered_loss,
                       "best_Energy": jnp.min(Energy), "noise_loss": noise_loss, "entropy_loss": entropy_loss, "key": key, "X_0": x_last, 
                       "sigma": jnp.exp(SDE_params["log_sigma"]),"beta_min": jnp.exp(SDE_params["log_beta_min"]),
                         "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": SDE_params["mean"], "sigma_prior": jnp.exp(SDE_params["log_sigma_prior"])
@@ -74,7 +80,10 @@ class Bridge_rKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
         if(use_off_policy):
             unbiased_mean = jax.lax.stop_gradient(jnp.mean(off_policy_weights*radon_dykodin_derivative, keepdims=True, axis = 0))
             reward = jax.lax.stop_gradient((radon_dykodin_derivative))
-            loss = jnp.mean((off_policy_weights* reward - unbiased_mean) * sum_reverse_log_probs) + jnp.mean(off_policy_weights * radon_nykodin_wo_reverse)
+            L1 = jnp.mean((off_policy_weights* reward - unbiased_mean) * sum_reverse_log_probs)
+            loss = L1 + jnp.mean(off_policy_weights * radon_nykodin_wo_reverse)
+            unbiased_loss = jnp.mean((off_policy_weights* reward) * sum_reverse_log_probs) + jnp.mean(off_policy_weights * radon_nykodin_wo_reverse)
+            centered_loss = L1
 
             # unbiased_mean = jax.lax.stop_gradient(jnp.mean(radon_dykodin_derivative, keepdims=True, axis = 0))
             # reward = jax.lax.stop_gradient((radon_dykodin_derivative-unbiased_mean))
@@ -83,7 +92,10 @@ class Bridge_rKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
             unbiased_mean = jax.lax.stop_gradient(jnp.mean(radon_dykodin_derivative, keepdims=True, axis = 0))
             reward = jax.lax.stop_gradient((radon_dykodin_derivative-unbiased_mean))
             #loss = jnp.mean((off_policy_weights* reward - unbiased_mean) * sum_reverse_log_probs) + jnp.mean(off_policy_weights * radon_nykodin_wo_reverse)
-            loss = jnp.mean(reward * sum_reverse_log_probs) + jnp.mean( radon_nykodin_wo_reverse)
+            L1 = jnp.mean(reward * sum_reverse_log_probs)
+            loss = L1+ jnp.mean( radon_nykodin_wo_reverse)
+            unbiased_loss = jnp.mean(jax.lax.stop_gradient((radon_dykodin_derivative)) * sum_reverse_log_probs) + jnp.mean( radon_nykodin_wo_reverse)
+            centered_loss = L1
 
-        return loss
+        return loss, unbiased_loss, centered_loss
     

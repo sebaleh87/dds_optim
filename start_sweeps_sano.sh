@@ -2,7 +2,7 @@
 
 (
     # Step 1: Initialize the sweep and retrieve the sweep ID
-    SWEEP_OUTPUT=$(wandb sweep ./Configs/Sweeps/time_dependent_sigma/explore_lp_width.yaml 2>&1) # Capture stdout and stderr
+    SWEEP_OUTPUT=$(wandb sweep ./Configs/Sweeps/GMM/sweep_LD_schedule.yaml 2>&1) # Capture stdout and stderr
     AGENT_COMMAND=$(echo "$SWEEP_OUTPUT" | grep -oP 'Run sweep agent with: \K.*')
     echo "Command to start agents: $AGENT_COMMAND" 
 

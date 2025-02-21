@@ -313,8 +313,7 @@ class Base_SDE_Class:
         ### if self.config['use_off_policy'] true temp is not treated as a temperature but as an annealed scaling for self.sigma_scale_factor, assumes temp >= 1.
         shape= [n_states, self.dim_x]
         if self.config['use_off_policy']:    
-            if(self.config["off_policy_mode"] == "laplace"):
-                annealed_scale = temp - 1. 
+            if(self.config["off_policy_mode"] == "laplace" or self.config["off_policy_mode"] == "gaussian"):
                 if(sample_mode == "train"):
                     sigma_scale = temp
                     scale_log_prob = jnp.zeros((n_states,))                   

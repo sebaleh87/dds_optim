@@ -107,19 +107,23 @@ class VanillaBaseModelClass(nn.Module):
             grad_detach = jax.lax.stop_gradient(grad)
 
             ### control what input the time encoder network receives
-            if(self.time_encoder_mode == "all"):
-                time_in_dict = in_dict
-            elif(self.time_encoder_mode == "time_fourier"):
-                sin_time = get_sinusoidal_positional_encoding(t, self.feature_dim, self.max_time)
-                encoding = jnp.concatenate([in_dict["t"], sin_time], axis=-1)
-                time_in_dict = {"encoding": encoding}
-            elif(self.time_encoder_mode == "normal_embedding"):
-                time_in_dict = {"encoding": in_dict["t"]}
-            elif(self.time_encoder_mode == "normal_x_t_embedding"):
-                encoding = jnp.concatenate([in_dict["t"],in_dict["x"]], axis=-1)
-                time_in_dict = {"encoding": encoding}
+            if(self.beta_schedule == "neural"):
+                if(self.time_encoder_mode == "all"):
+                    time_in_dict = in_dict
+                elif(self.time_encoder_mode == "time_fourier"):
+                    sin_time = get_sinusoidal_positional_encoding(t, self.feature_dim, self.max_time)
+                    encoding = jnp.concatenate([in_dict["t"], sin_time], axis=-1)
+                    time_in_dict = {"encoding": encoding}
+                elif(self.time_encoder_mode == "normal_embedding"):
+                    time_in_dict = {"encoding": in_dict["t"]}
+                elif(self.time_encoder_mode == "normal_x_t_embedding"):
+                    encoding = jnp.concatenate([in_dict["t"],in_dict["x"]], axis=-1)
+                    time_in_dict = {"encoding": encoding}
+                else:
+                    raise ValueError(f"Unknown time_encoder_mode: {self.time_encoder_mode}")
             else:
-                raise ValueError(f"Unknown time_encoder_mode: {self.time_encoder_mode}")
+                time_in_dict = in_dict
+
 
             time_out_dict = self.time_backbone(time_in_dict)
             time_encoding = time_out_dict["embedding"]
