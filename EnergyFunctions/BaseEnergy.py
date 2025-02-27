@@ -327,7 +327,7 @@ class EnergyModelClass:
         return wfig
 
     def plot_tsne_last_samples(self, Xs, panel = "fig"):
-        print("TSNE plot")
+        # print("TSNE plot")
         Xs = Xs[:1000]
         if(hasattr(self, 'means')):
             means_reshaped = self.means.reshape(-1, self.dim_x)
