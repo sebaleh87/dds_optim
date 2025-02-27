@@ -109,3 +109,8 @@ htmlcov/
 # PyCharm specific
 .idea/
 *.sh
+
+#personal files
+config_sweep.yaml
+*.sh
+start_sweeps_sano.sh
