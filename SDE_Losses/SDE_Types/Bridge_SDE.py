@@ -111,6 +111,23 @@ class Bridge_SDE_Class(Base_SDE_Class):
             x_prior = random.normal(subkey, shape=(n_states, self.dim_x))*prior_sigma + prior_mean
         return x_prior, key    
     
+    def sample_prior_mixture_with_log_probs(self, SDE_params, key, n_states, sigma_scale_factor = 1.):
+        prior_mean = self.get_mean_prior(SDE_params)[None, :]
+        if(self.invariance):
+            raise ValueError("not implemented")
+        else:
+            prior_sigma = self.return_prior_covar(SDE_params, sigma_scale_factor = sigma_scale_factor)
+            decay_value = sigma_scale_factor - 1.
+            curr_mixture_prob = self.mixture_prob*decay_value
+            entropy_factor = self.laplace_width
+
+            mixed_noise, off_policy_log_prob_noise, key = self.sample_from_mixture( curr_mixture_prob, entropy_factor, (n_states, self.dim_x) ,key)
+            
+            gauss_log_prob_noise = jnp.sum(jax.scipy.stats.norm.logpdf(mixed_noise, loc=0, scale=1), axis = -1)
+            log_prob_noise_mixed = self.calc_mixture_probs( curr_mixture_prob, off_policy_log_prob_noise, gauss_log_prob_noise)
+            x_prior = mixed_noise*prior_sigma + prior_mean
+        return x_prior, log_prob_noise_mixed, key  
+    
     def return_prior_covar(self, SDE_params, sigma_scale_factor = 1.):
         if(self.invariance):
             sigma = jnp.exp(SDE_params["log_sigma_prior"])*jnp.ones((self.dim_x,))
@@ -179,51 +196,59 @@ class Bridge_SDE_Class(Base_SDE_Class):
     def forward_sde(self, SDE_params, x, t, key):
         pass
 
+    def sample_from_mixture(self, off_policy_probs, entropy_factor, shape ,key):
+        key, subkey = random.split(key)
+        ps = random.uniform(subkey, shape = (shape[0], 1))
+
+        if(self.config["off_policy_mode"] == "gaussian"):
+            key, subkey = random.split(key)
+            laplace_scale = entropy_factor
+            laplace_noise = random.normal(subkey, shape=shape)*laplace_scale
+        elif(self.config["off_policy_mode"] == "laplace"):
+            key, subkey = random.split(key)
+            laplace_scale = jnp.sqrt(jnp.pi/(2*jnp.exp(1.)))*entropy_factor
+            laplace_noise = random.laplace(subkey, shape=shape)*laplace_scale
+        else:
+            raise ValueError("off policy mode not implemented")
+
+        gauss_noise = random.normal(subkey, shape=shape)
+        mixed_noise = jnp.where(ps < off_policy_probs, laplace_noise, gauss_noise)
+
+        if(self.config["off_policy_mode"] == "gaussian"):
+            off_policy_log_prob_noise = jnp.sum(jax.scipy.stats.norm.logpdf(mixed_noise, loc=0, scale=laplace_scale), axis=-1)
+        elif(self.config["off_policy_mode"] == "laplace"):
+            off_policy_log_prob_noise = jnp.sum(jax.scipy.stats.laplace.logpdf(mixed_noise, loc=0, scale=laplace_scale), axis=-1)
+        else:
+            raise ValueError("off policy mode not implemented")
+        return mixed_noise, off_policy_log_prob_noise, key
+
+    def calc_mixture_probs(self, off_policy_prob, off_policy_log_prob, on_policy_log_prob):
+        log_prob_noise_mixed = jax.scipy.special.logsumexp(
+                jnp.stack([off_policy_log_prob + jnp.log(off_policy_prob), on_policy_log_prob + jnp.log1p(-off_policy_prob)], axis=-1),
+                axis=-1
+            )
+        return log_prob_noise_mixed
+
     def sample_noise(self, SDE_params, x, t, dt, key, sigma_scale_factor = 1.):
         key, subkey = random.split(key)
 
         if(self.config["use_off_policy"] and (self.config["off_policy_mode"] == "laplace" or self.config["off_policy_mode"] == "gaussian")):
             decay_value = sigma_scale_factor - 1.
             curr_mixture_prob = self.mixture_prob*decay_value
-            entropy_factor = self.laplace_width#1. + (self.laplace_width-1.)*decay_value
+            entropy_factor = self.laplace_width
             vec_ps = jnp.ones((x.shape[0], ))*(curr_mixture_prob )
-            ps = random.uniform(subkey, shape = (x.shape[0], 1))
 
-            if(self.config["off_policy_mode"] == "gaussian"):
-                key, subkey = random.split(key)
-                laplace_scale = entropy_factor
-                laplace_noise = random.normal(subkey, shape=x.shape)*laplace_scale
-                diffusion = self.get_diffusion(SDE_params, x, t)
-            elif(self.config["off_policy_mode"] == "laplace"):
-                key, subkey = random.split(key)
-                laplace_scale = jnp.sqrt(jnp.pi/(2*jnp.exp(1.)))*entropy_factor
-                laplace_noise = random.laplace(subkey, shape=x.shape)*laplace_scale
-                diffusion = self.get_diffusion(SDE_params, x, t)
+            mixed_noise, off_policy_log_prob_noise, key = self.sample_from_mixture( curr_mixture_prob, entropy_factor, x.shape ,key)
 
-            else:
-                raise ValueError("off policy mode not implemented")
-
-            gauss_noise = random.normal(subkey, shape=x.shape)
-            mixed_noise = jnp.where(ps < curr_mixture_prob, laplace_noise, gauss_noise)
-
+            diffusion = self.get_diffusion(SDE_params, x, t)
             dx = jnp.sqrt(dt)*diffusion * mixed_noise
-
-            if(self.config["off_policy_mode"] == "gaussian"):
-                laplace_log_prob_noise = jnp.sum(jax.scipy.stats.norm.logpdf(mixed_noise, loc=0, scale=laplace_scale), axis=-1)
-            elif(self.config["off_policy_mode"] == "laplace"):
-                laplace_log_prob_noise = jnp.sum(jax.scipy.stats.laplace.logpdf(mixed_noise, loc=0, scale=laplace_scale), axis=-1)
-            else:
-                raise ValueError("off policy mode not implemented")
             
             gauss_log_prob_noise = jnp.sum(jax.scipy.stats.norm.logpdf(mixed_noise, loc=0, scale=1), axis = -1)
-            log_prob_noise_mixed = jax.scipy.special.logsumexp(
-                jnp.stack([laplace_log_prob_noise + jnp.log(vec_ps), gauss_log_prob_noise + jnp.log1p(-vec_ps)], axis=-1),
-                axis=-1
-            )
+            log_prob_noise_mixed = self.calc_mixture_probs( vec_ps, off_policy_log_prob_noise, gauss_log_prob_noise)
             log_prob_noise = jnp.where(vec_ps == 0, gauss_log_prob_noise, log_prob_noise_mixed)
             log_prob_on_policy = gauss_log_prob_noise
             off_policy_log_weights = jax.scipy.special.logsumexp(
-                jnp.stack([laplace_log_prob_noise - gauss_log_prob_noise + jnp.log(vec_ps), jnp.log1p(-vec_ps)], axis=-1),
+                jnp.stack([off_policy_log_prob_noise - gauss_log_prob_noise + jnp.log(vec_ps), jnp.log1p(-vec_ps)], axis=-1),
                 axis=-1
             )
         else:
@@ -306,8 +331,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
             return (x, t, key, carry_dict), SDE_tracker_step
 
         if(self.config["use_off_policy"] and (self.config["off_policy_mode"] == "laplace" or self.config["off_policy_mode"] == "gaussian")):
-            x_prior, key = self.sample_prior(SDE_params, key, n_states, sigma_scale_factor = 1.)
-            log_prob_prior_scaled = self.vmap_get_log_prior(SDE_params, x_prior, 1.*jnp.ones((n_states,self.dim_x)))
+            x_prior, log_prob_prior_scaled, key = self.sample_prior_mixture_with_log_probs(SDE_params, key, n_states, sigma_scale_factor = sigma_scale)
         else:
             x_prior, key = self.sample_prior(SDE_params, key, n_states, sigma_scale_factor = sigma_scale)
             log_prob_prior_scaled = self.vmap_get_log_prior(SDE_params, x_prior, sigma_scale)

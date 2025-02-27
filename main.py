@@ -2,6 +2,16 @@ import argparse
 import os
 ### TODO make seperate run configs for discrete time and continuous time
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 parser = argparse.ArgumentParser(description="Denoising Diffusion Sampler")
 parser.add_argument("--GPU", type=int, default=6, help="GPU id to use")
 parser.add_argument("--model_mode", type=str, default="normal", choices = ["normal", "latent"], help="normal training or latent diffusion")
@@ -48,6 +58,8 @@ parser.add_argument('--no-use_off_policy', dest='use_off_policy', action='store_
 parser.add_argument('--off_policy_mode', type=str, default="laplace", choices = ["scale_drift", "no_scale_drift", "laplace", "gaussian"], help='scale or not scale the drift')
 parser.add_argument('--laplace_width', type=float, default=1., help='fixes the width of the laplace proposal, only has effect if off_policy_mode = laplace')
 parser.add_argument('--mixture_probs', type=float, default=0.1, help='propbs for mixture probabilities')
+parser.add_argument('--quantile', type=float, default=0., help='quantile for clipping')
+parser.add_argument('--weight_temperature', type=float, default=1., help='temperature for weights')
 parser.add_argument("--sigma_scale_factor", type=float, default=1., help="amount of noise for off policy sampling, 0 has no effect = no-use_off_policy")
 
 parser.add_argument("--disable_jit", action='store_true', default=False, help="disable jit for debugging")
@@ -94,10 +106,15 @@ parser.add_argument("--Pytheus_challenge", type=int, default=1, choices=[0,1,2,3
 parser.add_argument("--Scaling_factor", type=float, default=40., help="Scaling factor for Energy Functions")
 parser.add_argument("--Variances", type=float, default=1., help="Variances of Gaussian Mixtures before scalling when means ~Unif([-1,1])")
 parser.add_argument("--base_net", type=str, default="Vanilla", choices = ["PISgradnet", "Vanilla", "PISNet"], help="Variances of Gaussian Mixtures before scalling when means ~Unif([-1,1])")
+parser.add_argument("--network_init", type=str, default="zeros", choices = ["zeros", "xavier"], help="defines the initialization of the last layer in vanilla network")
+parser.add_argument("--langevin_precon", type=str2bool, nargs='?',
+                        const=True, default=True, help="use langevin preconditioning or not, only applies for vanilla net")
+
 parser.add_argument('--gridsearch', action='store_true', default=False, help='when gridearch = True, lr is overwritten by SDE_lr')
 
 
 args = parser.parse_args()
+
 
 if(__name__ == "__main__"):
 
@@ -169,6 +186,8 @@ if(__name__ == "__main__"):
             "model_seed": seed,
             "model_mode": args.model_mode,
             "time_encoder_mode": args.time_encoder_mode,
+            "network_init": args.network_init,
+            "langevin_precon": args.langevin_precon,
         }
 
         if("Discrete_Time_rKL_Loss" in args.SDE_Loss):
@@ -226,6 +245,8 @@ if(__name__ == "__main__"):
                 "n_integration_steps": args.n_integration_steps,
                 "minib_time_steps": args.minib_time_steps,
                 "update_params_mode": args.update_params_mode,
+                "quantile": args.quantile,
+                "weight_temperature": args.weight_temperature,
 
             }
         n_eval_samples = args.n_eval_samples

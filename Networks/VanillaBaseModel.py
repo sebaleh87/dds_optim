@@ -21,6 +21,8 @@ class VanillaBaseModelClass(nn.Module):
         self.use_normal = self.SDE_Loss_Config["SDE_Type_Config"]["use_normal"]
         self.model_mode = self.network_config["model_mode"] # is either normal or latent
         self.time_encoder_mode = self.network_config["time_encoder_mode"]
+        self.network_init = self.network_config["network_init"]
+        self.langevin_precon = self.network_config["langevin_precon"]
 
         self.x_dim = self.network_config["x_dim"]
         if(self.model_mode == "latent"):
@@ -128,24 +130,52 @@ class VanillaBaseModelClass(nn.Module):
             time_out_dict = self.time_backbone(time_in_dict)
             time_encoding = time_out_dict["embedding"]
 
-            grad_drift = nn.Dense(x_dim, kernel_init=nn.initializers.zeros,
-                                                bias_init=nn.initializers.zeros)(time_encoding)
-            
-            correction_drift = nn.Dense(x_dim, kernel_init=nn.initializers.zeros,
-                                                bias_init=nn.initializers.zeros)(embedding)
+            if(self.network_init == "zeros"):
+                grad_drift = nn.Dense(x_dim, kernel_init=nn.initializers.zeros,
+                                                    bias_init=nn.initializers.zeros)(time_encoding)
+                
+                correction_drift = nn.Dense(x_dim, kernel_init=nn.initializers.zeros,
+                                                    bias_init=nn.initializers.zeros)(embedding)
+            else:
+                grad_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
+                                                    bias_init=nn.initializers.zeros)(time_encoding)
+                correction_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
+                                                    bias_init=nn.initializers.zeros)(embedding)
             
             if(self.beta_schedule == "neural"):
                 log_beta_x_t = grad_drift
                 out_dict["log_beta_x_t"] = log_beta_x_t
                 correction_grad_score = correction_drift 
                 score = jnp.clip(correction_grad_score, -10**4, 10**4 )
-                out_dict["score"] = score  + grad /2  
             else:
                 grad_score = grad_drift * jnp.clip(grad_detach, -10**2, 10**2)
                 correction_grad_score = correction_drift + grad_score
                 score = jnp.clip(correction_grad_score, -10**4, 10**4 )
 
-                out_dict["score"] = score  + grad /2     
+            
+            if(self.langevin_precon):
+                if(self.beta_schedule == "neural"):
+                    log_beta_x_t = grad_drift
+                    out_dict["log_beta_x_t"] = log_beta_x_t
+                    correction_grad_score = correction_drift 
+                    score = jnp.clip(correction_grad_score, -10**4, 10**4 )
+                else:
+                    grad_score = grad_drift * jnp.clip(grad_detach, -10**2, 10**2)
+                    correction_grad_score = correction_drift + grad_score
+                    score = jnp.clip(correction_grad_score, -10**4, 10**4 )
+                out_dict["score"] = score  + grad /2    
+            else:
+                if(self.beta_schedule == "neural"):
+                    log_beta_x_t = grad_drift
+                    out_dict["log_beta_x_t"] = log_beta_x_t
+                    correction_grad_score = correction_drift 
+                    score = jnp.clip(correction_grad_score, -10**4, 10**4 )
+                else:
+                    correction_grad_score = correction_drift 
+                    score = jnp.clip(correction_grad_score, -10**4, 10**4 )
+                out_dict["score"] = score
+
+
             return out_dict
         elif(self.SDE_mode == "Bridge_SDE_with_bug" and self.use_normal):
             # follows SEQUENTIAL CONTROLLED LANGEVIN DIFFUSIONS (32)
