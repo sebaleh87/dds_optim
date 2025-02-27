@@ -425,7 +425,7 @@ class TrainerClass:
             param_dict = self.SDE_LossClass.get_param_dict(params)
             self.save_params_and_config(param_dict, self.config, filename=f"best_{metric_name}_checkpoint.pkl")
             if figs is not None:
-                wandb.log(figs, step=epoch+1)
+                wandb.log(figs)
 
             wandb.log({f"Best_{metric_name}": best_metric_ever}, step=epoch+1)
         

@@ -23,6 +23,7 @@ class PisgradnetBaseClass(nn.Module):
         self.use_normal = self.SDE_Loss_Config["SDE_Type_Config"]["use_normal"]
         self.model_mode = self.network_config["model_mode"] # is either normal or latent
         self.n_integration_steps = self.SDE_Loss_Config["n_integration_steps"]
+        self.langevin_precon = self.network_config["langevin_precon"]
 
         #self.num_hid = self.network_config["n_hidden"]
         self.x_dim = self.network_config["x_dim"]
@@ -78,21 +79,33 @@ class PisgradnetBaseClass(nn.Module):
         extended_input = jnp.concatenate((input_array, t_net1), axis=-1)
         out_state = self.state_time_net(extended_input)
 
+        if(self.langevin_precon):
+            if(self.beta_schedule == "neural"):
+                t_net2 = self.time_coder_grad_zero_init(time_array_emb)
+                out_state = jnp.clip(out_state, -self.outer_clip, self.outer_clip)
+                log_beta_x_t = t_net2
+                out_dict["log_beta_x_t"] = log_beta_x_t
+                correction_grad_score = out_state 
+                score = jnp.clip(correction_grad_score, -10**4, 10**4 )
+            else:
+                
+                t_net2 = self.time_coder_grad(time_array_emb)
+                out_state = jnp.clip(out_state, -self.outer_clip, self.outer_clip)
+                lgv_term = jnp.clip(lgv_term, -self.inner_clip, self.inner_clip)
+                score = out_state + t_net2 * lgv_term
 
-        if(self.beta_schedule == "neural"):
-            t_net2 = self.time_coder_grad_zero_init(time_array_emb)
-            out_state = jnp.clip(out_state, -self.outer_clip, self.outer_clip)
-            log_beta_x_t = t_net2
-            out_dict["log_beta_x_t"] = log_beta_x_t
-            correction_grad_score = out_state 
-            score = jnp.clip(correction_grad_score, -10**4, 10**4 )
-            out_dict["score"] = score  + grad /2  
+            out_dict["score"] = score  + grad /2    
         else:
-            
-            t_net2 = self.time_coder_grad(time_array_emb)
-            out_state = jnp.clip(out_state, -self.outer_clip, self.outer_clip)
-            lgv_term = jnp.clip(lgv_term, -self.inner_clip, self.inner_clip)
-            out_state_p_grad = out_state + t_net2 * lgv_term
-            out_score =  out_state_p_grad + grad/2
-            out_dict["score"] = out_score   
+            if(self.beta_schedule == "neural"):
+                t_net2 = self.time_coder_grad_zero_init(time_array_emb)
+                out_state = jnp.clip(out_state, -self.outer_clip, self.outer_clip)
+                log_beta_x_t = t_net2
+                out_dict["log_beta_x_t"] = log_beta_x_t
+                correction_grad_score = out_state 
+                score = jnp.clip(correction_grad_score, -10**4, 10**4 )
+            else:
+                out_state = jnp.clip(out_state, -self.outer_clip, self.outer_clip)
+                score = out_state
+            out_dict["score"] = score
+        
         return out_dict

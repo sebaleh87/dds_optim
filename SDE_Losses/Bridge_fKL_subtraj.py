@@ -44,9 +44,9 @@ class Bridge_fKL_subtraj_Loss_Class(Base_SDE_Loss_Class):
         reverse_step = reverse_log_probs + interpol_log_probs[:-1]
         forward_step = forward_diff_log_probs + interpol_log_probs[1:]
         radon_nycodin_deriv = forward_step - reverse_step
-        radon_nycodin_deriv_baseline = jax.lax.stop_gradient(jnp.mean(importance_weights*radon_nycodin_deriv, axis = -1, keepdims = True))
-        Reward = jax.lax.stop_gradient(radon_nycodin_deriv)
-        D_KL_per_t = jnp.mean((importance_weights*Reward - radon_nycodin_deriv_baseline)*forward_step, axis = -1) - jnp.mean(importance_weights*reverse_step, axis = -1)
+        radon_nycodin_deriv_baseline = jax.lax.stop_gradient(jnp.mean(radon_nycodin_deriv, axis = -1, keepdims = True))
+        Reward = jax.lax.stop_gradient(radon_nycodin_deriv - radon_nycodin_deriv_baseline)
+        D_KL_per_t = jnp.mean((importance_weights*Reward)*forward_step, axis = -1) - jnp.mean(importance_weights*reverse_step, axis = -1)
         print("shapes", D_KL_per_t.shape, reverse_step.shape, forward_step.shape, importance_weights.shape)
         loss = jnp.sum(D_KL_per_t)
 
