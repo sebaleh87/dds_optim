@@ -195,7 +195,7 @@ class TrainerClass:
         if(fig_last_samples_dict != None):
             overall_dict.update(fig_last_samples_dict)
 
-        wandb.log({f"figs_{sample_mode}/{key}": overall_dict[key] for key in overall_dict})
+        wandb.log({f"figs_{sample_mode}/{key}": overall_dict[key] for key in overall_dict},step=epoch+1)
 
     def train(self):
         params = self.params
@@ -249,7 +249,7 @@ class TrainerClass:
 
                         # Save model if this is the best Sinkhorn divergence so far
                         if sample_mode == "eval":  # Only save on eval mode
-                            Best_Sinkhorn_value_ever = self.check_improvement(params, Best_Sinkhorn_value_ever, distance, "Sinkhorn", epoch=epoch+1)
+                            Best_Sinkhorn_value_ever = self.check_improvement(params, Best_Sinkhorn_value_ever, distance, "Sinkhorn", epoch=epoch)
                             save_metric_dict["sinkhorn_divergence"].append(distance)
 
                     # Calculate running averages for all metrics
@@ -286,7 +286,7 @@ class TrainerClass:
                 # Only save based on Energy if we don't have a tractable distribution
                 if not hasattr(self, 'sd_calculator'):
                     Energy_values = self.SDE_LossClass.vmap_Energy_function(SDE_tracer["y_final"])
-                    Best_Free_Energy_value_ever = self.check_improvement(params, Best_Free_Energy_value_ever, np.min(Energy_values), "Energy", epoch=epoch+1)
+                    Best_Free_Energy_value_ever = self.check_improvement(params, Best_Free_Energy_value_ever, np.min(Energy_values), "Energy", epoch=epoch)
 
                 if("beta_interpol_params" in self.SDE_LossClass.Interpol_params.keys()):
                     beta_interpol_params = self.SDE_LossClass.Interpol_params["beta_interpol_params"]
@@ -301,7 +301,7 @@ class TrainerClass:
                     ax.set_ylabel('Beta Interpolation Parameters')
                     ax.set_title('Beta Interpolation Parameters over Steps')
                     ax.legend()
-                    wandb.log({"fig/Beta_Interpolation_Parameters": wandb.Image(fig)})
+                    wandb.log({"fig/Beta_Interpolation_Parameters": wandb.Image(fig)},step=epoch+1)
                     plt.close(fig)
 
                 if("repulsion_interpol_params" in self.SDE_LossClass.Interpol_params.keys()):
@@ -317,7 +317,7 @@ class TrainerClass:
                     ax.set_ylabel('repulsion_interpol_params')
                     ax.set_title('repulsion_interpol_params over Steps')
                     ax.legend()
-                    wandb.log({"fig/repulsion_interpol_params": wandb.Image(fig)})
+                    wandb.log({"fig/repulsion_interpol_params": wandb.Image(fig)},step=epoch+1)
                     plt.close(fig)
 
                 if("log_beta_over_time" in self.SDE_LossClass.SDE_params.keys()):
@@ -333,7 +333,7 @@ class TrainerClass:
                     ax.set_ylabel('beta_over_time')
                     ax.set_title('beta_over_time over Steps')
                     ax.legend()
-                    wandb.log({"fig/beta_over_time": wandb.Image(fig)})
+                    wandb.log({"fig/beta_over_time": wandb.Image(fig)},step=epoch+1)
                     plt.close(fig)
 
                     
@@ -398,7 +398,7 @@ class TrainerClass:
 
         # After training loop, calculate and log running averages
         running_avg_table = self._calculate_running_averages(metric_history, best_running_avgs)
-        wandb.log({"final_metrics": running_avg_table})
+        wandb.log({"final_metrics": running_avg_table},step=epoch+1)
 
         wandb.finish()
         return params
