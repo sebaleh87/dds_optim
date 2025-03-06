@@ -177,26 +177,6 @@ class VanillaBaseModelClass(nn.Module):
 
 
             return out_dict
-        elif(self.SDE_mode == "Bridge_SDE_with_bug" and self.use_normal):
-            # follows SEQUENTIAL CONTROLLED LANGEVIN DIFFUSIONS (32)
-            grad = copy_grads
-            grad_detach = jax.lax.stop_gradient(grad)
-
-            time_out_dict = self.time_backbone(in_dict)
-            time_encoding = time_out_dict["embedding"]
-
-            grad_drift = nn.Dense(x_dim, kernel_init=nn.initializers.zeros,
-                                                bias_init=nn.initializers.zeros)(time_encoding)
-            
-            correction_drift = nn.Dense(x_dim, kernel_init=nn.initializers.zeros,
-                                                bias_init=nn.initializers.zeros)(embedding)
-            
-            grad_score = grad_drift * jnp.clip(grad_detach, -10**2, 10**2) #* nn.softplus(interpolated_grad) 
-            correction_grad_score = correction_drift + grad_score
-            score = jnp.clip(correction_grad_score, -10**4, 10**4 )
-
-            out_dict["score"] = score 
-            return out_dict
         elif(self.SDE_mode == "DiscreteTime_SDE"):
             mean_x = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
                                                 bias_init=nn.initializers.zeros)(embedding)

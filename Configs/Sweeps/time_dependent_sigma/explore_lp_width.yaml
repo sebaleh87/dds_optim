@@ -1,5 +1,5 @@
 program: main.py
-project: laplace_50-D_inverse
+project: laplace_50-D_explore_final
 command:
   - ${env}
   - python
@@ -26,27 +26,29 @@ parameters:
   N_anneal:
     value: 4000
   base_net:
-    value: Vanilla
+    values: [PISgradnet]
   SDE_Loss:
     values: [Bridge_rKL_logderiv]
   SDE_Type:
     value: Bridge_SDE
   SDE_lr:
-    values: [0.005]
+    values: [ 0.0001, 0.00005, 0.00001]
   T_start:
     values: [ 2.]
   laplace_width:
     values: [1.0]
   mixture_probs:
-    values: [0.05, 0.01, 0.025]
+    values: [ 0.025, 0.05]
   off_policy_mode:
     values: ["laplace"]
   quantile: 
-    values: [0., 0.05]
+    values: [0.]
+  n_eval_samples:
+    values: [16000]
   weight_temperature:
-    values: [-0.5 , -0.1, 0., 0.1, 0.5]
+    values: [0.]
   Interpol_lr:
-    values: [0.001]
+    values: [0.01, 0.001]
   beta_schedule:
     values: ["constant"]
   network_init:
@@ -64,9 +66,9 @@ parameters:
   n_integration_steps:
     value: 128
   beta_max:
-    values: [0.3]
-  sigma_init:
     values: [1.]
+  sigma_init:
+    values: [40.]
   model_seeds:
     # values: [1]
     values: [0]

@@ -102,40 +102,42 @@ def Funnel(key):
 def MoS(key):
     #wandb_ids = ["amber-smoke-4", "lilac-plant-3", "crimson-eon-2", "helpful-thunder-1"]
     if(key == "rKL_frozen"):
-        wandb_ids = None
+        wandb_ids = ["apricot-jazz-15", "charmed-silence-25", "morning-sun-33"]
     elif(key == "rKL_logderiv"):
-        wandb_ids = ["floral-durian-9", "absurd-hill-5", "earnest-sun-1"]
+        wandb_ids = ["zany-fog-28", "lunar-silence-22", "lemon-monkey-31"]
     elif(key == "rKL_logderiv_frozen"):
-        wandb_ids = ["dulcet-aardvark-11", "youthful-spaceship-7", "firm-disco-3"]
+        wandb_ids = ["snowy-cherry-32", "gallant-rain-34", "vocal-sponge-35"]
     elif(key == "LogVarLoss"):
-        wandb_ids = ["radiant-sun-12", "visionary-bush-8", "misty-resonance-2"]
+        wandb_ids = ["major-haze-27", "sunny-smoke-21", "eternal-fog-17"]
     elif(key == "LogVarLoss_frozen"):
-        wandb_ids = ["solar-butterfly-10", "good-glade-6", "pretty-shadow-4"]
+        wandb_ids = ["warm-voice-26", "expert-vortex-20", "effortless-resonance-14"]
     return wandb_ids
 
 def GMM(key):
     #wandb_ids = ["amber-smoke-4", "lilac-plant-3", "crimson-eon-2", "helpful-thunder-1"]
     if(key == "rKL_frozen"):
-        wandb_ids = None
+        wandb_ids = ["eager-darkness-13", "serene-feather-14", "dulcet-hill-15"]
     elif(key == "rKL_logderiv"):
-        wandb_ids = ["glowing-disco-11", "misty-galaxy-7", "vibrant-eon-4"]
+        wandb_ids = ["dandy-energy-6", "toasty-salad-5", "volcanic-mountain-1"]
     elif(key == "rKL_logderiv_frozen"):
-        wandb_ids = ["gentle-yogurt-24", "graceful-paper-23", "restful-sky-22"]
+        wandb_ids = ["dry-frost-12", "curious-flower-10", "sunny-puddle-8"]
+    elif(key == "rKL_logderiv_off_policy"):
+        wandb_ids = ["curious-deluge-18", "prime-tarrain-17", "peach-sound-16"]
     elif(key == "LogVarLoss"):
-        wandb_ids = ["lively-resonance-12", "clear-glade-8", "devoted-night-3"]
+        wandb_ids = ["generous-sun-4", "pious-deluge-3", "ruby-blaze-2"]
     elif(key == "LogVarLoss_frozen"):
-        wandb_ids = ["divine-frog-20", "fallen-sun-19", "sparkling-violet-18"]
+        wandb_ids = ["dashing-shadow-11", "exalted-lion-9", "morning-star-7"]
     return wandb_ids
 
 if(__name__ == "__main__"):
     loss_keys = ["rKL_frozen", "rKL_logderiv", "rKL_logderiv_frozen", "LogVarLoss", "LogVarLoss_frozen"]
 
-    problem_list = {"Seeds":  Seeds, "Sonar": Sonar, "Credit": Credit, "Funnel": Funnel, "Brownian": Brownian, "LGCP": LGCP, "MoS": MoS, "GMM": GMM} #"Brownian": Brownian, #"LGCP": LGCP
+    problem_list = {"Seeds":  Seeds, "Sonar": Sonar, "Credit": Credit, "Funnel": Funnel, "Brownian": Brownian, "LGCP": LGCP, "GMM": GMM, "MoS": MoS} #"Brownian": Brownian, #"LGCP": LGCP
     k = 10
     for problem in problem_list.keys():
 
         if(problem == "MoS" or problem == "GMM"):
-            loss_keys = [ "rKL_logderiv", "rKL_logderiv_frozen", "LogVarLoss", "LogVarLoss_frozen"]
+            loss_keys = [ "rKL_logderiv", "rKL_logderiv_frozen", "LogVarLoss", "LogVarLoss_frozen", "rKL_frozen"]
 
         Curves = {}
         for loss_key in loss_keys:
@@ -161,7 +163,8 @@ if(__name__ == "__main__"):
                 else:
                     pad_idx = 0
 
-                min_args = [(pad_idx + np.argmin(value[pad_idx:])) for value in Curves[loss_key]["sinkhorn_divergence"]]
+                #min_args = [(pad_idx + np.argmin(value[pad_idx:])) for value in Curves[loss_key]["sinkhorn_divergence"]]
+                min_args = [-1 for value in Curves[loss_key]["sinkhorn_divergence"]]
                 sink_value_per_seed = np.array([Curves[loss_key]["sinkhorn_divergence"][seed_idx][arg] for seed_idx, arg in enumerate(min_args)])
                 Free_energy_value_per_seed = np.array([Curves[loss_key]["Free_Energy_at_T=1"][seed_idx][arg*factor] for seed_idx, arg in enumerate(min_args)])
                 sink_mean_over_seeds_rounded, sink_std_over_seeds_rounded = compute_average_and_variance(sink_value_per_seed)
@@ -169,7 +172,7 @@ if(__name__ == "__main__"):
                 print("Sinkhorn", f"${sink_mean_over_seeds_rounded:.2f}"+ r"\text{\tiny{$\pm " +  f"{sink_std_over_seeds_rounded}$" + "}}$")
                 print("Free Energy", f"${-Free_energy_mean_over_seeds_rounded:.2f}"+ r"\text{\tiny{$\pm " +  f"{Free_energy_std_over_seeds_rounded}$" + "}}$")
 
-                if(problem == "MoS"):
+                if(problem == "MoS" or problem == "GMM"):
                     average_sink_curve = np.mean(np.array([value for value in Curves[loss_key]["sinkhorn_divergence"]]), axis = 0)
                     average_free_erergy_curve = np.mean(np.array([value for value in Curves[loss_key]["Free_Energy_at_T=1"]]), axis = 0)
 
@@ -180,6 +183,7 @@ if(__name__ == "__main__"):
                     plt.xlabel('Iterations')
                     plt.ylabel('Sinkhorn Divergence')
                     plt.title(f'{problem} - {loss_key} Sinkhorn Divergence')
+                    plt.ylim(0, 5000)
                     plt.legend()
 
                     plt.subplot(1, 2, 2)

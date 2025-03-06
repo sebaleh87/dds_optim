@@ -80,7 +80,7 @@ class Bridge_rKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
         if(self.optim_mode == "optim"):
             sum_reverse_log_probs = jnp.sum(reverse_log_probs, axis = 0) + log_prior
             radon_dykodin_derivative = temp*log_prior + temp*entropy_minus_noise + Energy
-            radon_nykodin_wo_reverse = -jnp.sum(forward_diff_log_probs, axis = 0) + Energy/temp
+            radon_nykodin_wo_reverse = -temp*jnp.sum(forward_diff_log_probs, axis = 0) + Energy
 
         elif(self.optim_mode == "equilibrium"):
             sum_reverse_log_probs = jnp.sum(reverse_log_probs, axis = 0) + log_prior
