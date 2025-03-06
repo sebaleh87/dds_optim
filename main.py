@@ -17,15 +17,15 @@ parser.add_argument("--GPU", type=int, default=6, help="GPU id to use")
 parser.add_argument("--model_mode", type=str, default="normal", choices = ["normal", "latent"], help="normal training or latent diffusion")
 parser.add_argument("--latent_dim", type=int, default=None)
 
-parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=["Reverse_KL_Loss","Reverse_KL_Loss_stop_grad","LogVariance_Loss", "LogVariance_Loss_MC", 
-                                                                                 "LogVariance_Loss_with_grad", "LogVariance_Loss_weighted", "Reverse_KL_Loss_logderiv",
+parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=["Reverse_KL_Loss","Reverse_KL_Loss_stop_grad","LogVariance_Loss", "LogVariance_Loss_MC",  "Bridge_fKL_logderiv",
+                                                                                 "LogVariance_Loss_with_grad", "LogVariance_Loss_weighted", "Reverse_KL_Loss_logderiv", "Bridge_rKL_subtraj",
                                                                                  "Bridge_rKL", "Bridge_LogVarLoss", "Bridge_rKL_logderiv", "Bridge_rKL_logderiv_DiffUCO",
                                                                                 "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam", "Bridge_fKL_subtraj"], help="select loss function")
-parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE", "VE_SDE", "Bridge_SDE", "Bridge_SDE_with_bug"], help="select SDE type, subVP_SDE is currently deprecated")
+parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE", "VE_SDE", "Bridge_SDE", "VE_Discrete"], help="select SDE type, subVP_SDE is currently deprecated")
 parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "GMMDistrax", "GaussianMixtureToy", "Rastrigin", "LennardJones", 
                                                                                      "DoubleWellEquivariant", "DoubleWell", "Sonar", "Funnel",
                                                                                       "Pytheus", "WavePINN_latent", "WavePINN_hyperparam", "DoubleMoon",
-                                                                                      "Banana", "Brownian", "Lorenz", "Seeds", "Ionosphere", "Sonar", "Funnel", "LGCP", "GermanCredit", "MW54",
+                                                                                      "Banana", "Brownian", "Lorenz", "Seeds", "Ionosphere", "Sonar", "LGCP", "GermanCredit", "MW54",
                                                                                       "StudentTMixture", "FunnelDistrax"], help="EnergyClass")
 parser.add_argument("--n_particles", type=int, default=2, help="the dimension can be controlled for some problems")
 parser.add_argument("--T_start", type=float, default=[1.], nargs="+" ,  help="Starting Temperature")
@@ -51,13 +51,15 @@ parser.add_argument("--learn_SDE_params_mode", type=str, default="all", choices=
 parser.add_argument("--learn_covar", action='store_true', default=False, help="learn additional covar of target")
 parser.add_argument("--sigma_init", type=float, default=1., help="init value of sigma")
 parser.add_argument("--repulsion_strength", type=float, default=0., help="repulsion_strength >= 0")
+parser.add_argument("--use_repulsion_energy", type=str2bool, nargs='?',
+                        const=True, default=False, help="use langevin preconditioning or not, only applies for vanilla net")
 
 ### TODO explain the effect
 parser.add_argument('--use_off_policy', action='store_true', default=False, help='use off policy sampling')
 parser.add_argument('--no-use_off_policy', dest='use_off_policy', action='store_false', help='dont use off policy sampling')
 parser.add_argument('--off_policy_mode', type=str, default="laplace", choices = ["scale_drift", "no_scale_drift", "laplace", "gaussian"], help='scale or not scale the drift')
 parser.add_argument('--laplace_width', type=float, default=1., help='fixes the width of the laplace proposal, only has effect if off_policy_mode = laplace')
-parser.add_argument('--mixture_probs', type=float, default=0.1, help='propbs for mixture probabilities')
+parser.add_argument('--mixture_probs', type=float, default=0., help='propbs for mixture probabilities')
 parser.add_argument('--quantile', type=float, default=0., help='quantile for clipping')
 parser.add_argument('--weight_temperature', type=float, default=1., help='temperature for weights')
 parser.add_argument("--sigma_scale_factor", type=float, default=1., help="amount of noise for off policy sampling, 0 has no effect = no-use_off_policy")
@@ -80,7 +82,7 @@ parser.add_argument('--temp_mode', action='store_true', default=True, help='only
 parser.add_argument('--no-temp_mode', action='store_false', dest='temp_mode', help='')
 
 parser.add_argument("--feature_dim", type=int, default=124)
-parser.add_argument("--n_hidden", type=int, default=124)
+parser.add_argument("--n_hidden", type=int, default=64)
 parser.add_argument("--n_layers", type=int, default=3)
 
 parser.add_argument('--use_interpol_gradient', action='store_true', default=True, help='use gradient of energy function to parameterize the score')
@@ -133,7 +135,10 @@ if(__name__ == "__main__"):
     devices = jax.local_devices()
     print(devices)
     #disable JIT compilation
+    # import jax.numpy as jnp
+    # import jax.lax as lax
     #jax.config.update("jax_enable_x64", True)
+
     if(args.disable_jit):
         jax.config.update("jax_disable_jit", True)
         jax.config.update("jax_debug_nans", True)
@@ -210,7 +215,7 @@ if(__name__ == "__main__"):
         }
         else:
             #modified sampling distributions are only applicable for certain losses
-            if(args.use_off_policy and (args.SDE_Loss != "LogVariance_Loss" and args.SDE_Loss != "Bridge_LogVarLoss" and args.SDE_Loss != "Reverse_KL_Loss_logderiv" and args.SDE_Loss != "Bridge_rKL_logderiv")):
+            if(args.use_off_policy and (args.SDE_Loss != "LogVariance_Loss" and args.SDE_Loss != "Bridge_LogVarLoss" and args.SDE_Loss != "Reverse_KL_Loss_logderiv" and args.SDE_Loss != "Bridge_rKL_logderiv" and args.SDE_Loss != "Bridge_fKL_logderiv")):
                 raise ValueError("Off policy only implemented for LogVariance_Loss")
             if(not args.use_off_policy and args.sigma_scale_factor != 1.):
                 raise ValueError("Sigma scale factor != 0 and use_off_policy is off")
@@ -228,6 +233,7 @@ if(__name__ == "__main__"):
                 "learn_covar": args.learn_covar,
                 "sigma_init": args.sigma_init,
                 "repulsion_strength": args.repulsion_strength,
+                "use_repulsion_energy": args.use_repulsion_energy,
                 "sigma_scale_factor": args.sigma_scale_factor,
                 "batch_size": args.batch_size,
                 "use_off_policy": args.use_off_policy,
@@ -444,7 +450,7 @@ if(__name__ == "__main__"):
             "T_end": args.T_end,
             "N_anneal": args.N_anneal,
             "N_warmup": args.N_warmup,
-            "lam": 10.
+            "lam": args.anneal_lam,
         }
 
         base_config = {

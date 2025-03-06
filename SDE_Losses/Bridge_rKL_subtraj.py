@@ -37,16 +37,19 @@ class Bridge_rKL_subtraj_Loss_Class(Base_SDE_Loss_Class):
 
         ### TODO compute off policy weights
         ### TODO compute DB-fKL loss D_KL_t, t-1
+        forward_log_probs_over_t = jnp.concatenate([jnp.zeros_like(log_prior[None, :]), forward_diff_log_probs], axis = 0) 
+        reverse_log_probs_over_t = jnp.concatenate([log_prior[None, :], reverse_log_probs], axis = 0)
         print(interpol_log_probs.shape , forward_diff_log_probs.shape, log_prior.shape, jax.lax.cumsum(forward_diff_log_probs - reverse_log_probs, axis = 0).shape)
-        unnormed_log_weights = jax.lax.cumsum(forward_diff_log_probs - reverse_log_probs, axis = 0) + interpol_log_probs[1:] - log_prior[None, ...]
+        unnormed_log_weights = jax.lax.cumsum(forward_log_probs_over_t - reverse_log_probs_over_t, axis = 0) + interpol_log_probs
         importance_weights = jax.lax.stop_gradient(jax.nn.softmax(unnormed_log_weights, axis = -1))*unnormed_log_weights.shape[-1] ### multiply wiht numer of states so that mean instead of sum can be used later on
-
+        importance_weights = importance_weights[:-1] ### remove the first element as it is not needed
+        print(importance_weights.shape, unnormed_log_weights.shape)
         reverse_step = reverse_log_probs + interpol_log_probs[:-1]
         forward_step = forward_diff_log_probs + interpol_log_probs[1:]
-        radon_nycodin_deriv = forward_step - reverse_step
-        radon_nycodin_deriv_baseline = jax.lax.stop_gradient(jnp.mean(importance_weights*radon_nycodin_deriv, axis = -1, keepdims = True))
-        Reward = jax.lax.stop_gradient(radon_nycodin_deriv)
-        D_KL_per_t = jnp.mean((importance_weights*Reward - radon_nycodin_deriv_baseline)*forward_step, axis = -1) - jnp.mean(importance_weights*reverse_step, axis = -1)
+        radon_nycodin_deriv =  reverse_step - forward_step 
+        radon_nycodin_deriv_baseline = jax.lax.stop_gradient(jnp.mean(radon_nycodin_deriv, axis = -1, keepdims = True))
+        Reward = jax.lax.stop_gradient(radon_nycodin_deriv - radon_nycodin_deriv_baseline)
+        D_KL_per_t = jnp.mean(importance_weights*Reward*reverse_step, axis = -1) - jnp.mean(importance_weights*forward_step, axis = -1)
         print("shapes", D_KL_per_t.shape, reverse_step.shape, forward_step.shape, importance_weights.shape)
         loss = jnp.sum(D_KL_per_t)
 

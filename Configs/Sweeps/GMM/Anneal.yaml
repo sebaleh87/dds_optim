@@ -1,5 +1,5 @@
 program: main.py
-project: GMMDistrax_gridsearch_02_03_all_frozen
+project: Anneal_50-D
 command:
   - ${env}
   - python
@@ -18,29 +18,37 @@ name: gridsearch
 parameters:
   n_particles:
     value: 50
-  learn_SDE_params_mode:
-    value: prior_only
   Energy_Config:
     value: GMMDistrax
   GPU:
     value: -1
   N_anneal:
-    value: 1200
+    value: 4000
   base_net:
-    value: PISgradnet
+    values: [PISgradnet]
   SDE_Loss:
-    values: [Bridge_rKL_logderiv, Bridge_rKL, Bridge_LogVarLoss]
+    values: [Bridge_rKL_logderiv]
   SDE_Type:
     value: Bridge_SDE
   SDE_lr:
-    values: [0.0001, 0.00005, 0.00001]
-  Interpol_lr:
-    values: [0.01, 0.001]
+    values: [0.00005, 0.00001]
+  T_start:
+    values: [ 200., 100.]
   n_eval_samples:
     values: [16000]
+  weight_temperature:
+    values: [1., 0.]
+  Interpol_lr:
+    values: [0.01, 0.001]
+  AnnealSchedule:
+    values: ["Exp"]
+  anneal_lam:
+    values: [10., 5., 7.]
+  beta_schedule:
+    values: ["constant"]
+  network_init:
+    values: ["zeros"]
   T_end:
-    value: 1.
-  T_start:
     value: 1.
   batch_size:
     value: 2000
@@ -53,9 +61,9 @@ parameters:
   n_integration_steps:
     value: 128
   beta_max:
-    values: [1., 1.5]
+    values: [1.]
   sigma_init:
-    values: [80.]
+    values: [40.]
   model_seeds:
     # values: [1]
     values: [0]

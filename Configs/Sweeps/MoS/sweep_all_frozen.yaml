@@ -1,5 +1,5 @@
 program: main.py
-project: StudentTMixture_gridsearch_06_02_all_frozen
+project: StudentTMixture_gridsearch_02_03_all_frozen
 command:
   - ${env}
   - python
@@ -25,7 +25,7 @@ parameters:
   GPU:
     value: -1
   N_anneal:
-    value: 2000
+    value: 1200
   base_net:
     value: PISgradnet
   SDE_Loss:
@@ -33,9 +33,11 @@ parameters:
   SDE_Type:
     value: Bridge_SDE
   SDE_lr:
-    values: [0.0005, 0.0001, 0.00005]
+    values: [0.0001, 0.00005,  0.00001]
   Interpol_lr:
     values: [0.01, 0.001]
+  n_eval_samples:
+    values: [16000]
   T_end:
     value: 1.
   T_start:
@@ -51,7 +53,7 @@ parameters:
   n_integration_steps:
     value: 128
   beta_max:
-    values: [2.5]
+    values: [1.5, 1.]
   sigma_init:
     values: [15.]
   model_seeds:

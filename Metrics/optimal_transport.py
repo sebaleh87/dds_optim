@@ -53,7 +53,7 @@ class OT:
 class SD:
     """Sinkhorn Divergence class for computing distribution distances."""
     
-    def __init__(self, gt_samples, epsilon=1e-3):
+    def __init__(self, Energy_function, n_samples, key, epsilon=1e-3):
         """
         Initialize with ground truth samples and regularization parameter.
         
@@ -61,8 +61,13 @@ class SD:
             gt_samples: Ground truth samples to compare against
             epsilon: Regularization parameter for numerical stability
         """
-        self.groundtruth = gt_samples
         self.epsilon = epsilon
+        self.energy_function = Energy_function
+        self.key = key
+        self.n_samples = n_samples
+
+    def resample_energy(self, key, n_samples):
+        return self.energy_function.generate_samples(key, n_samples)
 
     def compute_SD(self, model_samples):
         """
@@ -74,6 +79,8 @@ class SD:
         Returns:
             float: The Sinkhorn divergence
         """
+        self.key, subkey = jax.random.split(self.key)
+        self.groundtruth = self.resample_energy(subkey, self.n_samples)
         geom = pointcloud.PointCloud(self.groundtruth, model_samples, epsilon=self.epsilon)
         sd = sinkhorn_divergence.sinkhorn_divergence(geom, x=geom.x, y=geom.y)
         return sd[1].divergence

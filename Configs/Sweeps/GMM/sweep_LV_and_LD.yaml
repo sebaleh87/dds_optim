@@ -1,5 +1,5 @@
 program: main.py
-project: GMMDistrax_gridsearch_06_02_LV_and_LD
+project: GMMDistrax_gridsearch_02_03_LV_and_LD
 command:
   - ${env}
   - python
@@ -23,7 +23,7 @@ parameters:
   GPU:
     value: -1
   N_anneal:
-    value: 800
+    value: 1200
   base_net:
     value: PISgradnet
   SDE_Loss:
@@ -31,9 +31,11 @@ parameters:
   SDE_Type:
     value: Bridge_SDE
   SDE_lr:
-    values: [0.0005, 0.0001, 0.00005]
+    values: [0.0001, 0.00005, 0.00001]
   Interpol_lr:
     values: [0.01, 0.001]
+  n_eval_samples:
+    values: [16000]
   T_end:
     value: 1.
   T_start:
@@ -49,7 +51,7 @@ parameters:
   n_integration_steps:
     value: 128
   beta_max:
-    values: [1., 2.5]
+    values: [1., 1.5]
   sigma_init:
     values: [80.]
   model_seeds:

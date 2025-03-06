@@ -41,10 +41,30 @@ class TrainerClass:
 
         # Generate ground truth samples for SD metric if available
         if hasattr(self.EnergyClass, 'has_tractable_distribution') and self.EnergyClass.has_tractable_distribution:
-            self.n_sinkhorn_samples = 2000
-            key = jax.random.PRNGKey(self.config["sample_seed"])  # Use configured seed for reproducibility
-            self.gt_samples = self.EnergyClass.generate_samples(key, self.n_sinkhorn_samples)
-            self.sd_calculator = SD(self.gt_samples, epsilon=1e-3)
+            n_samples = [self.config["n_eval_samples"]]
+            
+            key = jax.random.PRNGKey(self.config["sample_seed"])
+            reps = 1
+            for n_sample in n_samples:
+                distances = []
+                for rep in range(reps):
+                    self.n_sinkhorn_samples = n_sample
+                    start_sample_time = time.time()
+                    key, subkey =  jax.random.split(key)
+                    model_samples = self.EnergyClass.generate_samples(subkey, self.n_sinkhorn_samples)
+                    end_sample_time = time.time()
+                    self.sd_calculator = SD(self.EnergyClass, n_sample, key, epsilon=1e-3)
+                    start_time = time.time()
+                    distance = self.sd_calculator.compute_SD(model_samples)
+                    end_time = time.time()
+                    print("sample time", end_sample_time - start_sample_time)
+                    print("time needed", end_time - start_time)
+                    distances.append(distance)
+
+                avg_distance = np.mean(distances)
+                std_distance = np.std(distances)
+                print(f"Average distance for {n_sample} samples: {avg_distance}, Std: {std_distance}")
+
 
         self._init_wandb()
         self.AnnealClass = get_AnnealSchedule_class(AnnealConfig)
@@ -208,7 +228,7 @@ class TrainerClass:
         metric_history = {}
         best_running_avgs = {}  # Track best running averages
         
-        save_metric_dict = {"Free_Energy_at_T=1": [], "ELBO_at_T=1": [],  "n_eff": [], "epoch": [], "EUBO_at_T=1": []}
+        save_metric_dict = {"Free_Energy_at_T=1": [], "ELBO_at_T=1": [], "log_Z_at_T=1": [],  "n_eff": [], "epoch": [], "EUBO_at_T=1": []}
         if hasattr(self, 'sd_calculator'):
             save_metric_dict["sinkhorn_divergence"] = []
 

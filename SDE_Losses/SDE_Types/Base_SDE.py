@@ -45,6 +45,7 @@ class Base_SDE_Class:
         
         self.sigma_init = config["sigma_init"]
         self.learn_covar = config["learn_covar"]
+        self.use_repulsion_energy = config["use_repulsion_energy"]
         self.repulsion_strength = config["repulsion_strength"]
         self.sigma_scale_factor = config["sigma_scale_factor"]
         self.learn_interpolation_params = config["learn_interpolation_params"]
@@ -111,9 +112,10 @@ class Base_SDE_Class:
         # grad_norm = jnp.linalg.norm(vmap_grad, axis = -1, keepdims = True)
         # vmap_grad = jnp.where(grad_norm > clip_overall_score, clip_overall_score*vmap_grad/grad_norm, vmap_grad)
 
-        #vmap_div_energy, vmap_grad_div = self.get_diversity_log_prob_grad(x,counter,SDE_params) 
-        vmap_log_prob = vmap_log_prob #+ vmap_div_energy
-        vmap_grad = vmap_grad #+ vmap_grad_div
+        if(self.use_repulsion_energy):
+            vmap_div_energy, vmap_grad_div, t_decay_factor = self.get_diversity_log_prob_grad(x,counter,SDE_params) 
+            vmap_log_prob = vmap_log_prob + jax.lax.stop_gradient(vmap_div_energy)*t_decay_factor
+            vmap_grad = vmap_grad + jax.lax.stop_gradient(vmap_grad_div)*t_decay_factor
 
         return vmap_log_prob, vmap_grad, key
     
@@ -141,18 +143,28 @@ class Base_SDE_Class:
     
     def get_diversity_log_prob_grad(self, x_batch, counter, SDE_params):
         x_batch = jax.lax.stop_gradient(x_batch)
-        (div_Energy, _), (batched_x_grad) = jax.value_and_grad(self.diversity_log_prob, has_aux=True)(x_batch, counter, SDE_params)
-        return div_Energy, batched_x_grad
+        (div_Energy, t_decay_factor), (batched_x_grad) = jax.value_and_grad(self.diversity_log_prob, has_aux=True)(x_batch, counter, SDE_params)
+        return div_Energy, batched_x_grad, t_decay_factor
     
-    def diversity_log_prob(self, x_batch, counter ,SDE_params, eps = 10**-8):
+    # def diversity_log_prob(self, x_batch, counter ,SDE_params, eps = 10**-8):
+    #     div_beta_interpol = self.compute_energy_interpolation_time(SDE_params, counter[0], SDE_param_key = "repulsion_interpol_params")
+    #     distances = jnp.sqrt(jnp.sum((x_batch[:, None, :] - x_batch[None, :, :])**2, axis = -1) + eps)
+    #     mask = jnp.eye(distances.shape[0])
+    #     max_value = jax.lax.stop_gradient(jnp.max(distances))
+    #     masked_distances = jnp.where(mask == 1, max_value+1., distances)
+    #     div_Energy = - jnp.sum(jnp.min(masked_distances, axis = -1)**0.5)**2
+
+    #     return - self.repulsion_strength*div_Energy*(div_beta_interpol)*(1-div_beta_interpol), (div_beta_interpol)*(1-div_beta_interpol)
+
+    def diversity_log_prob(self, x_batch, counter ,SDE_params, eps = 10**-8, scale = 10.):
         div_beta_interpol = self.compute_energy_interpolation_time(SDE_params, counter[0], SDE_param_key = "repulsion_interpol_params")
         distances = jnp.sqrt(jnp.sum((x_batch[:, None, :] - x_batch[None, :, :])**2, axis = -1) + eps)
         mask = jnp.eye(distances.shape[0])
         max_value = jax.lax.stop_gradient(jnp.max(distances))
         masked_distances = jnp.where(mask == 1, max_value+1., distances)
-        div_Energy = - jnp.sum(jnp.min(masked_distances, axis = -1)**0.5)**2
+        div_Energy = jnp.mean(jnp.exp(-masked_distances/scale)) 
 
-        return - self.repulsion_strength*div_Energy*(div_beta_interpol)*(1-div_beta_interpol), (div_beta_interpol)*(1-div_beta_interpol)
+        return - self.repulsion_strength*div_Energy, (div_beta_interpol)*(1-div_beta_interpol)
     
     def compute_energy_interpolation_time(self, SDE_params, counter, SDE_param_key = "beta_interpol_params"):
         step_index = self.n_integration_steps-counter
