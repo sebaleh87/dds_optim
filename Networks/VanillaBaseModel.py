@@ -10,9 +10,11 @@ from .EncodingNetworks import get_sinusoidal_positional_encoding
 class VanillaBaseModelClass(nn.Module):
     network_config: dict
     SDE_Loss_Config: dict
+    weight_init: float = 1e-8
 
     def setup(self):
         self.SDE_mode = self.SDE_Loss_Config["SDE_Type_Config"]["name"]      
+        self.bridge_type = self.SDE_Loss_Config["SDE_Type_Config"]["bridge_type"]
         self.beta_schedule = self.SDE_Loss_Config["SDE_Type_Config"]["beta_schedule"]
         self.use_interpol_gradient = self.SDE_Loss_Config["SDE_Type_Config"]["use_interpol_gradient"]
         self.encoding_network = EncodingNetwork(feature_dim=self.network_config["feature_dim"], hidden_dim=self.network_config["n_hidden"], max_time = self.SDE_Loss_Config["n_integration_steps"])
@@ -72,6 +74,55 @@ class VanillaBaseModelClass(nn.Module):
         out_dict["mean_x"] = mean_x
         out_dict["log_var_x"] = log_var_x
         return out_dict
+    
+    def get_drifts(self, time_encoding, embedding, x_dim):
+        if(self.network_init == "zeros"):
+            grad_drift = nn.Dense(x_dim, kernel_init=nn.initializers.zeros,
+                                                bias_init=nn.initializers.zeros)(time_encoding)
+            
+            correction_drift = nn.Dense(x_dim, kernel_init=nn.initializers.zeros,
+                                                bias_init=nn.initializers.zeros)(embedding)
+        elif(self.network_init == "slightly_positive"):
+            grad_drift = nn.Dense(x_dim, kernel_init=nn.initializers.constant(self.weight_init),
+                                                bias_init=nn.initializers.zeros)(time_encoding)
+            
+            correction_drift = nn.Dense(x_dim, kernel_init=nn.initializers.constant(self.weight_init),
+                                                bias_init=nn.initializers.zeros)(embedding)
+        else:
+            grad_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
+                                                bias_init=nn.initializers.zeros)(time_encoding)
+            correction_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
+                                                bias_init=nn.initializers.zeros)(embedding)
+        return grad_drift, correction_drift
+    
+    def parameterize_score(self, out_dict, grad_drift, correction_drift, grad, grad_detach):
+        if(self.langevin_precon):
+            if(self.beta_schedule == "neural"):
+                log_beta_x_t = grad_drift
+                out_dict["log_beta_x_t"] = log_beta_x_t
+                correction_grad_score = correction_drift 
+                score = jnp.clip(correction_grad_score, -10**4, 10**4 )
+            else:
+                grad_score = grad_drift * jnp.clip(grad_detach, -10**2, 10**2)
+                correction_grad_score = correction_drift + grad_score
+                score = jnp.clip(correction_grad_score, -10**4, 10**4 )
+            if(self.bridge_type == "CMCD"):
+                overall_score = score  + grad /2    
+            else:
+                overall_score = score
+        else:
+            if(self.beta_schedule == "neural"):
+                log_beta_x_t = grad_drift
+                out_dict["log_beta_x_t"] = log_beta_x_t
+                correction_grad_score = correction_drift 
+                score = jnp.clip(correction_grad_score, -10**4, 10**4 )
+            else:
+                correction_grad_score = correction_drift 
+                score = jnp.clip(correction_grad_score, -10**4, 10**4 )
+            overall_score = score
+
+        return overall_score
+    
 
     def normal_forward_pass(self, in_dict, train = False):
 
@@ -130,53 +181,18 @@ class VanillaBaseModelClass(nn.Module):
             time_out_dict = self.time_backbone(time_in_dict)
             time_encoding = time_out_dict["embedding"]
 
-            if(self.network_init == "zeros"):
-                grad_drift = nn.Dense(x_dim, kernel_init=nn.initializers.zeros,
-                                                    bias_init=nn.initializers.zeros)(time_encoding)
-                
-                correction_drift = nn.Dense(x_dim, kernel_init=nn.initializers.zeros,
-                                                    bias_init=nn.initializers.zeros)(embedding)
-            else:
-                grad_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
-                                                    bias_init=nn.initializers.zeros)(time_encoding)
-                correction_drift = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
-                                                    bias_init=nn.initializers.zeros)(embedding)
-            
-            if(self.beta_schedule == "neural"):
-                log_beta_x_t = grad_drift
-                out_dict["log_beta_x_t"] = log_beta_x_t
-                correction_grad_score = correction_drift 
-                score = jnp.clip(correction_grad_score, -10**4, 10**4 )
-            else:
-                grad_score = grad_drift * jnp.clip(grad_detach, -10**2, 10**2)
-                correction_grad_score = correction_drift + grad_score
-                score = jnp.clip(correction_grad_score, -10**4, 10**4 )
+            grad_drift, correction_drift = self.get_drifts(time_encoding, embedding, x_dim)
 
-            
-            if(self.langevin_precon):
-                if(self.beta_schedule == "neural"):
-                    log_beta_x_t = grad_drift
-                    out_dict["log_beta_x_t"] = log_beta_x_t
-                    correction_grad_score = correction_drift 
-                    score = jnp.clip(correction_grad_score, -10**4, 10**4 )
-                else:
-                    grad_score = grad_drift * jnp.clip(grad_detach, -10**2, 10**2)
-                    correction_grad_score = correction_drift + grad_score
-                    score = jnp.clip(correction_grad_score, -10**4, 10**4 )
-                out_dict["score"] = score  + grad /2    
-            else:
-                if(self.beta_schedule == "neural"):
-                    log_beta_x_t = grad_drift
-                    out_dict["log_beta_x_t"] = log_beta_x_t
-                    correction_grad_score = correction_drift 
-                    score = jnp.clip(correction_grad_score, -10**4, 10**4 )
-                else:
-                    correction_grad_score = correction_drift 
-                    score = jnp.clip(correction_grad_score, -10**4, 10**4 )
-                out_dict["score"] = score
+            overall_score = self.parameterize_score(out_dict, grad_drift, correction_drift, grad, grad_detach)
 
+            if(self.bridge_type == "DBS"):
+                grad_drift, correction_drift = self.get_drifts(time_encoding, embedding, x_dim)
+                forward_score = self.parameterize_score(out_dict, grad_drift, correction_drift, grad, grad_detach)
+                out_dict["forward_score"] = forward_score
 
+            out_dict["score"] = overall_score
             return out_dict
+        
         elif(self.SDE_mode == "DiscreteTime_SDE"):
             mean_x = nn.Dense(x_dim, kernel_init=nn.initializers.xavier_normal(),
                                                 bias_init=nn.initializers.zeros)(embedding)

@@ -21,8 +21,13 @@ class Base_SDE_Loss_Class:
         self.model = model
         self.x_dim = self.EnergyClass.dim_x
 
-        self.optimizer = self.initialize_optimizer()
+        self.optimizer_type = SDE_config["optimizer"]
+        if(self.optimizer_type == "ADAM"):
+            self.optax_chain = lambda schedule_func, clip_value: optax.chain(optax.zero_nans(), optax.clip_by_global_norm(clip_value), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -schedule_func(epoch)))
+        elif(self.optimizer_type == "SGD"):
+            self.optax_chain = lambda schedule_func, clip_value: optax.chain(optax.zero_nans(), optax.clip_by_global_norm(clip_value), optax.scale_by_schedule(lambda epoch: -schedule_func(epoch)))
 
+        self.optimizer = self.initialize_optimizer()
         self.vmap_Energy_function =  jax.jit(jax.vmap(self.EnergyClass.energy_function, in_axes = (0,)))
         self.vmap_model = jax.vmap(self.model.apply, in_axes=(None,0,0))
 
@@ -53,6 +58,7 @@ class Base_SDE_Loss_Class:
         self.vmap_drift_divergence = jax.vmap(self.SDE_type.get_div_drift, in_axes = (None, 0))
         self.vmap_get_log_prior = jax.vmap(self.SDE_type.get_log_prior, in_axes = (None, 0))
         self.optim_mode = "equilibrium"
+        self.natural_gradient_mode = SDE_Type_Config["natural_gradient_mode"]
 
 
     def _init_lr_schedule(self, l_max, l_start, lr_min, overall_steps, warmup_steps):
@@ -73,6 +79,7 @@ class Base_SDE_Loss_Class:
 
     @partial(jax.jit, static_argnums=(0,))
     def loss_fn(self, params, Energy_params, SDE_params, T_curr, key):
+        ### i think key is not a key here but rather a dictionary
         loss, key = self.compute_loss( params, Energy_params, SDE_params, key, n_integration_steps = self.n_integration_steps, n_states = self.batch_size, temp = T_curr)
         return loss, key
 
@@ -100,6 +107,39 @@ class Base_SDE_Loss_Class:
     @partial(jax.jit, static_argnums=(0,))
     def update_params_all_in_one(self, params, Interpol_params, SDE_params, opt_state, Interpol_params_state, SDE_params_state, key, T_curr):
         (loss_value, out_dict), (grads, Interpol_params_grad, SDE_params_grad) = jax.value_and_grad(self.loss_fn, argnums=(0, 1, 2), has_aux = True)(params, Interpol_params, SDE_params, T_curr, key)
+        
+        if("fisher_grads" in out_dict):
+            eps = 10**-5
+            fisher_param_grads = out_dict["fisher_grads"]["fisher_param_grads"]
+            fisher_interpol_grads = {}
+            fisher_SDE_grads = out_dict["fisher_grads"]["fisher_SDE_grads"]
+
+            ### Interpol_params are moved to the SDE_params, they are moved back here
+            for interpol_key in Interpol_params.keys():
+                fisher_interpol_grads[interpol_key] = fisher_SDE_grads[interpol_key]
+                del fisher_SDE_grads[interpol_key]
+            
+            ### vanilla version
+            if(self.natural_gradient_mode == "diag"):
+                grads = jax.tree_map(lambda x, y: 1/(x +eps) * y, fisher_param_grads, grads)
+                Interpol_params_grad = jax.tree_map(lambda x, y: 1/(x +eps) * y, fisher_interpol_grads, Interpol_params_grad)
+                SDE_params_grad = jax.tree_map(lambda x, y: 1/(x +eps) * y, fisher_SDE_grads, SDE_params_grad)
+            elif(self.natural_gradient_mode == "blockwise"):
+                # fisher_param_grads = jax.tree_map(lambda x: jnp.outer(x.flatten(), x.flatten()).reshape(x.shape), fisher_param_grads)
+                # fisher_interpol_grads = jax.tree_map(lambda x: jnp.outer(x.flatten(), x.flatten()).reshape(x.shape), fisher_interpol_grads)
+                # fisher_SDE_grads = jax.tree_map(lambda x: jnp.outer(x.flatten(), x.flatten()).reshape(x.shape), fisher_SDE_grads)
+
+                grads = jax.tree_map(lambda x, y: jax.scipy.sparse.linalg.cg(x + eps*jnp.eye(x.shape[0]), y.flatten())[0].reshape(y.shape), fisher_param_grads, grads)
+                Interpol_params_grad = jax.tree_map(lambda x, y: jax.scipy.sparse.linalg.cg(x + eps*jnp.eye(x.shape[0]), y.flatten())[0].reshape(y.shape), fisher_interpol_grads, Interpol_params_grad)
+                SDE_params_grad = jax.tree_map(lambda x, y: jax.scipy.sparse.linalg.cg(x + eps*jnp.eye(x.shape[0]), y.flatten())[0].reshape(y.shape), fisher_SDE_grads, SDE_params_grad)
+            elif(self.natural_gradient_mode == "full"):
+                raise NotImplementedError("Not implemented yet")
+            else:
+                raise ValueError(f"Unknown natural gradient mode: {self.natural_gradient_mode}")
+
+            ### remove from dict, because it does not need to be logged in train.py
+            del out_dict["fisher_grads"]
+        
         updates, opt_state = self.optimizer.update(grads, opt_state)
         params = optax.apply_updates(params, updates)
         
@@ -147,7 +187,7 @@ class Base_SDE_Loss_Class:
         clip_value = self.Optimizer_Config["clip_value"]
         self.schedule = self._init_lr_schedule(l_max, l_start, lr_min, overall_steps, warmup_steps)
 
-        optimizer = optax.chain(optax.zero_nans(), optax.clip_by_global_norm(clip_value), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.schedule(epoch)))
+        optimizer = self.optax_chain(self.schedule, clip_value)
         return optimizer
     
     def init_Interpol_params_optimizer(self):
@@ -160,7 +200,7 @@ class Base_SDE_Loss_Class:
         self.Interpol_schedule = self._init_lr_schedule(l_max, l_start, lr_min, overall_steps, warmup_steps)
         #optimizer = optax.adam(self.schedule)
         clip_value = self.Optimizer_Config["clip_value"]
-        optimizer = optax.chain(optax.zero_nans(), optax.clip_by_global_norm(clip_value), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.Interpol_schedule(epoch)))
+        optimizer = self.optax_chain(self.Interpol_schedule, clip_value)
         return optimizer
     
     def init_SDE_params_optimizer(self):
@@ -177,7 +217,7 @@ class Base_SDE_Loss_Class:
 
         self.SDE_schedule = self._init_lr_schedule(l_max, l_start, lr_min, overall_steps, warmup_steps)
         #clipping is necessary due to lennard jones instabilities for some energy functions
-        optimizer = optax.chain(optax.zero_nans(), optax.clip_by_global_norm(clip_value), optax.add_decayed_weights(weight_decay), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -self.SDE_schedule(epoch)))
+        optimizer = self.optax_chain(self.SDE_schedule, clip_value)
         
         return optimizer
     
@@ -218,7 +258,7 @@ class Base_SDE_Loss_Class:
         NLL = -jnp.mean(R_diff + S + log_prior) 
 
         ELBO = jnp.mean(off_policy_weights*log_weights)
-        EUBO = jnp.sum(off_policy_weights*normed_weights*(log_weights))
+        EUBO = jnp.mean(off_policy_weights*normed_weights*log_weights.shape[-1]*(log_weights))
         Free_Energy = -ELBO   ### THis is the variational free energy
         res_dict = {"Free_Energy_at_T=1": Free_Energy, "normed_weights": normed_weights, "log_Z_at_T=1": log_Z, "n_eff": n_eff, "NLL": NLL, "ELBO_at_T=1": ELBO, "EUBO_at_T=1": EUBO}
         rec_dict.update(res_dict)
@@ -293,6 +333,36 @@ class Base_SDE_Loss_Class:
     
     def get_param_dict(self, params):
         return {"model_params": params, "Interpol_params": self.Interpol_params, "SDE_params": self.SDE_params}
+
+    # def fisher(self):
+
+    #     # Define your log-likelihood function
+    #     def log_likelihood(x, theta):
+    #         # Your log p(x, theta) implementation
+    #         pass
+
+    #     # Compute the gradient of the log-likelihood
+    #     grad_log_likelihood = grad(log_likelihood, argnums=1)
+
+    #     # Compute the Fisher Information Matrix
+    #     def compute_fisher(x_batch, theta):
+    #         grads = jax.vmap(grad_log_likelihood, in_axes=(0, None))(x_batch, theta)
+    #         fisher = jnp.mean(jnp.einsum('bi,bj->bij', grads, grads), axis=0)
+    #         return fisher
+        
+    #     def inverse_fisher(fisher, epsilon=1e-5):
+    #         return jnp.linalg.inv(fisher + epsilon * jnp.eye(fisher.shape[0]))
+        
+    #         fisher = compute_fisher(x_batch, theta)
+    #     inv_fisher = inverse_fisher(fisher)
+
+    #     grads = grad(loss_fn)(theta, x_batch)
+    #     preconditioned_grads = jnp.einsum('ij,j->i', inv_fisher, grads)
+
+    #     updates, opt_state = optimizer.update(preconditioned_grads, opt_state, theta)
+    #     theta = optax.apply_updates(theta, updates)
+    #     return theta, opt_state
+    #     pass
     
 
 def constant_lr(step, l_max = 1e-4):

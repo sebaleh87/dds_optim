@@ -1,5 +1,5 @@
 program: main.py
-project: laplace_50-D_explore_final
+project: laplace_5-D_explore_final
 command:
   - ${env}
   - python
@@ -18,27 +18,29 @@ metric:
 name: gridsearch
 parameters:
   n_particles:
-    value: 50
+    value: 5
   Energy_Config:
     value: GMMDistrax
   GPU:
     value: -1
   N_anneal:
-    value: 4000
+    value: 1200
   base_net:
-    values: [PISgradnet]
+    values: [Vanilla]
   SDE_Loss:
     values: [Bridge_rKL_logderiv]
   SDE_Type:
     value: Bridge_SDE
   SDE_lr:
-    values: [0.00005, 0.00001]
+    values: [0.001]
+  lr:
+    values: [0.001]
   T_start:
     values: [ 2.]
   laplace_width:
-    values: [1.0]
+    values: [1.2, 1.5, 1.8]
   mixture_probs:
-    values: [ 0.025, 0.01]
+    values: [0.1, 0.3, 0.5]
   off_policy_mode:
     values: ["laplace"]
   quantile: 
@@ -48,7 +50,7 @@ parameters:
   weight_temperature:
     values: [1., 0.]
   Interpol_lr:
-    values: [0.01, 0.001]
+    values: [0.01]
   beta_schedule:
     values: ["constant"]
   network_init:
@@ -68,7 +70,7 @@ parameters:
   beta_max:
     values: [1.]
   sigma_init:
-    values: [40.]
+    values: [1.]
   model_seeds:
     # values: [1]
     values: [0]
