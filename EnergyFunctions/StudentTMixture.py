@@ -88,6 +88,33 @@ class StudentTMixtureClass(EnergyModelClass):
         """
         return self.sample(key, sample_shape=(n_samples,))
 
+    def compute_emc(self, samples):
+        """
+        Compute the Entropic Mode Coverage (EMC) metric.
+        """
+        # Expand samples to compute component-wise log probabilities
+        expanded = jnp.expand_dims(samples, axis=-2)  # Shape: (n_samples, 1, dim)
+        
+        # Get the component distribution from the mixture
+        component_dist = self.mixture_distribution.component_distribution
+        
+        # Compute log probability for each sample under each component
+        component_log_probs = component_dist.log_prob(expanded)  # Shape: (n_samples, num_components)
+        
+        # Find the most likely component for each sample
+        idx = jnp.argmax(component_log_probs, axis=1)  # Shape: (n_samples,)
+        
+        # Count occurrences of each component
+        unique_elements, counts = jnp.unique(idx, return_counts=True)
+        
+        # Calculate mode distribution (probability of each mode)
+        mode_dist = counts / samples.shape[0]  # Shape: (num_unique_components,)
+        
+        # Calculate entropy with log base equal to number of components
+        entropy = -jnp.sum(mode_dist * (jnp.log(mode_dist) / jnp.log(self.num_components)))
+        
+        return entropy
+
     def plot_samples(self, samples, title="Student-t Mixture Samples", save_path=None):
         """
         Plot samples from the Student-t mixture distribution and optionally save to file.
@@ -134,7 +161,8 @@ if __name__ == "__main__":
     config = {
         "dim_x": 2,
         "num_components": 5,
-        "df": 2.0
+        "df": 2.0,
+        "scaling": 1.0
     }
     stm = StudentTMixtureClass(config)
     
@@ -142,16 +170,19 @@ if __name__ == "__main__":
     key = jax.random.PRNGKey(42)
     n_samples = 5000
     samples = stm.generate_samples(key, n_samples)
+
+    emc = stm.compute_emc(samples)
+    print(emc)
     
-    # Create plot directory if needed
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    plot_path = os.path.join(current_dir, 'EnergyData', 'Plots', 'student_t_mixture_samples.png')
+    # # Create plot directory if needed
+    # current_dir = os.path.dirname(os.path.abspath(__file__))
+    # plot_path = os.path.join(current_dir, 'EnergyData', 'Plots', 'student_t_mixture_samples.png')
     
-    # Plot samples
-    stm.plot_samples(samples, 
-                    title="Student-t Mixture Distribution (5000 samples)",
-                    save_path=plot_path)
+    # # Plot samples
+    # stm.plot_samples(samples, 
+    #                 title="Student-t Mixture Distribution (5000 samples)",
+    #                 save_path=plot_path)
     
-    # Print some statistics
-    print(f"Mean of samples: {jnp.mean(samples, axis=0)}")
-    print(f"Std of samples: {jnp.std(samples, axis=0)}")
+    # # Print some statistics
+    # print(f"Mean of samples: {jnp.mean(samples, axis=0)}")
+    # print(f"Std of samples: {jnp.std(samples, axis=0)}")

@@ -232,6 +232,9 @@ class TrainerClass:
         save_metric_dict = {"Free_Energy_at_T=1": [], "ELBO_at_T=1": [], "log_Z_at_T=1": [],  "n_eff": [], "epoch": [], "EUBO_at_T=1": []}
         if hasattr(self, 'sd_calculator'):
             save_metric_dict["sinkhorn_divergence"] = []
+        
+        if hasattr(self.EnergyClass, 'compute_emc'):
+            save_metric_dict["EMC"] = []
 
         pbar = trange(self.num_epochs)
         for epoch in pbar:
@@ -273,6 +276,17 @@ class TrainerClass:
                         if sample_mode == "eval":  # Only save on eval mode
                             Best_Sinkhorn_value_ever = self.check_improvement(params, Best_Sinkhorn_value_ever, distance, "Sinkhorn", epoch=epoch)
                             save_metric_dict["sinkhorn_divergence"].append(distance)
+
+                        if hasattr(self.EnergyClass, 'compute_emc'):
+                            emc = self.EnergyClass.compute_emc(out_dict["X_0"])
+                            emc_metric_name = f"eval_{sample_mode}/EMC"
+                            if emc_metric_name not in metric_history:
+                                metric_history[emc_metric_name] = []
+                            metric_history[emc_metric_name].append(float(emc))
+                            eval_metrics[emc_metric_name] = emc
+
+                            if sample_mode == "eval": 
+                                save_metric_dict["EMC"].append(emc)
 
                     # Calculate running averages for all metrics
                     for metric_name, values in metric_history.items():
