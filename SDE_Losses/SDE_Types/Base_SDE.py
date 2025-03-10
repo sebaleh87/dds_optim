@@ -16,6 +16,7 @@ class Base_SDE_Class:
         self.use_interpol_gradient = config["use_interpol_gradient"]
         self.n_integration_steps = config["n_integration_steps"]
         self.Network_Config = Network_Config
+        self.natural_gradient = config["natural_gradient"]
 
         if(self.Network_Config["model_mode"] == "latent"):
             self.dim_x = self.Network_Config["latent_dim"]
@@ -49,6 +50,7 @@ class Base_SDE_Class:
         self.repulsion_strength = config["repulsion_strength"]
         self.sigma_scale_factor = config["sigma_scale_factor"]
         self.learn_interpolation_params = config["learn_interpolation_params"]
+        self.bridge_type = self.config["bridge_type"]
         # self.noise_scale_factor = config["noise_scale_factor"]
 
     def weightening(self, t):
@@ -296,7 +298,7 @@ class Base_SDE_Class:
             if(self.network_has_hidden_state):
                 log_prob, grad, key = self.vmap_prior_target_grad_interpolation(x, counter_arr, Energy_params, SDE_params, temp, key) 
                 log_prob_value = log_prob #Energy[...,None]
-                in_dict = {"x": x, "Energy_value": Energy_value, "t": t_arr, "grads": grad, "hidden_state": hidden_state}
+                in_dict = {"x": x, "Energy_value": -log_prob_value, "t": t_arr, "grads": grad, "hidden_state": hidden_state}
                 out_dict = model.apply(params, in_dict, train = True)
                 score = out_dict["score"]
                 new_hidden_state = out_dict["hidden_state"]
@@ -319,7 +321,18 @@ class Base_SDE_Class:
         if(self.config["beta_schedule"] == "neural"):
             SDE_params["log_beta_x_t"] = out_dict["log_beta_x_t"]
 
-        return score, new_hidden_state, grad, SDE_params, log_prob, key
+        apply_model_dict = {
+            "score": score,
+            "grad": grad,
+            "SDE_params_extended": SDE_params,
+            "hidden_state": new_hidden_state,
+            "interpol_log_prob": log_prob_value,
+        }
+
+        if("forward_score" in out_dict.keys()):
+            apply_model_dict["forward_score"] = out_dict["forward_score"]
+
+        return apply_model_dict, key
     
     def get_sigma_noise(self,  n_states, key, sample_mode, temp):
         ### if self.config['use_off_policy'] true temp is not treated as a temperature but as an annealed scaling for self.sigma_scale_factor, assumes temp >= 1.
@@ -369,8 +382,14 @@ class Base_SDE_Class:
         def scan_fn(carry, step):
             x, t, counter, key, carry_dict = carry
             hidden_state = carry_dict["hidden_state"]
-            score, new_hidden_state, grad, SDE_params_extended, interpol_log_prob, key = self.apply_model(model, x, t, counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
+            apply_model_dict, key = self.apply_model(model, x, t, counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
             carry_dict["hidden_state"] = new_hidden_state
+
+            score = apply_model_dict["score"]
+            new_hidden_state = apply_model_dict["hidden_state"]
+            grad = apply_model_dict["grad"]
+            SDE_params_extended =  apply_model_dict["SDE_params_extended"]
+            interpol_log_prob = apply_model_dict["interpol_log_prob"]
 
             dt = self.reversed_dt_values[step]
             

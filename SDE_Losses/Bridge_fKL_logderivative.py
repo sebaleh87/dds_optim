@@ -92,11 +92,32 @@ class Bridge_fKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
             L1_log = jnp.mean((off_policy_weights* reward) * sum_forward_log_probs_without_energy) 
             L2_log =  jnp.mean(off_policy_weights * (radon_nykodin_wo_forward))
             raise ValueError("Not implemented")
+        if(True):
+            reverse_log_probs_over_t = reverse_log_probs
+            reverse_log_probs_over_t = reverse_log_probs_over_t.at[0].set(reverse_log_probs_over_t[0] + log_prior)
+            forward_log_probs_over_t = jnp.concatenate([forward_diff_log_probs, -Energy[None, :]/temp, ], axis = 0)
+            
+            unnormed_log_weights = jax.lax.cumsum(forward_diff_log_probs - reverse_log_probs, axis = 0) - log_prior[None, :]
+            importance_weights = jax.lax.stop_gradient(jax.nn.softmax(unnormed_log_weights, axis = -1))*unnormed_log_weights.shape[-1]
+            
+            radon_nycodin_per_step = forward_diff_log_probs - reverse_log_probs
+            radon_nycodin_per_step = radon_nycodin_per_step.at[0].set(radon_nycodin_per_step[0] - log_prior)
+            forward_kl_cum_sum = jax.lax.cumsum(forward_log_probs_over_t[0:-1], axis = 0)
+
+            unbiased_mean = jax.lax.stop_gradient(jnp.mean(radon_nycodin_per_step, keepdims=True, axis = -1))
+            reward = jax.lax.stop_gradient((radon_nycodin_per_step-unbiased_mean))
+            L1 = jnp.mean(jnp.sum(importance_weights*reward * forward_kl_cum_sum, axis = 0))
+            L2 = jnp.mean(jnp.sum(-importance_weights*reverse_log_probs_over_t, axis = 0))
+            loss = L1 + L2
+
+            L1_log = jnp.mean(jnp.sum(importance_weights*(reward + unbiased_mean) * forward_kl_cum_sum, axis = 0))
+            L2_log = L2
+            print((importance_weights*reward * forward_kl_cum_sum).shape, importance_weights.shape, reward.shape, forward_kl_cum_sum.shape, radon_nycodin_per_step.shape)
 
         else:
             importance_weights = jax.lax.stop_gradient(jax.nn.softmax(radon_dykodin_derivative, axis = -1))*radon_dykodin_derivative.shape[-1]
 
-            unbiased_mean = jax.lax.stop_gradient(jnp.mean(radon_dykodin_derivative_no_energy, keepdims=True, axis = 0))
+            unbiased_mean = jax.lax.stop_gradient(jnp.mean(radon_dykodin_derivative_no_energy, keepdims=True, axis = -1))
             reward = jax.lax.stop_gradient((radon_dykodin_derivative_no_energy-unbiased_mean))
             L1 = jnp.mean(importance_weights*reward * sum_forward_log_probs_without_energy)
             L2 = jnp.mean( importance_weights*radon_nykodin_wo_forward)

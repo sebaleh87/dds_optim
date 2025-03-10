@@ -42,6 +42,7 @@ class TrainerClass:
         # Generate ground truth samples for SD metric if available
         if hasattr(self.EnergyClass, 'has_tractable_distribution') and self.EnergyClass.has_tractable_distribution:
             n_samples = [self.config["n_eval_samples"]]
+            print("Warning: sample shave to be rescaled for GMMDistraxRandom")
             
             key = jax.random.PRNGKey(self.config["sample_seed"])
             reps = 1
@@ -250,8 +251,9 @@ class TrainerClass:
                         full_metric_name = f"eval_{sample_mode}/{metric_name}"
                         if full_metric_name not in metric_history:
                             metric_history[full_metric_name] = []
-                        metric_history[full_metric_name].append(float(np.mean(value)))
-                        eval_metrics[f"eval_{sample_mode}/{metric_name}"] = np.mean(value)
+                        if isinstance(value, (float, np.ndarray, jnp.ndarray)):
+                            metric_history[full_metric_name].append(float(np.mean(value)))
+                            eval_metrics[f"eval_{sample_mode}/{metric_name}"] = np.mean(value)
 
                     # Calculate Sinkhorn divergence if the energy model has a tractable distribution
                     if hasattr(self, 'sd_calculator'):

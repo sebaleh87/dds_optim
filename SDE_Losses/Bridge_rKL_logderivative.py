@@ -71,6 +71,10 @@ class Bridge_rKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
                         "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": SDE_params["mean"], "sigma_prior": jnp.exp(SDE_params["log_sigma_prior"])
                         }
 
+        if("fisher_grads" in SDE_tracer):
+            fisher_grads = SDE_tracer["fisher_grads"]
+            log_dict["fisher_grads"] = fisher_grads
+
         log_dict = self.compute_partition_sum(entropy_minus_noise, jnp.zeros_like(entropy_minus_noise), log_prior, Energy, log_dict, off_policy_weights = off_policy_weights_normed_times_n_samples)
 
         return loss, log_dict
@@ -87,24 +91,15 @@ class Bridge_rKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
             radon_dykodin_derivative = log_prior + entropy_minus_noise + Energy/temp
             radon_nykodin_wo_reverse = -jnp.sum(forward_diff_log_probs, axis = 0) + Energy/temp
 
-        #print("log_prior", log_prior.shape, sum_reverse_log_probs.shape, radon_dykodin_derivative.shape)
-        #unbiased_mean = jax.lax.stop_gradient(jnp.mean(off_policy_weights*radon_dykodin_derivative, keepdims=True, axis = 0))
         if(use_off_policy):
-            if(False):
-                unbiased_mean = jax.lax.stop_gradient(jnp.mean(off_policy_weights*radon_dykodin_derivative, keepdims=True, axis = 0))
-                reward = jax.lax.stop_gradient((radon_dykodin_derivative))
-                L1 = jnp.mean((off_policy_weights* reward - unbiased_mean) * sum_reverse_log_probs)
-                loss = L1 + jnp.mean(off_policy_weights * radon_nykodin_wo_reverse)
-                unbiased_loss = jnp.mean((off_policy_weights* reward) * sum_reverse_log_probs) + jnp.mean(off_policy_weights * radon_nykodin_wo_reverse)
-                centered_loss = L1
-            else:
-                biased_mean = jax.lax.stop_gradient(jnp.mean(radon_dykodin_derivative, keepdims=True, axis = 0))
-                reward = jax.lax.stop_gradient((radon_dykodin_derivative - biased_mean))
-                L1 = jnp.mean((off_policy_weights* reward ) * sum_reverse_log_probs)
-                loss = L1 + jnp.mean(off_policy_weights * radon_nykodin_wo_reverse)
 
-                unbiased_loss = jnp.mean((off_policy_weights* reward) * sum_reverse_log_probs) + jnp.mean(off_policy_weights * radon_nykodin_wo_reverse)
-                centered_loss = L1
+            biased_mean = jax.lax.stop_gradient(jnp.mean(radon_dykodin_derivative, keepdims=True, axis = 0))
+            reward = jax.lax.stop_gradient((radon_dykodin_derivative - biased_mean))
+            L1 = jnp.mean((off_policy_weights* reward ) * sum_reverse_log_probs)
+            loss = L1 + jnp.mean(off_policy_weights * radon_nykodin_wo_reverse)
+
+            unbiased_loss = jnp.mean((off_policy_weights* reward) * sum_reverse_log_probs) + jnp.mean(off_policy_weights * radon_nykodin_wo_reverse)
+            centered_loss = L1
 
         else:
             unbiased_mean = jax.lax.stop_gradient(jnp.mean(radon_dykodin_derivative, keepdims=True, axis = 0))

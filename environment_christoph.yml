@@ -1,4 +1,4 @@
-name: rayjay_clone_test
+name: ContDiff
 channels:
   - nvidia
   - conda-forge
@@ -184,9 +184,6 @@ dependencies:
       - tf-keras==2.18.0
       - tomli==2.2.1
       - toolz==1.0.0
-      - torch==2.5.1+cpu
-      - torchaudio==2.5.1+cpu
-      - torchvision==0.20.1+cpu
       - tqdm==4.67.1
       - unipath==1.1
       - wandb==0.19.1

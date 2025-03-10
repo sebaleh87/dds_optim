@@ -22,7 +22,9 @@ parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=
                                                                                  "Bridge_rKL", "Bridge_LogVarLoss", "Bridge_rKL_logderiv", "Bridge_rKL_logderiv_DiffUCO",
                                                                                 "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam", "Bridge_fKL_subtraj"], help="select loss function")
 parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE", "VE_SDE", "Bridge_SDE", "VE_Discrete"], help="select SDE type, subVP_SDE is currently deprecated")
-parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "GMMDistrax", "GaussianMixtureToy", "Rastrigin", "LennardJones", 
+parser.add_argument("--Bridge_Type", type=str, default="CMCD", choices=["CMCD", "DBS"], help="select Bridge type")
+
+parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "GMMDistrax", "GMMDistraxRandom", "GaussianMixtureToy", "Rastrigin", "LennardJones", 
                                                                                      "DoubleWellEquivariant", "DoubleWell", "Sonar", "Funnel",
                                                                                       "Pytheus", "WavePINN_latent", "WavePINN_hyperparam", "DoubleMoon",
                                                                                       "Banana", "Brownian", "Lorenz", "Seeds", "Ionosphere", "Sonar", "LGCP", "GermanCredit", "MW54",
@@ -38,6 +40,7 @@ parser.add_argument("--project_name", type=str, default="")
 
 parser.add_argument("--minib_time_steps", type=int, default=20)
 parser.add_argument("--batch_size", type=int, default=200)
+parser.add_argument("--optimizer", type=str, choices = ["ADAM", "SGD"], default = "ADAM")
 parser.add_argument( "--lr", type=float, default=[0.001], nargs="+")
 parser.add_argument("--lr_schedule", type=str, choices = ["cosine", "const", "cosine_warmup"], default = "cosine")
 parser.add_argument("--Energy_lr", type=float, default=0.0)
@@ -108,10 +111,13 @@ parser.add_argument("--Pytheus_challenge", type=int, default=1, choices=[0,1,2,3
 parser.add_argument("--Scaling_factor", type=float, default=40., help="Scaling factor for Energy Functions")
 parser.add_argument("--Variances", type=float, default=1., help="Variances of Gaussian Mixtures before scalling when means ~Unif([-1,1])")
 parser.add_argument("--base_net", type=str, default="Vanilla", choices = ["PISgradnet", "Vanilla", "PISNet"], help="Variances of Gaussian Mixtures before scalling when means ~Unif([-1,1])")
-parser.add_argument("--network_init", type=str, default="zeros", choices = ["zeros", "xavier"], help="defines the initialization of the last layer in vanilla network")
+parser.add_argument("--network_init", type=str, default="zeros", choices = ["zeros", "xavier", "slightly_positive"], help="defines the initialization of the last layer in vanilla network")
 parser.add_argument("--langevin_precon", type=str2bool, nargs='?',
                         const=True, default=True, help="use langevin preconditioning or not, only applies for vanilla net")
 
+parser.add_argument("--natural_gradient", type=str2bool, nargs='?',
+                        const=True, default=False, help="for Bridges use nat gradient or not")
+parser.add_argument("--natural_gradient_mode", type=str, default="diag", choices=["diag", "blockwise"], help="mode for natural gradient")
 parser.add_argument('--gridsearch', action='store_true', default=False, help='when gridearch = True, lr is overwritten by SDE_lr')
 
 
@@ -224,6 +230,7 @@ if(__name__ == "__main__"):
 
             SDE_Type_Config = {
                 "name": args.SDE_Type,
+                "bridge_type": args.Bridge_Type,
                 "beta_min": args.beta_min,
                 "beta_max": beta_max,
                 "use_interpol_gradient": args.use_interpol_gradient,
@@ -241,7 +248,9 @@ if(__name__ == "__main__"):
                 "laplace_width": args.laplace_width,
                 "mixture_probs": args.mixture_probs,
                 "learn_interpolation_params": args.learn_interpolation_params,
-                "beta_schedule": args.beta_schedule
+                "beta_schedule": args.beta_schedule,
+                "natural_gradient": args.natural_gradient,
+                "natural_gradient_mode": args.natural_gradient_mode,
             }
 
             SDE_Loss_Config = {
@@ -253,6 +262,7 @@ if(__name__ == "__main__"):
                 "update_params_mode": args.update_params_mode,
                 "quantile": args.quantile,
                 "weight_temperature": args.weight_temperature,
+                "optimizer": args.optimizer,
 
             }
         n_eval_samples = args.n_eval_samples
@@ -308,6 +318,23 @@ if(__name__ == "__main__"):
                 "dim_x": dim,
                 "num_components": num_gaussians,
                 "loc_scaling": 40.,
+                "seed": seed
+
+            }
+        elif(args.Energy_Config == "GMMDistraxRandom"):
+            torch.manual_seed(seed)
+            #np.random.seed(42)
+            dim = args.n_particles
+            num_gaussians = 40
+            np.random.seed(seed)
+            scales = np.random.uniform(low = 1/400, high = 1.0, size = (1, dim))
+
+            Energy_Config = {
+                "name": "GMMDistrax",
+                "dim_x": dim,
+                "num_components": num_gaussians,
+                "loc_scaling": 40.*scales,
+                "variances": 1.*scales, 
                 "seed": seed
 
             }

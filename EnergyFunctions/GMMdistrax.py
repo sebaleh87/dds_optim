@@ -22,6 +22,7 @@ class GMMDistraxClass(EnergyModelClass):
         self.dim = config.get("dim_x", 2)
         self.num_components = config.get("num_components", 40)
         self.loc_scaling = config.get("loc_scaling", 40.)
+        ### this si actually not variances but sdts
         self.variance = config.get("variances", 1.)
         
         # Initialize mixture parameters
@@ -29,8 +30,10 @@ class GMMDistraxClass(EnergyModelClass):
 
         mean = jax.random.uniform(shape=(self.num_components, self.dim), key=key, minval=-1.0, maxval=1.0) * self.loc_scaling
         scale = jnp.ones(shape=(self.num_components, self.dim)) * self.variance
+        
         self.means = mean
         self.scales = scale
+        #raise ValueError("Stop here")
         
         # Setup the mixture distribution
         component_dist = dist.Independent(
@@ -48,10 +51,16 @@ class GMMDistraxClass(EnergyModelClass):
         self.has_tractable_distribution = True
 
         self.variances = self.variance
-        self.x_min = np.min(self.means) + self.shift - 10 * np.max(self.variances)
-        self.x_max = np.max(self.means) + self.shift + 10 * np.max(self.variances)
-        self.y_min = np.min(self.means) + self.shift - 10 * np.max(self.variances)
-        self.y_max = np.max(self.means) + self.shift + 10 * np.max(self.variances)  
+        if(isinstance(self.variances, (np.ndarray))):
+            self.x_min = np.min(self.means[:, 0]) + self.shift - np.max(self.variances[:, 0])
+            self.x_max = np.max(self.means[:, 0]) + self.shift + np.max(self.variances[:, 0])
+            self.y_min = np.min(self.means[:, 1]) + self.shift -  np.max(self.variances[:, 1])
+            self.y_max = np.max(self.means[:, 1]) + self.shift +  np.max(self.variances[:, 1])  
+        else:
+            self.x_min = np.min(self.means) + self.shift - 10 * np.max(self.variances)
+            self.x_max = np.max(self.means) + self.shift + 10 * np.max(self.variances)
+            self.y_min = np.min(self.means) + self.shift - 10 * np.max(self.variances)
+            self.y_max = np.max(self.means) + self.shift + 10 * np.max(self.variances)  
         
         self.levels = 80
 
