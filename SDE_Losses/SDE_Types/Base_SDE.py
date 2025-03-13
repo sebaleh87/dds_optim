@@ -16,7 +16,7 @@ class Base_SDE_Class:
         self.use_interpol_gradient = config["use_interpol_gradient"]
         self.n_integration_steps = config["n_integration_steps"]
         self.Network_Config = Network_Config
-        self.natural_gradient = config["natural_gradient"]
+        self.natural_gradient = config.get("natural_gradient", False)# config["natural_gradient"]
 
         if(self.Network_Config["model_mode"] == "latent"):
             self.dim_x = self.Network_Config["latent_dim"]
@@ -46,11 +46,11 @@ class Base_SDE_Class:
         
         self.sigma_init = config["sigma_init"]
         self.learn_covar = config["learn_covar"]
-        self.use_repulsion_energy = config["use_repulsion_energy"]
+        self.use_repulsion_energy = config.get("use_repulsion_energy", False)
         self.repulsion_strength = config["repulsion_strength"]
         self.sigma_scale_factor = config["sigma_scale_factor"]
         self.learn_interpolation_params = config["learn_interpolation_params"]
-        self.bridge_type = self.config["bridge_type"]
+        self.bridge_type = self.config.get("bridge_type", "CMCD")
         # self.noise_scale_factor = config["noise_scale_factor"]
 
     def weightening(self, t):

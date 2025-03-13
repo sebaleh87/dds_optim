@@ -16,7 +16,7 @@ class PisgradnetBaseClass(nn.Module):
 
     def setup(self):
         self.SDE_mode = self.SDE_Loss_Config["SDE_Type_Config"]["name"]
-        self.bridge_type = self.SDE_Loss_Config["SDE_Type_Config"]["bridge_type"]
+        self.bridge_type = self.SDE_Loss_Config["SDE_Type_Config"].get("bridge_type", "CMCD")
         self.beta_schedule = self.SDE_Loss_Config["SDE_Type_Config"]["beta_schedule"]
         self.use_interpol_gradient = self.SDE_Loss_Config["SDE_Type_Config"]["use_interpol_gradient"]
         self.use_normal = self.SDE_Loss_Config["SDE_Type_Config"]["use_normal"]

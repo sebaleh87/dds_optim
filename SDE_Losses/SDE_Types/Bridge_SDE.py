@@ -16,7 +16,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
         self.vmap_get_log_prior = jax.vmap(self.get_log_prior, in_axes=(None, 0))
         self.laplace_width = self.config["laplace_width"]
         self.mixture_prob = self.config["mixture_probs"]
-        self.natural_gradient_mode = SDE_Type_Config["natural_gradient_mode"]
+        self.natural_gradient_mode = SDE_Type_Config.get("natural_gradient_mode", None)
         ### TODO remove learnability of diffusion parameters
 
     def get_SDE_params(self):

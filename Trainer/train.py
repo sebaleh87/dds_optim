@@ -417,6 +417,7 @@ class TrainerClass:
             del self.aggregated_out_dict
             #print({key: np.exp(dict_val) for key, dict_val in self.SDE_LossClass.SDE_params.items()})
 
+        self.save_params_and_config(params, self.config, filename="params_and_config_train_end.pkl") ### save parameters at the end of training
         # Load the appropriate checkpoint based on whether we have a tractable distribution
         try:
             checkpoint_filename = "best_Sinkhorn_checkpoint.pkl" if hasattr(self, 'sd_calculator') else "best_Free_Energy_at_T=1_checkpoint.pkl"
@@ -435,7 +436,6 @@ class TrainerClass:
         # After training loop, calculate and log running averages
         running_avg_table = self._calculate_running_averages(metric_history, best_running_avgs)
         wandb.log({"final_metrics": running_avg_table},step=epoch+1)
-
         wandb.finish()
         return params
     
