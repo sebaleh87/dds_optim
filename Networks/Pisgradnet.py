@@ -12,7 +12,6 @@ class PisgradnetBaseClass(nn.Module):
     outer_clip: float = 1e4
     inner_clip: float = 1e2
 
-    weight_init: float = 1e-8
     bias_init: float = 0.
 
     def setup(self):
@@ -23,7 +22,10 @@ class PisgradnetBaseClass(nn.Module):
         self.use_normal = self.SDE_Loss_Config["SDE_Type_Config"]["use_normal"]
         self.model_mode = self.network_config["model_mode"] # is either normal or latent
         self.n_integration_steps = self.SDE_Loss_Config["n_integration_steps"]
+        self.network_init = self.network_config["network_init"]
         self.langevin_precon = self.network_config["langevin_precon"]
+
+        self.weight_init = 1e-8
 
         #self.num_hid = self.network_config["n_hidden"]
         self.x_dim = self.network_config["x_dim"]
@@ -53,6 +55,32 @@ class PisgradnetBaseClass(nn.Module):
             [nn.Dense(self.num_hid), nn.gelu]) for _ in range(self.num_layers)] + [
                                                 nn.Dense(self.dim, kernel_init=nn.initializers.constant(self.weight_init),
                                                          bias_init=nn.initializers.zeros_init())])
+        
+        if(self.beta_schedule == "neural"):
+            self.reverse_time_grad = self.time_coder_grad_zero_init
+        else:
+            self.reverse_time_grad = self.time_coder_grad
+
+
+        if(self.bridge_type == "DBS"):
+            self.forw_state_time_net = nn.Sequential([nn.Sequential(
+                                    [nn.Dense(self.num_hid), nn.gelu]) for _ in range(self.num_layers)] + [
+                                                nn.Dense(self.dim, kernel_init=nn.initializers.constant(self.weight_init),
+                                                         bias_init=nn.initializers.zeros_init())])
+            if(self.beta_schedule == "neural"):
+                self.forward_time_grad  = nn.Sequential([nn.Dense(self.num_hid)] + [nn.Sequential(
+                                            [nn.gelu, nn.Dense(self.num_hid, kernel_init=nn.initializers.zeros,
+                                                          bias_init=nn.initializers.zeros)]) for _ in range(self.num_layers)] + [
+                                                 nn.Dense(self.dim, kernel_init=nn.initializers.zeros,
+                                                          bias_init=nn.initializers.zeros)])
+
+
+            else:
+                self.forward_time_grad = nn.Sequential([nn.Dense(self.num_hid)] + [nn.Sequential(
+                                                        [nn.gelu, nn.Dense(self.num_hid)]) for _ in range(self.num_layers)] + [
+                                                 nn.Dense(self.dim, kernel_init=nn.initializers.constant(self.weight_init),
+                                                          bias_init=nn.initializers.constant(self.bias_init))])
+
 
     def get_fourier_features(self, timesteps):
         sin_embed_cond = jnp.sin(
@@ -63,10 +91,10 @@ class PisgradnetBaseClass(nn.Module):
         )
         return jnp.concatenate([sin_embed_cond, cos_embed_cond], axis=-1)
     
-    def parameterize_score(self, out_dict, out_state, time_array_emb, grad, lgv_term):
+    def parameterize_score(self, out_dict, out_state, time_array_emb, grad, lgv_term, time_grad_func):
         if(self.langevin_precon):
             if(self.beta_schedule == "neural"):
-                t_net2 = self.time_coder_grad_zero_init(time_array_emb)
+                t_net2 = time_grad_func(time_array_emb)
                 out_state = jnp.clip(out_state, -self.outer_clip, self.outer_clip)
                 log_beta_x_t = t_net2
                 out_dict["log_beta_x_t"] = log_beta_x_t
@@ -74,7 +102,7 @@ class PisgradnetBaseClass(nn.Module):
                 score = jnp.clip(correction_grad_score, -10**4, 10**4 )
             else:
                 
-                t_net2 = self.time_coder_grad(time_array_emb)
+                t_net2 = time_grad_func(time_array_emb)
                 out_state = jnp.clip(out_state, -self.outer_clip, self.outer_clip)
                 lgv_term = jnp.clip(lgv_term, -self.inner_clip, self.inner_clip)
                 score = out_state + t_net2 * lgv_term
@@ -85,7 +113,7 @@ class PisgradnetBaseClass(nn.Module):
                 overall_score = score  
         else:
             if(self.beta_schedule == "neural"):
-                t_net2 = self.time_coder_grad_zero_init(time_array_emb)
+                t_net2 = time_grad_func(time_array_emb)
                 out_state = jnp.clip(out_state, -self.outer_clip, self.outer_clip)
                 log_beta_x_t = t_net2
                 out_dict["log_beta_x_t"] = log_beta_x_t
@@ -111,12 +139,12 @@ class PisgradnetBaseClass(nn.Module):
         extended_input = jnp.concatenate((input_array, t_net1), axis=-1)
         out_state = self.state_time_net(extended_input)
 
-        overall_score, out_dict = self.parameterize_score( out_dict, out_state, time_array_emb, grad, lgv_term)
+        overall_score, out_dict = self.parameterize_score( out_dict, out_state, time_array_emb, grad, lgv_term, self.reverse_time_grad)
         out_dict["score"] = overall_score
 
         if(self.bridge_type == "DBS"):
-            forw_out_state = self.state_time_net(extended_input)
-            forward_score, out_dict = self.parameterize_score(out_dict, forw_out_state, time_array_emb, grad, lgv_term)
+            forw_out_state = self.forw_state_time_net(extended_input)
+            forward_score, out_dict = self.parameterize_score(out_dict, forw_out_state, time_array_emb, grad, lgv_term, self.forward_time_grad)
             out_dict["forward_score"] = forward_score
 
         return out_dict

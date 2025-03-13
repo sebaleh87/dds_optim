@@ -121,12 +121,56 @@ def GMM(key):
         wandb_ids = ["dandy-energy-6", "toasty-salad-5", "volcanic-mountain-1"]
     elif(key == "rKL_logderiv_frozen"):
         wandb_ids = ["dry-frost-12", "curious-flower-10", "sunny-puddle-8"]
-    elif(key == "rKL_logderiv_off_policy"):
-        wandb_ids = ["curious-deluge-18", "prime-tarrain-17", "peach-sound-16"]
+    # elif(key == "rKL_logderiv_off_policy"):
+    #     wandb_ids = ["curious-deluge-18", "prime-tarrain-17", "peach-sound-16"]
     elif(key == "LogVarLoss"):
         wandb_ids = ["generous-sun-4", "pious-deluge-3", "ruby-blaze-2"]
     elif(key == "LogVarLoss_frozen"):
         wandb_ids = ["dashing-shadow-11", "exalted-lion-9", "morning-star-7"]
+    return wandb_ids
+
+def MoS_DBS(key):
+    #wandb_ids = ["amber-smoke-4", "lilac-plant-3", "crimson-eon-2", "helpful-thunder-1"]
+    if(key == "rKL_frozen"):
+        wandb_ids = []
+    elif(key == "rKL_logderiv"):
+        wandb_ids = []
+    elif(key == "rKL_logderiv_frozen"):
+        wandb_ids = []
+    elif(key == "LogVarLoss"):
+        wandb_ids = []
+    elif(key == "LogVarLoss_frozen"):
+        wandb_ids = []
+    return wandb_ids
+
+def GMM_DBS(key):
+    #wandb_ids = ["amber-smoke-4", "lilac-plant-3", "crimson-eon-2", "helpful-thunder-1"]
+    if(key == "rKL_frozen"):
+        wandb_ids = ["vivid-forest-40", "peachy-morning-37", "restful-vortex-31"]
+    elif(key == "rKL_logderiv"):
+        wandb_ids = ["sweet-monkey-34", "efficient-sky-27", "chocolate-hill-17"]
+    elif(key == "rKL_logderiv_frozen"):
+        wandb_ids = ["true-fog-33", "spring-pond-26", "prime-wood-14"]
+    elif(key == "LogVarLoss"):
+        wandb_ids = ["pious-plasma-35", "swept-snowflake-38", "trim-wildflower-32"]
+    elif(key == "LogVarLoss_frozen"):
+        wandb_ids = ["fanciful-firefly-39", "confused-tree-36", "playful_haze"]
+    return wandb_ids
+
+def Funnel_DBS(key):
+    #wandb_ids = ["amber-smoke-4", "lilac-plant-3", "crimson-eon-2", "helpful-thunder-1"]
+    if(key == "rKL_frozen"):
+        wandb_ids = []
+    elif(key == "rKL_logderiv"):
+        wandb_ids = []
+    elif(key == "rKL_logderiv_frozen"):
+        wandb_ids = []
+    elif(key == "rKL_logderiv_off_policy"):
+        wandb_ids = []
+    elif(key == "LogVarLoss"):
+        wandb_ids = []
+    elif(key == "LogVarLoss_frozen"):
+        wandb_ids = []
     return wandb_ids
 
 if(__name__ == "__main__"):

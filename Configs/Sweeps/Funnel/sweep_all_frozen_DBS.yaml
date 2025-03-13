@@ -1,5 +1,5 @@
 program: main.py
-project: laplace_5-D_explore_final
+project: Funnel_gridsearch_11_03_DBS_all_frozen
 command:
   - ${env}
   - python
@@ -8,7 +8,6 @@ command:
   - --use_interpol_gradient
   - --use_normal
   - --gridsearch
-  - --use_off_policy
 method: grid
 metric:
   name: "Free_Energy_at_T=1"
@@ -17,43 +16,31 @@ metric:
 # name: GMM Bridge LV, use_off_policy, 2k Steps, SDE-learning, n_part 3 SCAN T
 name: gridsearch
 parameters:
-  n_particles:
-    value: 50
+  learn_SDE_params_mode:
+    value: prior_only
   Energy_Config:
-    value: StudentTMixture
+    value: Funnel
+  n_particles:
+    value: 10
   GPU:
     value: -1
   N_anneal:
-    value: 1200
+    value: 800
   base_net:
-    values: [Vanilla]
+    value: PISgradnet
   SDE_Loss:
-    values: [Bridge_rKL_logderiv]
+    values: [Bridge_rKL_logderiv, Bridge_rKL, Bridge_LogVarLoss]
   SDE_Type:
     value: Bridge_SDE
   SDE_lr:
-    values: [0.001, 0.0005]
-  T_start:
-    values: [ 2.]
-  laplace_width:
-    values: [1., 1.2, 1.1]
-  mixture_probs:
-    values: [0.1, 0.3, 0.5]
-  off_policy_mode:
-    values: ["laplace"]
-  quantile: 
-    values: [0.]
-  n_eval_samples:
-    values: [16000]
-  weight_temperature:
-    values: [1.]
+    values: [0.0005, 0.0001, 0.00005]
   Interpol_lr:
-    values: [0.01, 0.001]
-  beta_schedule:
-    values: ["constant"]
-  network_init:
-    values: ["zeros"]
+    values: [0.00]
+  Bridge_Type:
+    value: "DBS"
   T_end:
+    value: 1.
+  T_start:
     value: 1.
   batch_size:
     value: 2000
@@ -66,9 +53,9 @@ parameters:
   n_integration_steps:
     value: 128
   beta_max:
-    values: [1.]
+    values: [0.1, 0.3]
   sigma_init:
-    values: [1.]
+    values: [1, 0.5]
   model_seeds:
     # values: [1]
     values: [0]

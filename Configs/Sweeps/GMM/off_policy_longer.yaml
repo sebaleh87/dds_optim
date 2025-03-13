@@ -18,13 +18,13 @@ metric:
 name: gridsearch
 parameters:
   n_particles:
-    value: 50
+    value: 5
   Energy_Config:
-    value: StudentTMixture
+    value: GMMDistrax
   GPU:
     value: -1
   N_anneal:
-    value: 1200
+    value: 4000
   base_net:
     values: [Vanilla]
   SDE_Loss:
@@ -32,13 +32,13 @@ parameters:
   SDE_Type:
     value: Bridge_SDE
   SDE_lr:
-    values: [0.001, 0.0005]
+    values: [0.001, 0.005]
   T_start:
     values: [ 2.]
   laplace_width:
-    values: [1., 1.2, 1.1]
+    values: [1.8, 1.2]
   mixture_probs:
-    values: [0.1, 0.3, 0.5]
+    values: [0.5, 1.]
   off_policy_mode:
     values: ["laplace"]
   quantile: 
@@ -48,7 +48,7 @@ parameters:
   weight_temperature:
     values: [1.]
   Interpol_lr:
-    values: [0.01, 0.001]
+    values: [0.01]
   beta_schedule:
     values: ["constant"]
   network_init:
