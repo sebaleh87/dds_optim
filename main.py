@@ -95,7 +95,7 @@ parser.add_argument("--learn_interpolation_params", action='store_true', default
 parser.add_argument('--no-learn_interpolation_params', dest='learn_interpolation_params', action='store_false', help='flag which enables learning of interpolation params between pror and target distributio')
 
 
-parser.add_argument('--use_normal', action='store_true', default=False, help='gradient of energy function is added to the score as in Denoising Diffusion Samplers')
+parser.add_argument('--use_normal', action='store_true', default=True, help='gradient of energy function is added to the score as in Denoising Diffusion Samplers')
 parser.add_argument('--no-use_normal', dest='use_normal', action='store_false', help='if false parameterize energy function gradient as in Learning to learn by gradient descent by gradient descent')
 
 parser.add_argument("--SDE_time_mode", type=str, default="Discrete_Time", choices=["Discrete_Time", "Continuous_Time"], help="SDE Time Mode")

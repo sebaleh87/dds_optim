@@ -1,5 +1,5 @@
 program: main.py
-project: GMMDistrax_gridsearch_02_03_DBS
+project: GMMDistrax_gridsearch_10_03_DBS
 command:
   - ${env}
   - python
@@ -55,9 +55,9 @@ parameters:
   n_integration_steps:
     value: 128
   beta_max:
-    values: [1., 1.5]
+    values: [1.5, 2.5]
   sigma_init:
-    values: [80.]
+    values: [80., 60.]
   model_seeds:
     # values: [1]
     values: [0]

@@ -32,6 +32,9 @@ class VanillaBaseModelClass(nn.Module):
             self.encode_model = get_network(self.network_config, self.SDE_Loss_Config)
             self.decode_model = get_network(self.network_config, self.SDE_Loss_Config)
 
+        if(self.bridge_type == "DBS"):
+            raise ValueError("DBS not implemented for VanillaBaseModelClass because forward and backward parameters are not independent")
+
         
     @nn.compact
     def __call__(self, in_dict, train = False, forw_mode = "diffusion"): # forw_mode is either diffusion, encode, or decode
@@ -186,6 +189,7 @@ class VanillaBaseModelClass(nn.Module):
             overall_score = self.parameterize_score(out_dict, grad_drift, correction_drift, grad, grad_detach)
 
             if(self.bridge_type == "DBS"):
+                raise ValueError("DBS not implemented for Bridge_SDE")
                 grad_drift, correction_drift = self.get_drifts(time_encoding, embedding, x_dim)
                 forward_score = self.parameterize_score(out_dict, grad_drift, correction_drift, grad, grad_detach)
                 out_dict["forward_score"] = forward_score

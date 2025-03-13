@@ -233,7 +233,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
     def sample_noise(self, SDE_params, x, t, dt, key, sigma_scale_factor = 1.):
         key, subkey = random.split(key)
 
-        if(False): #self.config["use_off_policy"] and (self.config["off_policy_mode"] == "laplace" or self.config["off_policy_mode"] == "gaussian")):
+        if(self.config["use_off_policy"] and (self.config["off_policy_mode"] == "laplace" or self.config["off_policy_mode"] == "gaussian")):
             decay_value = sigma_scale_factor - 1.
             curr_mixture_prob = self.mixture_prob*decay_value
             entropy_factor = self.laplace_width
@@ -466,7 +466,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
             last_forward_drift = diffusion_final**2*apply_model_dict["forward_score"]
             forward_drifts = jnp.concatenate([SDE_tracker_steps["forward_drifts"], last_forward_drift[None, :]], axis = 0)
             forward_drifts_next = forward_drifts[1:]
-            forward_drift = forward_drifts_next
+            forward_drift = -forward_drifts_next
         else:
             forward_drifts_next = reverse_drifts[1:]            
             forward_drift = (diffusion_next**2*grads_next - forward_drifts_next)
