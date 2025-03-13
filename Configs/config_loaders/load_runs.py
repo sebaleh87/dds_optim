@@ -132,15 +132,15 @@ def GMM(key):
 def MoS_DBS(key):
     #wandb_ids = ["amber-smoke-4", "lilac-plant-3", "crimson-eon-2", "helpful-thunder-1"]
     if(key == "rKL_frozen"):
-        wandb_ids = []
+        wandb_ids = ["tough-waterfall-17", "skilled-disco-9", "fiery-sun-4"]
     elif(key == "rKL_logderiv"):
-        wandb_ids = []
+        wandb_ids = ["drawn-fire-34", "sage-eon-32", "likely-oath-29"]
     elif(key == "rKL_logderiv_frozen"):
-        wandb_ids = []
+        wandb_ids = ["robust-cosmos-33", "restful-sound-31", "polar-aardvark-30"]
     elif(key == "LogVarLoss"):
-        wandb_ids = []
+        wandb_ids = ["swept-wind-16", "eager-eon-10", "graceful-eon-5"]
     elif(key == "LogVarLoss_frozen"):
-        wandb_ids = []
+        wandb_ids = ["misty-microwave-15", "major-planet-6", "colorful-morning-2"]
     return wandb_ids
 
 def GMM_DBS(key):

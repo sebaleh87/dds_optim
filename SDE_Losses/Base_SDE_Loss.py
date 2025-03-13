@@ -21,7 +21,7 @@ class Base_SDE_Loss_Class:
         self.model = model
         self.x_dim = self.EnergyClass.dim_x
 
-        self.optimizer_type = SDE_config["optimizer"]
+        self.optimizer_type = SDE_config.get("optimizer", "ADAM")
         if(self.optimizer_type == "ADAM"):
             self.optax_chain = lambda schedule_func, clip_value: optax.chain(optax.zero_nans(), optax.clip_by_global_norm(clip_value), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -schedule_func(epoch)))
         elif(self.optimizer_type == "SGD"):
@@ -58,7 +58,7 @@ class Base_SDE_Loss_Class:
         self.vmap_drift_divergence = jax.vmap(self.SDE_type.get_div_drift, in_axes = (None, 0))
         self.vmap_get_log_prior = jax.vmap(self.SDE_type.get_log_prior, in_axes = (None, 0))
         self.optim_mode = "equilibrium"
-        self.natural_gradient_mode = SDE_Type_Config["natural_gradient_mode"]
+        self.natural_gradient_mode = SDE_Type_Config.get("natural_gradient_mode", None)
 
 
     def _init_lr_schedule(self, l_max, l_start, lr_min, overall_steps, warmup_steps):

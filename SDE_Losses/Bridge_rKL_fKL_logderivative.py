@@ -9,7 +9,9 @@ from jax import nn
 
 ### TODO implement add Bridge_rKL_rKL_logderiv_Loss_Class to SDE_Loss_registry in __init__.py and also to argparse in main.py
 
-class Bridge_rKL_rKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
+### try out on GMM-2D and if it works try out sweeps in Configs/Sweeps/GMM/
+
+class Bridge_rKL_fKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
 
     def __init__(self, SDE_config, Optimizer_Config,  EnergyClass, Network_Config, model):
         super().__init__(SDE_config, Optimizer_Config, EnergyClass, Network_Config, model)

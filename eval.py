@@ -7,37 +7,67 @@ from tqdm.auto import tqdm
 import argparse
 from Trainer.train import TrainerClass
 
+# def go_deeper_or_add_key(config, padd_keys, padd_key):
+#     if(isinstance(config[padd_key], dict)):
+#         go_deeper_or_add_key(config[padd_key], padd_keys[padd_key], padd_key)
+#     else:
+#         for sub_key in padd_key_dict[padd_key]:
+#             if sub_key not in config[key]:
+#                 config[key][sub_key] = padd_key_dict[key][sub_key]
+#                 print(key, sub_key, "added to config")
+
+# def config_completer(config):
+#     ### adds keys to default if key is missing
+#     padd_key_dict = {"SDE_Loss_Config": {"SDE_Type_Config":{"natural_gradient": False}}}
+
+#     for key in config:
+#         if key in padd_key_dict.keys():
+#             if(isinstance(config[key], dict)):
+                
+#             else:
+#                 for sub_key in padd_key_dict[key]:
+#                     if sub_key not in config[key]:
+#                         config[key][sub_key] = padd_key_dict[key][sub_key]
+#                         print(key, sub_key, "added to config")
+
+#     return config
+
+
+def load_params_and_config(wandb_run_name, metric = "Sinkhorn"):
+    script_dir = os.path.dirname(os.path.abspath(__file__)) + "/TrainerCheckpoints/" + wandb_run_name + "/"
+    filename = f"best_{metric}_checkpoint.pkl"
+    # files = os.listdir(script_dir)
+    # print("Files in directory:", files)
+
+    file_path = script_dir + filename
+    if not os.path.isfile(file_path):
+        raise FileNotFoundError(f"No such file: '{file_path}'")
+    with open(file_path, "rb") as f:
+        data = pickle.load(f)
+    return data["params"], data["config"]
+
 
 class EvaluatorClass(TrainerClass):
-    def __init__(self, base_config, wandb_id, wandb_run_name):
-        self.eval_wandb_id = wandb_id
+    def __init__(self, base_config, wandb_run_name, param_dict, project="DDS_evaluation"):
+
         self.wandb_run_name = wandb_run_name
         super().__init__(base_config)
-        wandb.finish()
+        self.params = param_dict["model_params"]
+        self.SDE_LossClass.Interpol_params = param_dict["Interpol_params"]
+        self.SDE_LossClass.SDE_params = param_dict["SDE_params"]
         wandb.init(
-            resume="never",
-            reinit=True,
-            project="DDS_evaluation",
+            project=project,
             config={
-                "original_run": wandb_id,
                 "wandb_run_name": wandb_run_name,
                 "n_eval_samples": base_config["n_eval_samples"],
                 "config": base_config,
             }
         )
 
+
     def _init_Network(self):
         """Override parent's network initialization to prevent weight initialization"""
         pass
-
-    def load_params_and_config(self, filename="params_and_config.pkl"):
-        script_dir = os.path.dirname(os.path.abspath(__file__)) + "/TrainerCheckpoints/" + self.wandb_run_name + "/"
-        file_path = script_dir + filename
-        if not os.path.isfile(file_path):
-            raise FileNotFoundError(f"No such file: '{file_path}'")
-        with open(file_path, "rb") as f:
-            data = pickle.load(f)
-        return data["params"]
 
     def load_original_weights(self):
         """Load weights from original training run"""
@@ -55,7 +85,7 @@ class EvaluatorClass(TrainerClass):
         """
         Evaluate the model in a specified number of chunks.
         """
-
+        temp = 1.
         n_chunks = chunk_size
         samples_per_chunk = n_eval_samples // n_chunks
         leftover = n_eval_samples % n_chunks
@@ -71,9 +101,9 @@ class EvaluatorClass(TrainerClass):
 
             SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan(
                 self.params,
-                self.SDE_LossClass.Energy_params,
+                self.SDE_LossClass.Interpol_params,
                 self.SDE_LossClass.SDE_params,
-                key,
+                temp, key, sample_mode = "train",
                 n_integration_steps=self.n_integration_steps,
                 n_states=curr_chunk_size
             )
@@ -143,10 +173,11 @@ def parse_energy_config_array(config_dict, key):
     except (ValueError, SyntaxError) as e:
         raise
 
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--wandb_id", type=str, required=True, help="Wandb ID of run to evaluate")
-    parser.add_argument("--wandb_run_name", type=str, required=True, help="Wandb run name of run to evaluate")
+    parser.add_argument("--wandb_run_name", default = "dandy-energy-6", type=str, help="Wandb run name of run to evaluate")
+    parser.add_argument("--checkpoint_metric", default = "Sinkhorn", choices=["Free_Energy_at_T=1", "Sinkhorn"], type=str, help="Wandb run name of run to evaluate")
     parser.add_argument("--n_eval_samples", type=int, default=10000)
     parser.add_argument("--chunk_size", type=int, default=1000)
     parser.add_argument("--GPU", type=int, default=0)
@@ -156,9 +187,7 @@ def main():
     if args.GPU >= 0:
         os.environ["CUDA_VISIBLE_DEVICES"] = str(args.GPU)
 
-    api = wandb.Api()
-    original_run = api.run(f"bartmann-jku-linz/DDS_GaussianMixtureClass_/{args.wandb_id}")
-    config = original_run.config
+    params, config = load_params_and_config(args.wandb_run_name, metric = args.checkpoint_metric)
     
     if "EnergyConfig" in config:
         for key in ["means", "variances"]:
@@ -167,8 +196,9 @@ def main():
 
     config.update({"n_eval_samples": args.n_eval_samples})
 
-    evaluator = EvaluatorClass(config, args.wandb_id, args.wandb_run_name)
-    evaluator.load_original_weights()
+    #config = config_completer(config)
+    evaluator = EvaluatorClass(config, args.wandb_run_name, params)
+
     metrics = evaluator.chunk_evaluate(args.n_eval_samples, args.chunk_size)
     wandb.log({ f"eval/{key}": metrics[key] for key in metrics.keys()})
     evaluator.generate_plots()
