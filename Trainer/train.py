@@ -16,8 +16,9 @@ from matplotlib import pyplot as plt
 from Metrics.optimal_transport import SD  # Import the Sinkhorn divergence class
 
 class TrainerClass:
-    def __init__(self, base_config):
+    def __init__(self, base_config, mode = "train"):
         self.config = base_config
+        self.mode = mode
 
         AnnealConfig = base_config["Anneal_Config"]
         Energy_Config = base_config["EnergyConfig"]
@@ -42,7 +43,7 @@ class TrainerClass:
         # Generate ground truth samples for SD metric if available
         if hasattr(self.EnergyClass, 'has_tractable_distribution') and self.EnergyClass.has_tractable_distribution:
             n_samples = [self.config["n_eval_samples"]]
-            print("Warning: sample shave to be rescaled for GMMDistraxRandom")
+            print("Warning: samples have to be rescaled for GMMDistraxRandom")
             
             key = jax.random.PRNGKey(self.config["sample_seed"])
             reps = 1
@@ -200,8 +201,9 @@ class TrainerClass:
 
 
     def _init_wandb(self):
-        wandb.init(project=f"DDS_{self.EnergyClass.config['name']}_{self.config['project_name']}_dim_{self.EnergyClass.dim_x}", config=self.config)
-        self.wandb_id = wandb.run.name
+        if(self.mode == "train"):
+            wandb.init(project=f"DDS_{self.EnergyClass.config['name']}_{self.config['project_name']}_dim_{self.EnergyClass.dim_x}", config=self.config)
+            self.wandb_id = wandb.run.name
 
     def plot_figures(self, SDE_tracer, epoch, sample_mode = "train"):
         overall_dict = {}
@@ -417,7 +419,8 @@ class TrainerClass:
             del self.aggregated_out_dict
             #print({key: np.exp(dict_val) for key, dict_val in self.SDE_LossClass.SDE_params.items()})
 
-        self.save_params_and_config(params, self.config, filename="params_and_config_train_end.pkl") ### save parameters at the end of training
+        param_dict = self.SDE_LossClass.get_param_dict(params)
+        self.save_params_and_config(param_dict, self.config, filename="params_and_config_train_end.pkl") ### save parameters at the end of training
         # Load the appropriate checkpoint based on whether we have a tractable distribution
         try:
             checkpoint_filename = "best_Sinkhorn_checkpoint.pkl" if hasattr(self, 'sd_calculator') else "best_Free_Energy_at_T=1_checkpoint.pkl"
