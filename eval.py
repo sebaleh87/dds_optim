@@ -1,12 +1,11 @@
 import os
 import pickle
 import wandb
-import jax
 import numpy as np
 from tqdm.auto import tqdm
 import argparse
 from Trainer.train import TrainerClass
-
+import jax
 # def go_deeper_or_add_key(config, padd_keys, padd_key):
 #     if(isinstance(config[padd_key], dict)):
 #         go_deeper_or_add_key(config[padd_key], padd_keys[padd_key], padd_key)
@@ -33,11 +32,11 @@ from Trainer.train import TrainerClass
 #     return config
 
 
-def load_params_and_config(wandb_run_name, metric = "Sinkhorn"):
+def load_params_and_config(wandb_run_name, filename = "params_and_config_train_end.pkl"):
     script_dir = os.path.dirname(os.path.abspath(__file__)) + "/TrainerCheckpoints/" + wandb_run_name + "/"
-    filename = f"best_{metric}_checkpoint.pkl"
-    # files = os.listdir(script_dir)
-    # print("Files in directory:", files)
+    #filename = f"best_{metric}_checkpoint.pkl"
+    files = os.listdir(script_dir)
+    print("Files in directory:", files)
 
     file_path = script_dir + filename
     if not os.path.isfile(file_path):
@@ -51,7 +50,7 @@ class EvaluatorClass(TrainerClass):
     def __init__(self, base_config, wandb_run_name, param_dict, project="DDS_evaluation"):
 
         self.wandb_run_name = wandb_run_name
-        super().__init__(base_config)
+        super().__init__(base_config, mode = "eval")
         self.params = param_dict["model_params"]
         self.SDE_LossClass.Interpol_params = param_dict["Interpol_params"]
         self.SDE_LossClass.SDE_params = param_dict["SDE_params"]
@@ -176,18 +175,18 @@ def parse_energy_config_array(config_dict, key):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--wandb_run_name", default = "dandy-energy-6", type=str, help="Wandb run name of run to evaluate")
-    parser.add_argument("--checkpoint_metric", default = "Sinkhorn", choices=["Free_Energy_at_T=1", "Sinkhorn"], type=str, help="Wandb run name of run to evaluate")
+    parser.add_argument("--wandb_run_name", default = "dry-silence-17", type=str, help="Wandb run name of run to evaluate")
+    parser.add_argument("--checkpoint_metric", default = "params_and_config_train_end.pkl", choices=["params_and_config_train_end.pkl","Free_Energy_at_T=1", "Sinkhorn"], type=str, help="Wandb run name of run to evaluate")
     parser.add_argument("--n_eval_samples", type=int, default=10000)
     parser.add_argument("--chunk_size", type=int, default=1000)
     parser.add_argument("--GPU", type=int, default=0)
     args = parser.parse_args()
 
     # Set GPU
-    if args.GPU >= 0:
-        os.environ["CUDA_VISIBLE_DEVICES"] = str(args.GPU)
+    os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID" 
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.GPU)
 
-    params, config = load_params_and_config(args.wandb_run_name, metric = args.checkpoint_metric)
+    params, config = load_params_and_config(args.wandb_run_name)
     
     if "EnergyConfig" in config:
         for key in ["means", "variances"]:

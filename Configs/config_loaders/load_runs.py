@@ -3,11 +3,11 @@ from loading import load_config
 import matplotlib.pyplot as plt
 import os
 
-def compute_average_and_variance(curve_per_seed):
+def compute_average_and_variance(curve_per_seed, round_mean = 2, round_sdt = 3):
     mean_over_seeds = np.mean(curve_per_seed)
     std_over_seeds = np.std(curve_per_seed)/np.sqrt(len(curve_per_seed))
-    mean_over_seeds_rounded = np.round(mean_over_seeds, 2)
-    std_over_seeds_rounded = np.round(std_over_seeds, 3)
+    mean_over_seeds_rounded = np.round(mean_over_seeds, round_mean)
+    std_over_seeds_rounded = np.round(std_over_seeds, round_sdt)
     return mean_over_seeds_rounded, std_over_seeds_rounded
 
 ### TODO use new runs
@@ -102,31 +102,31 @@ def Funnel(key):
 def MoS(key):
     #wandb_ids = ["amber-smoke-4", "lilac-plant-3", "crimson-eon-2", "helpful-thunder-1"]
     if(key == "rKL_frozen"):
-        wandb_ids = ["apricot-jazz-15", "charmed-silence-25", "morning-sun-33"]
+        wandb_ids = ["elderberry-meringue-10", "buttermilk-brownie-4"]
     elif(key == "rKL_logderiv"):
-        wandb_ids = ["zany-fog-28", "lunar-silence-22", "lemon-monkey-31"]
+        wandb_ids = ["bumbleberry-cake-13", "chocolate-strudel-8", "peach-tart-1"]
     elif(key == "rKL_logderiv_frozen"):
-        wandb_ids = ["snowy-cherry-32", "gallant-rain-34", "vocal-sponge-35"]
+        wandb_ids = ["bumbleberry-pastry-11", "carrant-flambee-6", "hershey-flan-3"]
     elif(key == "LogVarLoss"):
-        wandb_ids = ["major-haze-27", "sunny-smoke-21", "eternal-fog-17"]
+        wandb_ids = ["custard_brulee-14", "pumpkin-pastry-9", "key-lime-crumble-2"]
     elif(key == "LogVarLoss_frozen"):
-        wandb_ids = ["warm-voice-26", "expert-vortex-20", "effortless-resonance-14"]
+        wandb_ids = ["butterscotch-brulee-12", "spiced-bun-7", "buttermilk-cake-5"]
     return wandb_ids
 
 def GMM(key):
     #wandb_ids = ["amber-smoke-4", "lilac-plant-3", "crimson-eon-2", "helpful-thunder-1"]
     if(key == "rKL_frozen"):
-        wandb_ids = ["eager-darkness-13", "serene-feather-14", "dulcet-hill-15"]
+        wandb_ids = ["stilted-wildflower-21", "dry-silence-17", "celestial-feather-11"]
     elif(key == "rKL_logderiv"):
-        wandb_ids = ["dandy-energy-6", "toasty-salad-5", "volcanic-mountain-1"]
+        wandb_ids = ["gallant-monkey-1", "fresh-dream-9", "rosy-fire-15"]
     elif(key == "rKL_logderiv_frozen"):
-        wandb_ids = ["dry-frost-12", "curious-flower-10", "sunny-puddle-8"]
+        wandb_ids = ["smart-forest-20", "fluent-terrain-16", "fearless-frost-10"]
     # elif(key == "rKL_logderiv_off_policy"):
     #     wandb_ids = ["curious-deluge-18", "prime-tarrain-17", "peach-sound-16"]
     elif(key == "LogVarLoss"):
-        wandb_ids = ["generous-sun-4", "pious-deluge-3", "ruby-blaze-2"]
+        wandb_ids = ["valiant-serenity-19", "misunderstood-dragon-14", "splendid-grass-8"]#["generous-sun-4", "pious-deluge-3", "ruby-blaze-2"]
     elif(key == "LogVarLoss_frozen"):
-        wandb_ids = ["dashing-shadow-11", "exalted-lion-9", "morning-star-7"]
+        wandb_ids = ["prime-totem-18", "curious-bee-13", "solar-violet-12"]
     return wandb_ids
 
 def MoS_DBS(key):
@@ -154,29 +154,28 @@ def GMM_DBS(key):
     elif(key == "LogVarLoss"):
         wandb_ids = ["pious-plasma-35", "swept-snowflake-38", "trim-wildflower-32"]
     elif(key == "LogVarLoss_frozen"):
-        wandb_ids = ["fanciful-firefly-39", "confused-tree-36", "playful_haze"]
+        wandb_ids = ["fanciful-firefly-39", "confused-tree-36", "playful-haze-30"]
     return wandb_ids
 
 def Funnel_DBS(key):
     #wandb_ids = ["amber-smoke-4", "lilac-plant-3", "crimson-eon-2", "helpful-thunder-1"]
     if(key == "rKL_frozen"):
-        wandb_ids = []
+        wandb_ids = ["iconic-pine-20", "golden-dawn-15", "glamorous-dragon-10"]
     elif(key == "rKL_logderiv"):
-        wandb_ids = []
+        wandb_ids = ["pious-terrain-16", "feasible-aardvark-11", "splendid-wildflower-8"]
     elif(key == "rKL_logderiv_frozen"):
-        wandb_ids = []
-    elif(key == "rKL_logderiv_off_policy"):
-        wandb_ids = []
+        wandb_ids = ["young-forest-18", "silver-salad-13", "misty-plant-7"]
     elif(key == "LogVarLoss"):
-        wandb_ids = []
+        wandb_ids = ["faithful-yogurt-17", "fine-silence-12", "smart-leaf-6"]
     elif(key == "LogVarLoss_frozen"):
-        wandb_ids = []
+        wandb_ids = ["leafy-haze-19", "gentle-sponge-14", "wise-lake-9"]
     return wandb_ids
 
 if(__name__ == "__main__"):
     loss_keys = ["rKL_frozen", "rKL_logderiv", "rKL_logderiv_frozen", "LogVarLoss", "LogVarLoss_frozen"]
 
-    problem_list = {"Seeds":  Seeds, "Sonar": Sonar, "Credit": Credit, "Funnel": Funnel, "Brownian": Brownian, "LGCP": LGCP, "GMM": GMM, "MoS": MoS} #"Brownian": Brownian, #"LGCP": LGCP
+    problem_list = {"Seeds":  Seeds, "Sonar": Sonar, "Credit": Credit, "Funnel": Funnel, "Brownian": Brownian, 
+                    "LGCP": LGCP, "GMM": GMM, "GMM-DBS": GMM_DBS, "MoS-DBS": MoS_DBS, "Funnel-DBS": Funnel_DBS}#"MoS": MoS} #"Brownian": Brownian, #"LGCP": LGCP
     k = 10
     for problem in problem_list.keys():
 
@@ -189,20 +188,25 @@ if(__name__ == "__main__"):
             Curves[loss_key] = {}
             Curves[loss_key]["sinkhorn_divergence"] = []
             Curves[loss_key]["Free_Energy_at_T=1"] = []
+            Curves[loss_key]["log_Z_at_T=1"] = []
+            Curves[loss_key]["EMC"] = []
 
             for wandb_id in problem_list[problem](loss_key):
                 metric_dict = load_config(wandb_id)
                 #print(metric_dict.keys())
                 if("sinkhorn_divergence" in metric_dict.keys()):
                     Curves[loss_key]["sinkhorn_divergence"].append(np.array(metric_dict["sinkhorn_divergence"]))
-
+                if("EMC" in metric_dict.keys()):
+                    Curves[loss_key]["EMC"].append(np.array(metric_dict["EMC"]))
+                if("log_Z_at_T=1" in metric_dict.keys()):
+                    Curves[loss_key]["log_Z_at_T=1"].append(np.array(metric_dict["log_Z_at_T=1"]))
                 Curves[loss_key]["Free_Energy_at_T=1"].append(np.array(metric_dict["Free_Energy_at_T=1"]))
             
             #[print(curve) for curve in Curves]
             print(problem ,loss_key)
             if("sinkhorn_divergence" in metric_dict.keys()):
                 factor = int(4000/50)
-                if(problem == "MoS" or problem == "GMM"):
+                if("MoS" in problem or "GMM" in problem):
                     pad_idx = 2
                 else:
                     pad_idx = 0
@@ -210,16 +214,27 @@ if(__name__ == "__main__"):
                 #min_args = [(pad_idx + np.argmin(value[pad_idx:])) for value in Curves[loss_key]["sinkhorn_divergence"]]
                 min_args = [-1 for value in Curves[loss_key]["sinkhorn_divergence"]]
                 sink_value_per_seed = np.array([Curves[loss_key]["sinkhorn_divergence"][seed_idx][arg] for seed_idx, arg in enumerate(min_args)])
-                Free_energy_value_per_seed = np.array([Curves[loss_key]["Free_Energy_at_T=1"][seed_idx][arg*factor] for seed_idx, arg in enumerate(min_args)])
+                Free_energy_value_per_seed = np.array([Curves[loss_key]["Free_Energy_at_T=1"][seed_idx][arg] for seed_idx, arg in enumerate(min_args)])
+
+
                 sink_mean_over_seeds_rounded, sink_std_over_seeds_rounded = compute_average_and_variance(sink_value_per_seed)
                 Free_energy_mean_over_seeds_rounded, Free_energy_std_over_seeds_rounded = compute_average_and_variance(Free_energy_value_per_seed)
+
                 print("Sinkhorn", f"${sink_mean_over_seeds_rounded:.2f}"+ r"\text{\tiny{$\pm " +  f"{sink_std_over_seeds_rounded}$" + "}}$")
                 print("Free Energy", f"${-Free_energy_mean_over_seeds_rounded:.2f}"+ r"\text{\tiny{$\pm " +  f"{Free_energy_std_over_seeds_rounded}$" + "}}$")
+
+                if(len(Curves[loss_key]["log_Z_at_T=1"]) > 0):
+                    log_Z_value_per_seed = np.array([Curves[loss_key]["log_Z_at_T=1"][seed_idx][arg] for seed_idx, arg in enumerate(min_args)])
+                    log_Z_mean_over_seeds_rounded, log_Z_std_over_seeds_rounded = compute_average_and_variance(log_Z_value_per_seed)
+                    print("log_Z", f"${log_Z_mean_over_seeds_rounded:.2f}"+ r"\text{\tiny{$\pm " +  f"{log_Z_std_over_seeds_rounded}$" + "}}$")
+                if(len(Curves[loss_key]["EMC"]) > 0):                    
+                    EMC_value_per_seed = np.array([Curves[loss_key]["EMC"][seed_idx][arg] for seed_idx, arg in enumerate(min_args)])   
+                    EMC_mean_over_seeds_rounded, EMC_std_over_seeds_rounded = compute_average_and_variance(EMC_value_per_seed, round_mean=4, round_sdt=5)  
+                    print("EMC", f"${EMC_mean_over_seeds_rounded:.3f}"+ r"\text{\tiny{$\pm " +  f"{EMC_std_over_seeds_rounded:.3f}$" + "}}$")
 
                 if(problem == "MoS" or problem == "GMM"):
                     average_sink_curve = np.mean(np.array([value for value in Curves[loss_key]["sinkhorn_divergence"]]), axis = 0)
                     average_free_erergy_curve = np.mean(np.array([value for value in Curves[loss_key]["Free_Energy_at_T=1"]]), axis = 0)
-
                     plt.figure(figsize=(10, 5))
 
                     plt.subplot(1, 2, 1)
@@ -248,6 +263,9 @@ if(__name__ == "__main__"):
                 mean_over_seeds_rounded, std_over_seeds_rounded = compute_average_and_variance(curve_per_seed)
                 print("Free Energy", f"${-mean_over_seeds_rounded:.2f}"+ r"\text{\tiny{$\pm " +  f"{std_over_seeds_rounded}$" + "}}$")
 
+                log_Z_value_per_seed = np.array([np.nanmin(curve) for curve in Curves[loss_key]["log_Z_at_T=1"]])
+                log_Z_mean_over_seeds_rounded, log_Z_std_over_seeds_rounded = compute_average_and_variance(log_Z_value_per_seed)
+                print("log_Z", f"${log_Z_mean_over_seeds_rounded:.2f}"+ r"\text{\tiny{$\pm " +  f"{log_Z_mean_over_seeds_rounded}$" + "}}$")
 
 
 
