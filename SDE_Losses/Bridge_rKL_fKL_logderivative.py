@@ -3,9 +3,9 @@ import jax
 from jax import numpy as jnp
 from functools import partial
 from jax import nn
-# TODO from loss_utils import fkl and rkl loss !
-# for that loss functions from Bridge_fKL_logderivative.py and Bridge_rKL_logderivative.py should be moved to loss_utils.py
-# and imported here
+from .loss_utils import compute_rKL_log_deriv, compute_fKL_log_deriv
+# Note: Functions from Bridge_fKL_logderivative.py and Bridge_rKL_logderivative.py 
+# have been moved to loss_utils.py and are imported here
 
 ### TODO implement add Bridge_rKL_rKL_logderiv_Loss_Class to SDE_Loss_registry in __init__.py and also to argparse in main.py
 
@@ -59,15 +59,28 @@ class Bridge_rKL_fKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
                         off_policy_weights_normed_times_n_samples, use_off_policy = True)
         else:
             off_policy_weights_normed_times_n_samples = 1.
-            fKL_loss, fKL_L1, fKL_L2 = None ### TODO import fKL loss here
-            rKL_loss, rKL_L1, rKL_L2 = None ### TODO import rKL loss here
-
-            ### TODO add losses on top of each other
+            
+            # Calculate both rKL and fKL losses using the imported utility functions
+            fKL_loss, fKL_L1, fKL_L2 = compute_fKL_log_deriv(
+                self.optim_mode, log_prior, reverse_log_probs, forward_diff_log_probs, 
+                entropy_minus_noise, Energy, temp
+            )
+            
+            rKL_loss, rKL_unbiased, rKL_centered = compute_rKL_log_deriv(
+                self.optim_mode, log_prior, reverse_log_probs, forward_diff_log_probs, 
+                entropy_minus_noise, Energy, temp
+            )
+            
+            # Combine the losses
+            loss = (fKL_loss + rKL_loss)
+            L1 = (fKL_L1 + rKL_unbiased)
+            L2 = (fKL_L2 + rKL_centered)
 
         log_dict = {"loss": loss, "mean_energy": mean_Energy, "losses/L1": L1, "losses/L2": L2,
                       "best_Energy": jnp.min(Energy), "noise_loss": noise_loss, "entropy_loss": entropy_loss, "key": key, "X_0": x_last, 
                       "sigma": jnp.exp(SDE_params["log_sigma"]),"beta_min": jnp.exp(SDE_params["log_beta_min"]),
-                        "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": SDE_params["mean"], "sigma_prior": jnp.exp(SDE_params["log_sigma_prior"])
+                        "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": SDE_params["mean"], "sigma_prior": jnp.exp(SDE_params["log_sigma_prior"]),
+                        "fKL_loss": fKL_loss, "rKL_loss": rKL_loss
                         }
 
         log_dict = self.compute_partition_sum(entropy_minus_noise, jnp.zeros_like(entropy_minus_noise), log_prior, Energy, log_dict, off_policy_weights = off_policy_weights_normed_times_n_samples)
