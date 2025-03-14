@@ -1,0 +1,68 @@
+program: main.py
+project: gmm_distrax_sweep
+command:
+  - ${env}
+  - python
+  - ${program}
+  - ${args}
+  - --use_interpol_gradient
+  - --use_normal
+
+method: grid
+metric:
+  name: "Free_Energy_at_T=1"
+  goal: minimize
+
+name: GMMDistrax_Bridge_Sweep
+parameters:
+  Energy_Config:
+    value: GMMDistrax
+  N_anneal:
+    value: 4000
+  Network_Type:
+    value: FeedForward
+  SDE_Loss:
+    values: 
+      - Bridge_rKL_logderiv
+      #- Bridge_LogVarLoss
+  GPU:
+    value: -1
+
+  SDE_Type:
+    value: Bridge_SDE
+  SDE_lr:
+    value: 0.005
+  Interpol_lr:
+    value: 0.0001
+  T_end:
+    value: 1.
+  T_start:
+    values: [1.]
+  batch_size:
+    value: 2000
+  beta_min:
+    value: 0.01
+  beta_max:
+    values: [0.1, 0.5, 1., 2.]
+  feature_dim:
+    value: 128
+  n_hidden:
+    value: 128
+  n_integration_steps:
+    value: 128
+  lr:
+    value: 0.005
+  Energy_lr:
+    value: 0.0
+  repulsion_strength:
+    value: 0.0
+  sigma_init:
+    values: [1.0, 5, 10.0, 40.0, 60.0]
+  model_seed:
+    value: 0
+  n_particles:
+    value: 5
+  base_net:
+    value: PISgradnet
+
+run_cap: 50 
