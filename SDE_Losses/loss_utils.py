@@ -27,7 +27,7 @@ def compute_rKL_log_deriv(optim_mode, log_prior, reverse_log_probs, forward_diff
         unbiased_mean = jax.lax.stop_gradient(jnp.mean(radon_dykodin_derivative, keepdims=True, axis=0))
         reward = jax.lax.stop_gradient((radon_dykodin_derivative - unbiased_mean))
         L1 = jnp.mean(reward * sum_reverse_log_probs)
-        loss = L1 + jnp.mean(radon_nykodin_wo_reverse)
+        loss = jax.lax.stop_gradient(L1) + jnp.mean(radon_nykodin_wo_reverse)
 
         unbiased_loss = jnp.mean(jax.lax.stop_gradient((radon_dykodin_derivative)) * sum_reverse_log_probs) + jnp.mean(radon_nykodin_wo_reverse)
         centered_loss = L1
@@ -64,13 +64,19 @@ def compute_fKL_log_deriv(optim_mode, log_prior, reverse_log_probs, forward_diff
         # I've removed that since this needs to be a functional utility
         return loss, L1_log, L2_log
     else:
-        importance_weights = jax.lax.stop_gradient(jax.nn.softmax(radon_dykodin_derivative, axis=-1)) * radon_dykodin_derivative.shape[-1]
+        # quantile = 0.1
+        # log_max_quantile = jnp.quantile(radon_dykodin_derivative, quantile, axis = -1)
+        # log_weights_max_quantile = log_max_quantile
+        # delta_log_weights = jnp.maximum(radon_dykodin_derivative, log_weights_max_quantile)
+
+        # print(log_prior.shape, delta_log_weights.shape,log_max_quantile.shape, log_weights_max_quantile.shape)
+        importance_weights = jax.lax.stop_gradient(jax.nn.softmax(1*radon_dykodin_derivative, axis=-1)) * radon_dykodin_derivative.shape[-1]
 
         unbiased_mean = jax.lax.stop_gradient(jnp.mean(radon_dykodin_derivative, keepdims=True, axis=-1))
         reward = jax.lax.stop_gradient((radon_dykodin_derivative - unbiased_mean))
-        L1 = jnp.mean(importance_weights * reward * sum_forward_log_probs)
+        L1 = 0#jnp.mean(importance_weights * reward * sum_forward_log_probs)
         L2 = jnp.mean(importance_weights * radon_nykodin_wo_forward)
-        loss = L1 + L2
+        loss = jax.lax.stop_gradient(L1) + L2
 
         L1_log = jnp.mean(jax.lax.stop_gradient(importance_weights * radon_dykodin_derivative) * sum_forward_log_probs) 
         L2_log = jnp.mean(importance_weights * radon_nykodin_wo_forward)

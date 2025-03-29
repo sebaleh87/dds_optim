@@ -95,9 +95,9 @@ class TrainerClass:
         ###TODO if energy value and grads are not used it should not allocate parameters!!!!
         use_normal = self.SDE_Loss_Config["SDE_Type_Config"]["use_normal"]
         if(use_normal):
-            in_dict = {"x": x_init,  "t": jnp.ones((1, 1,)), "grads": grad_init}
+            in_dict = {"x": x_init,  "t": jnp.ones((1, 1,)), "grads": grad_init, "grads_T1":grad_init}
         else:
-            in_dict = {"x": x_init, "Energy_value": Energy_value,  "t": jnp.ones((1, 1,)), "grads": grad_init, "hidden_state": [(init_carry, init_carry) for i in range(self.Network_Config["n_layers"])]}
+            in_dict = {"x": x_init, "Energy_value": Energy_value,  "t": jnp.ones((1, 1,)), "grads": grad_init, "grads_T1":grad_init, "hidden_state": [(init_carry, init_carry) for i in range(self.Network_Config["n_layers"])]}
         
         if(self.Network_Config["model_mode"] == "latent"):
             in_dict["z"] = jnp.ones((1,self.Network_Config["latent_dim"] ))
@@ -242,7 +242,7 @@ class TrainerClass:
         for epoch in pbar:
             T_curr = self.AnnealClass.update_temp()
             start_time = time.time()
-            if((epoch % int(self.num_epochs/self.Optimizer_Config["epochs_per_eval"]) == 0 or epoch == 0) and not self.config["disable_jit"]):
+            if((epoch % int(self.num_epochs/self.Optimizer_Config["epochs_per_eval"]) == 0 or epoch == 0 or epoch == self.num_epochs - 1) and not self.config["disable_jit"]):
                 sampling_modes = ["eval"]
                 for sample_mode in sampling_modes:
                     n_samples = self.config["n_eval_samples"]

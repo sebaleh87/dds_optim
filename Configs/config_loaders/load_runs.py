@@ -102,13 +102,13 @@ def Funnel(key):
 def MoS(key):
     #wandb_ids = ["amber-smoke-4", "lilac-plant-3", "crimson-eon-2", "helpful-thunder-1"]
     if(key == "rKL_frozen"):
-        wandb_ids = ["elderberry-meringue-10", "buttermilk-brownie-4"]
+        wandb_ids = ["elderberry-meringue-10", "buttermilk-brownie-4", "custard-bun-15"]
     elif(key == "rKL_logderiv"):
         wandb_ids = ["bumbleberry-cake-13", "chocolate-strudel-8", "peach-tart-1"]
     elif(key == "rKL_logderiv_frozen"):
-        wandb_ids = ["bumbleberry-pastry-11", "carrant-flambee-6", "hershey-flan-3"]
+        wandb_ids = ["bumbleberry-pastry-11", "currant-flambee-6", "hershey-flan-3"]
     elif(key == "LogVarLoss"):
-        wandb_ids = ["custard_brulee-14", "pumpkin-pastry-9", "key-lime-crumble-2"]
+        wandb_ids = ["custard-brulee-14", "pumpkin-pastry-9", "key-lime-crumble-2"]
     elif(key == "LogVarLoss_frozen"):
         wandb_ids = ["butterscotch-brulee-12", "spiced-bun-7", "buttermilk-cake-5"]
     return wandb_ids
@@ -174,8 +174,8 @@ def Funnel_DBS(key):
 if(__name__ == "__main__"):
     loss_keys = ["rKL_frozen", "rKL_logderiv", "rKL_logderiv_frozen", "LogVarLoss", "LogVarLoss_frozen"]
 
-    problem_list = {"Seeds":  Seeds, "Sonar": Sonar, "Credit": Credit, "Funnel": Funnel, "Brownian": Brownian, 
-                    "LGCP": LGCP, "GMM": GMM, "GMM-DBS": GMM_DBS, "MoS-DBS": MoS_DBS, "Funnel-DBS": Funnel_DBS}#"MoS": MoS} #"Brownian": Brownian, #"LGCP": LGCP
+    problem_list = {"Seeds":  Seeds, "Sonar": Sonar, "Credit": Credit, "Funnel": Funnel, "Brownian": Brownian, "MoS": MoS,
+                    "LGCP": LGCP, "GMM": GMM, "GMM-DBS": GMM_DBS, "MoS-DBS": MoS_DBS, "Funnel-DBS": Funnel_DBS}
     k = 10
     for problem in problem_list.keys():
 

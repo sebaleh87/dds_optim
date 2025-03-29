@@ -129,7 +129,7 @@ class PisgradnetBaseClass(nn.Module):
         out_dict = {}
         input_array = in_dict["x"]
         time_array = in_dict["t"]*self.n_integration_steps
-        lgv_term = jax.lax.stop_gradient(in_dict["grads"])
+        lgv_term = jax.lax.stop_gradient(in_dict["grads_T1"])
         grad = in_dict["grads"]
 
         time_array_emb = self.get_fourier_features(time_array)

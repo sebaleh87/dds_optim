@@ -20,11 +20,11 @@ parser.add_argument("--latent_dim", type=int, default=None)
 parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=["Reverse_KL_Loss","Reverse_KL_Loss_stop_grad","LogVariance_Loss", "LogVariance_Loss_MC",  "Bridge_fKL_logderiv",
                                                                                  "LogVariance_Loss_with_grad", "LogVariance_Loss_weighted", "Reverse_KL_Loss_logderiv", "Bridge_rKL_subtraj",
                                                                                  "Bridge_rKL", "Bridge_LogVarLoss", "Bridge_rKL_logderiv", "Bridge_rKL_logderiv_DiffUCO",
-                                                                                "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam", "Bridge_fKL_subtraj", "Bridge_rKL_fKL_logderivative"], help="select loss function")
+                                                                                "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam", "Bridge_fKL_subtraj", "Bridge_rKL_fKL_logderiv"], help="select loss function")
 parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE", "VE_SDE", "Bridge_SDE", "VE_Discrete"], help="select SDE type, subVP_SDE is currently deprecated")
 parser.add_argument("--Bridge_Type", type=str, default="CMCD", choices=["CMCD", "DBS"], help="select Bridge type")
 
-parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "GMMDistrax", "GMMDistraxRandom", "GaussianMixtureToy", "Rastrigin", "LennardJones", 
+parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "GMMDistrax", "GMMDistraxScaled", "GaussianMixtureToy", "Rastrigin", "LennardJones", 
                                                                                      "DoubleWellEquivariant", "DoubleWell", "Sonar", "Funnel",
                                                                                       "Pytheus", "WavePINN_latent", "WavePINN_hyperparam", "DoubleMoon",
                                                                                       "Banana", "Brownian", "Lorenz", "Seeds", "Ionosphere", "Sonar", "LGCP", "GermanCredit", "MW54",
@@ -55,7 +55,7 @@ parser.add_argument("--learn_covar", action='store_true', default=False, help="l
 parser.add_argument("--sigma_init", type=float, default=1., help="init value of sigma")
 parser.add_argument("--repulsion_strength", type=float, default=0., help="repulsion_strength >= 0")
 parser.add_argument("--use_repulsion_energy", type=str2bool, nargs='?',
-                        const=True, default=False, help="use langevin preconditioning or not, only applies for vanilla net")
+                        const=True, default=False, help="use repulsion or not use repulsion within interpolation between prior and target")
 
 ### TODO explain the effect
 parser.add_argument('--use_off_policy', action='store_true', default=False, help='use off policy sampling')
@@ -119,6 +119,8 @@ parser.add_argument("--natural_gradient", type=str2bool, nargs='?',
                         const=True, default=False, help="for Bridges use nat gradient or not")
 parser.add_argument("--natural_gradient_mode", type=str, default="diag", choices=["diag", "blockwise"], help="mode for natural gradient")
 parser.add_argument('--gridsearch', action='store_true', default=False, help='when gridearch = True, lr is overwritten by SDE_lr')
+parser.add_argument("--float64", type=str2bool, nargs='?',
+                        const=True, default=False, help="use float 64 or not")
 
 
 args = parser.parse_args()
@@ -143,7 +145,8 @@ if(__name__ == "__main__"):
     #disable JIT compilation
     # import jax.numpy as jnp
     # import jax.lax as lax
-    #jax.config.update("jax_enable_x64", True)
+    if(args.float64):
+        jax.config.update("jax_enable_x64", True)
 
     if(args.disable_jit):
         jax.config.update("jax_disable_jit", True)
@@ -321,13 +324,15 @@ if(__name__ == "__main__"):
                 "seed": seed
 
             }
-        elif(args.Energy_Config == "GMMDistraxRandom"):
+        elif(args.Energy_Config == "GMMDistraxScaled"):
             torch.manual_seed(seed)
             #np.random.seed(42)
             dim = args.n_particles
             num_gaussians = 40
             np.random.seed(seed)
-            scales = np.random.uniform(low = 1/400, high = 1.0, size = (1, dim))
+            #scales = np.random.uniform(low = 1/400, high = 1.0, size = (1, dim))
+            ### TODO make a shedule here
+            scales = np.linspace(0.2, 1., dim, endpoint=True)[None, ...]
 
             Energy_Config = {
                 "name": "GMMDistrax",
