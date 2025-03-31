@@ -108,9 +108,9 @@ class PisgradnetBaseClass(nn.Module):
                 score = out_state + t_net2 * lgv_term
 
             if(self.bridge_type == "CMCD"):
-                overall_score = score  + grad /2    
+                score = score  + grad /2    
             else:
-                overall_score = score  
+                pass
         else:
             if(self.beta_schedule == "neural"):
                 t_net2 = time_grad_func(time_array_emb)
@@ -123,7 +123,7 @@ class PisgradnetBaseClass(nn.Module):
                 out_state = jnp.clip(out_state, -self.outer_clip, self.outer_clip)
                 score = out_state
 
-        return overall_score, out_dict
+        return score, out_dict
 
     def __call__(self, in_dict, train = False, forw_mode = "diffusion"):
         out_dict = {}
