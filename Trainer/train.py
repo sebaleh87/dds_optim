@@ -202,7 +202,7 @@ class TrainerClass:
 
     def _init_wandb(self):
         if(self.mode == "train"):
-            wandb.init(project=f"DDS_{self.EnergyClass.config['name']}_{self.config['project_name']}_dim_{self.EnergyClass.dim_x}", config=self.config)
+            wandb.init(project=f"DDS_{self.EnergyClass.config['name']}_{self.config['project_name']}_dim_{self.EnergyClass.dim_x}", config=self.config, settings=wandb.Settings(console="wrap"))
             self.wandb_id = wandb.run.name
 
     def plot_figures(self, SDE_tracer, epoch, sample_mode = "train"):
@@ -223,158 +223,28 @@ class TrainerClass:
     def train(self):
         params = self.params
         key = jax.random.PRNGKey(self.Network_Config["model_seed"])
-        Best_Energy_value_ever = np.infty
-        Best_Free_Energy_value_ever = np.infty
-        Best_Sinkhorn_value_ever = np.infty
+        self.Best_Energy_value_ever = np.infty
+        self.Best_Free_Energy_value_ever = np.infty
+        self.Best_Sinkhorn_value_ever = np.infty
 
         # Initialize metric history dictionary
-        metric_history = {}
-        best_running_avgs = {}  # Track best running averages
+        self.metric_history = {}
+        self.best_running_avgs = {}  # Track best running averages
         
-        save_metric_dict = {"Free_Energy_at_T=1": [], "ELBO_at_T=1": [], "log_Z_at_T=1": [],  "n_eff": [], "epoch": [], "EUBO_at_T=1": []}
+        self.save_metric_dict = {"Free_Energy_at_T=1": [], "ELBO_at_T=1": [], "log_Z_at_T=1": [],  "n_eff": [], "epoch": [], "EUBO_at_T=1": []}
         if hasattr(self, 'sd_calculator'):
-            save_metric_dict["sinkhorn_divergence"] = []
+            self.save_metric_dict["sinkhorn_divergence"] = []
         
         if hasattr(self.EnergyClass, 'compute_emc'):
-            save_metric_dict["EMC"] = []
+            self.save_metric_dict["EMC"] = []
 
         pbar = trange(self.num_epochs)
         for epoch in pbar:
             T_curr = self.AnnealClass.update_temp()
             start_time = time.time()
             if((epoch % int(self.num_epochs/self.Optimizer_Config["epochs_per_eval"]) == 0 or epoch == 0) and not self.config["disable_jit"]):
-                sampling_modes = ["eval"]
-                for sample_mode in sampling_modes:
-                    n_samples = self.config["n_eval_samples"]
-                    SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Interpol_params, self.SDE_LossClass.SDE_params, T_curr, key, sample_mode = sample_mode, n_integration_steps = self.n_integration_steps, n_states = n_samples)
-                    
-                    # Initialize metrics dict for this evaluation
-                    eval_metrics = {}
+                self.evaluate_model(params, key, epoch, T_curr)
 
-                    # Store metrics in history and collect for logging
-                    for metric_name, value in out_dict.items():
-                        full_metric_name = f"eval_{sample_mode}/{metric_name}"
-                        if full_metric_name not in metric_history:
-                            metric_history[full_metric_name] = []
-                        if isinstance(value, (float, np.ndarray, jnp.ndarray)):
-                            metric_history[full_metric_name].append(float(np.mean(value)))
-                            eval_metrics[f"eval_{sample_mode}/{metric_name}"] = np.mean(value)
-
-                    # Calculate Sinkhorn divergence if the energy model has a tractable distribution
-                    if hasattr(self, 'sd_calculator'):
-                        model_samples = out_dict["X_0"][0:self.n_sinkhorn_samples]
-                        distance = self.sd_calculator.compute_SD(model_samples)
-                        
-                        # Store Sinkhorn metrics
-                        sd_metric_name = f"eval_{sample_mode}/sinkhorn_divergence"
-                        if sd_metric_name not in metric_history:
-                            metric_history[sd_metric_name] = []
-                        metric_history[sd_metric_name].append(float(distance))
-                        
-                        # Add Sinkhorn to metrics dict
-                        eval_metrics[sd_metric_name] = distance
-
-                        # Save model if this is the best Sinkhorn divergence so far
-                        if sample_mode == "eval":  # Only save on eval mode
-                            Best_Sinkhorn_value_ever = self.check_improvement(params, Best_Sinkhorn_value_ever, distance, "Sinkhorn", epoch=epoch)
-                            save_metric_dict["sinkhorn_divergence"].append(distance)
-
-                        if hasattr(self.EnergyClass, 'compute_emc'):
-                            emc = self.EnergyClass.compute_emc(out_dict["X_0"])
-                            emc_metric_name = f"eval_{sample_mode}/EMC"
-                            if emc_metric_name not in metric_history:
-                                metric_history[emc_metric_name] = []
-                            metric_history[emc_metric_name].append(float(emc))
-                            eval_metrics[emc_metric_name] = emc
-
-                            if sample_mode == "eval": 
-                                save_metric_dict["EMC"].append(emc)
-
-                    # Calculate running averages for all metrics
-                    for metric_name, values in metric_history.items():
-                        if len(values) > 0:
-                            # Get current value (most recent)
-                            current_value = values[-1]
-                            eval_metrics[f"{metric_name}"] = current_value
-                            
-                            # Calculate running average of last 5 values
-                            last_n = values[-5:] if len(values) >= 5 else values
-                            running_avg = sum(last_n) / len(last_n)
-                            eval_metrics[f"{metric_name}_running_avg"] = running_avg
-                            
-                            # Get the base metric name without the eval_mode prefix
-                            base_metric_name = metric_name.split('/')[-1] if '/' in metric_name else metric_name
-                            
-                            # Update best running average based on whether metric should be maximized or minimized
-                            should_maximize = self.metric_objectives.get(base_metric_name, True)
-                            if metric_name not in best_running_avgs:
-                                best_running_avgs[metric_name] = running_avg
-                            elif should_maximize and running_avg > best_running_avgs[metric_name]:
-                                best_running_avgs[metric_name] = running_avg
-                            elif not should_maximize and running_avg < best_running_avgs[metric_name]:
-                                best_running_avgs[metric_name] = running_avg
-
-                    # Log all metrics at once
-                    wandb.log(eval_metrics, step=epoch+1)
-
-                    self.plot_figures(SDE_tracer, epoch, sample_mode = sample_mode)
-
-                
-
-                # Only save based on Energy if we don't have a tractable distribution
-                if not hasattr(self, 'sd_calculator'):
-                    Energy_values = self.SDE_LossClass.vmap_Energy_function(SDE_tracer["y_final"])
-                    Best_Free_Energy_value_ever = self.check_improvement(params, Best_Free_Energy_value_ever, np.min(Energy_values), "Energy", epoch=epoch)
-
-                if("beta_interpol_params" in self.SDE_LossClass.Interpol_params.keys()):
-                    beta_interpol_params = self.SDE_LossClass.Interpol_params["beta_interpol_params"]
-                    steps = np.arange(0,len(beta_interpol_params) +1)
-
-                    interpol_time = [self.SDE_LossClass.SDE_type.compute_energy_interpolation_time(self.SDE_LossClass.Interpol_params, t, SDE_param_key = "beta_interpol_params") for t in range(len(beta_interpol_params) + 1)]
-
-                    fig, ax = plt.subplots()
-
-                    ax.plot(steps, interpol_time, label='Beta Interpolation Parameters')
-                    ax.set_xlabel('Steps')
-                    ax.set_ylabel('Beta Interpolation Parameters')
-                    ax.set_title('Beta Interpolation Parameters over Steps')
-                    ax.legend()
-                    wandb.log({"fig/Beta_Interpolation_Parameters": wandb.Image(fig)},step=epoch+1)
-                    plt.close(fig)
-
-                if("repulsion_interpol_params" in self.SDE_LossClass.Interpol_params.keys()):
-                    #beta_interpol_params = self.SDE_LossClass.SDE_params["repulsion_interpol_params"]
-                    steps = np.arange(0,len(beta_interpol_params) +1)
-
-                    interpol_time = np.array([self.SDE_LossClass.SDE_type.compute_energy_interpolation_time(self.SDE_LossClass.Interpol_params, t, SDE_param_key = "repulsion_interpol_params") for t in range(len(beta_interpol_params) + 1)])
-
-                    fig, ax = plt.subplots()
-
-                    ax.plot(steps, interpol_time*(1-interpol_time), label='repulsion_interpol_params')
-                    ax.set_xlabel('Steps')
-                    ax.set_ylabel('repulsion_interpol_params')
-                    ax.set_title('repulsion_interpol_params over Steps')
-                    ax.legend()
-                    wandb.log({"fig/repulsion_interpol_params": wandb.Image(fig)},step=epoch+1)
-                    plt.close(fig)
-
-                if("log_beta_over_time" in self.SDE_LossClass.SDE_params.keys()):
-                    #beta_interpol_params = self.SDE_LossClass.SDE_params["repulsion_interpol_params"]
-                    sigma = jnp.exp(self.SDE_LossClass.SDE_params["log_sigma"])
-                    beta_per_step = sigma[None, :]*jnp.exp(self.SDE_LossClass.SDE_params["log_beta_over_time"])
-                    #print(beta_per_step.shape)
-                    steps = np.arange(0,len(beta_per_step) )
-                    fig, ax = plt.subplots()
-
-                    ax.plot(steps, beta_per_step, label='beta_per_step')
-                    ax.set_xlabel('T = 0 (target samples) T = T prior')
-                    ax.set_ylabel('beta_over_time')
-                    ax.set_title('beta_over_time over Steps')
-                    ax.legend()
-                    wandb.log({"fig/beta_over_time": wandb.Image(fig)},step=epoch+1)
-                    plt.close(fig)
-
-                    
             loss_list = []
             for i in range(self.Optimizer_Config["steps_per_epoch"]):
                 start_grad_time = time.time()
@@ -405,19 +275,21 @@ class TrainerClass:
             wandb.log({dict_key: np.mean(self.aggregated_out_dict[dict_key]) for dict_key in self.aggregated_out_dict}, step=epoch+1)
             wandb.log({"X_statistics/mean": np.mean(out_dict["X_0"]), "X_statistics/sdt": np.mean(np.std(out_dict["X_0"], axis = 0))}, step=epoch+1)
 
-            pbar.set_description(f"mean_loss {mean_loss:.4f}, best energy: {Best_Energy_value_ever:.4f}")
+            pbar.set_description(f"mean_loss {mean_loss:.4f}, best energy: {self.Best_Energy_value_ever:.4f}")
 
             Free_Energy_values = np.mean(self.aggregated_out_dict["Free_Energy_at_T=1"])
-            for save_key in save_metric_dict.keys():
+            for save_key in self.save_metric_dict.keys():
                 if(save_key in self.aggregated_out_dict.keys()):
-                    save_metric_dict[save_key].append(np.mean(self.aggregated_out_dict[save_key]))
+                    self.save_metric_dict[save_key].append(np.mean(self.aggregated_out_dict[save_key]))
 
-            save_metric_dict["epoch"].append(epoch)
-            self.save_metric_curves(save_metric_dict)
+            self.save_metric_dict["epoch"].append(epoch)
+            self.save_metric_curves(self.save_metric_dict)
 
             # We don't need this section anymore as model saving is handled by either Sinkhorn or Energy checks
             del self.aggregated_out_dict
             #print({key: np.exp(dict_val) for key, dict_val in self.SDE_LossClass.SDE_params.items()})
+
+        self.evaluate_model(params, key, self.num_epochs, T_curr)
 
         param_dict = self.SDE_LossClass.get_param_dict(params)
         self.save_params_and_config(param_dict, self.config, filename="params_and_config_train_end.pkl") ### save parameters at the end of training
@@ -432,13 +304,13 @@ class TrainerClass:
             n_samples = self.config["n_eval_samples"]
             SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Interpol_params, self.SDE_LossClass.SDE_params, T_curr, key, sample_mode = "eval", n_integration_steps = self.n_integration_steps, n_states = n_samples)
             
-            self.plot_figures(SDE_tracer, epoch)
+            self.plot_figures(SDE_tracer, self.num_epochs+1)
         except:
             pass
 
         # After training loop, calculate and log running averages
-        running_avg_table = self._calculate_running_averages(metric_history, best_running_avgs)
-        wandb.log({"final_metrics": running_avg_table},step=epoch+1)
+        running_avg_table = self._calculate_running_averages(self.metric_history, self.best_running_avgs)
+        wandb.log({"final_metrics": running_avg_table},step=self.num_epochs+2)
         wandb.finish()
         return params
     
@@ -521,5 +393,137 @@ class TrainerClass:
         
         with open(script_dir + f"metric_dict.pkl", "wb") as f:
             pickle.dump(save_metric_dict, f)
+
+    def evaluate_model(self, params, key, epoch, T_curr):
+        sampling_modes = ["eval"]
+        for sample_mode in sampling_modes:
+            n_samples = self.config["n_eval_samples"]
+            SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Interpol_params, self.SDE_LossClass.SDE_params, T_curr, key, sample_mode = sample_mode, n_integration_steps = self.n_integration_steps, n_states = n_samples)
+            
+            # Initialize metrics dict for this evaluation
+            eval_metrics = {}
+
+            # Store metrics in history and collect for logging
+            for metric_name, value in out_dict.items():
+                full_metric_name = f"eval_{sample_mode}/{metric_name}"
+                if full_metric_name not in self.metric_history:
+                    self.metric_history[full_metric_name] = []
+                if isinstance(value, (float, np.ndarray, jnp.ndarray)):
+                    self.metric_history[full_metric_name].append(float(np.mean(value)))
+                    eval_metrics[f"eval_{sample_mode}/{metric_name}"] = np.mean(value)
+
+            # Calculate Sinkhorn divergence if the energy model has a tractable distribution
+            if hasattr(self, 'sd_calculator'):
+                model_samples = out_dict["X_0"][0:self.n_sinkhorn_samples]
+                distance = self.sd_calculator.compute_SD(model_samples)
+                
+                # Store Sinkhorn metrics
+                sd_metric_name = f"eval_{sample_mode}/sinkhorn_divergence"
+                if sd_metric_name not in self.metric_history:
+                    self.metric_history[sd_metric_name] = []
+                self.metric_history[sd_metric_name].append(float(distance))
+                
+                # Add Sinkhorn to metrics dict
+                eval_metrics[sd_metric_name] = distance
+
+                # Save model if this is the best Sinkhorn divergence so far
+                if sample_mode == "eval":  # Only save on eval mode
+                    self.Best_Sinkhorn_value_ever = self.check_improvement(params, self.Best_Sinkhorn_value_ever, distance, "Sinkhorn", epoch=epoch)
+                    self.save_metric_dict["sinkhorn_divergence"].append(distance)
+
+                if hasattr(self.EnergyClass, 'compute_emc'):
+                    emc = self.EnergyClass.compute_emc(out_dict["X_0"])
+                    emc_metric_name = f"eval_{sample_mode}/EMC"
+                    if emc_metric_name not in self.metric_history:
+                        self.metric_history[emc_metric_name] = []
+                    self.metric_history[emc_metric_name].append(float(emc))
+                    eval_metrics[emc_metric_name] = emc
+
+                    if sample_mode == "eval": 
+                        self.save_metric_dict["EMC"].append(emc)
+
+            # Calculate running averages for all metrics
+            for metric_name, values in self.metric_history.items():
+                if len(values) > 0:
+                    # Get current value (most recent)
+                    current_value = values[-1]
+                    eval_metrics[f"{metric_name}"] = current_value
+                    
+                    # Calculate running average of last 5 values
+                    last_n = values[-5:] if len(values) >= 5 else values
+                    running_avg = sum(last_n) / len(last_n)
+                    eval_metrics[f"{metric_name}_running_avg"] = running_avg
+                    
+                    # Get the base metric name without the eval_mode prefix
+                    base_metric_name = metric_name.split('/')[-1] if '/' in metric_name else metric_name
+                    
+                    # Update best running average based on whether metric should be maximized or minimized
+                    should_maximize = self.metric_objectives.get(base_metric_name, True)
+                    if metric_name not in self.best_running_avgs:
+                        self.best_running_avgs[metric_name] = running_avg
+                    elif should_maximize and running_avg > self.best_running_avgs[metric_name]:
+                        self.best_running_avgs[metric_name] = running_avg
+                    elif not should_maximize and running_avg < self.best_running_avgs[metric_name]:
+                        self.best_running_avgs[metric_name] = running_avg
+
+            # Log all metrics at once
+            wandb.log(eval_metrics, step=epoch+1)
+
+            self.plot_figures(SDE_tracer, epoch, sample_mode = sample_mode)
+
+        
+
+        # Only save based on Energy if we don't have a tractable distribution
+        if not hasattr(self, 'sd_calculator'):
+            Energy_values = self.SDE_LossClass.vmap_Energy_function(SDE_tracer["y_final"])
+            Best_Free_Energy_value_ever = self.check_improvement(params, Best_Free_Energy_value_ever, np.min(Energy_values), "Energy", epoch=epoch)
+
+        if("beta_interpol_params" in self.SDE_LossClass.Interpol_params.keys()):
+            beta_interpol_params = self.SDE_LossClass.Interpol_params["beta_interpol_params"]
+            steps = np.arange(0,len(beta_interpol_params) +1)
+
+            interpol_time = [self.SDE_LossClass.SDE_type.compute_energy_interpolation_time(self.SDE_LossClass.Interpol_params, t, SDE_param_key = "beta_interpol_params") for t in range(len(beta_interpol_params) + 1)]
+
+            fig, ax = plt.subplots()
+
+            ax.plot(steps, interpol_time, label='Beta Interpolation Parameters')
+            ax.set_xlabel('Steps')
+            ax.set_ylabel('Beta Interpolation Parameters')
+            ax.set_title('Beta Interpolation Parameters over Steps')
+            ax.legend()
+            wandb.log({"fig/Beta_Interpolation_Parameters": wandb.Image(fig)},step=epoch+1)
+            plt.close(fig)
+
+        if("repulsion_interpol_params" in self.SDE_LossClass.Interpol_params.keys()):
+            #beta_interpol_params = self.SDE_LossClass.SDE_params["repulsion_interpol_params"]
+            steps = np.arange(0,len(beta_interpol_params) +1)
+
+            interpol_time = np.array([self.SDE_LossClass.SDE_type.compute_energy_interpolation_time(self.SDE_LossClass.Interpol_params, t, SDE_param_key = "repulsion_interpol_params") for t in range(len(beta_interpol_params) + 1)])
+
+            fig, ax = plt.subplots()
+
+            ax.plot(steps, interpol_time*(1-interpol_time), label='repulsion_interpol_params')
+            ax.set_xlabel('Steps')
+            ax.set_ylabel('repulsion_interpol_params')
+            ax.set_title('repulsion_interpol_params over Steps')
+            ax.legend()
+            wandb.log({"fig/repulsion_interpol_params": wandb.Image(fig)},step=epoch+1)
+            plt.close(fig)
+
+        if("log_beta_over_time" in self.SDE_LossClass.SDE_params.keys()):
+            #beta_interpol_params = self.SDE_LossClass.SDE_params["repulsion_interpol_params"]
+            sigma = jnp.exp(self.SDE_LossClass.SDE_params["log_sigma"])
+            beta_per_step = sigma[None, :]*jnp.exp(self.SDE_LossClass.SDE_params["log_beta_over_time"])
+            #print(beta_per_step.shape)
+            steps = np.arange(0,len(beta_per_step) )
+            fig, ax = plt.subplots()
+
+            ax.plot(steps, beta_per_step, label='beta_per_step')
+            ax.set_xlabel('T = 0 (target samples) T = T prior')
+            ax.set_ylabel('beta_over_time')
+            ax.set_title('beta_over_time over Steps')
+            ax.legend()
+            wandb.log({"fig/beta_over_time": wandb.Image(fig)},step=epoch+1)
+            plt.close(fig)
 
 
