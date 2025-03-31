@@ -106,27 +106,38 @@ class Base_SDE_Class:
     def vmap_prior_target_grad_interpolation(self, x, counter, Energy_params, SDE_params, temp, key, clip_overall_score = 10**3):
         key, subkey = random.split(key)
         batched_subkey = random.split(subkey, x.shape[0])
-        vmap_log_prob, vmap_grad = jax.vmap(self.prior_target_grad_interpolation, in_axes=(0, 0, None, None, None, 0))(x, counter, Energy_params, SDE_params, temp, batched_subkey)
-        #print("vmap_grad", jnp.mean(jax.lax.stop_gradient(vmap_grad)))
-        #vmap_grad = jnp.where(jnp.isfinite(vmap_grad), vmap_grad, 0)
+        out_dict = jax.vmap(self.prior_target_grad_interpolation, in_axes=(0, 0, None, None, None, 0))(x, counter, Energy_params, SDE_params, temp, batched_subkey)
+
+        vmap_log_prob = out_dict["log_prob"]
+
+        vmap_grad_T1 = out_dict["combined_grads_at_T1"]
+        vmap_grad = out_dict["combined_grads_at_T"]
+
         vmap_grad = jnp.where(jnp.isnan(vmap_grad), 0, vmap_grad)
-        # #vmap_grad = jnp.clip(vmap_grad, -10**4, 10**4)
-        # grad_norm = jnp.linalg.norm(vmap_grad, axis = -1, keepdims = True)
-        # vmap_grad = jnp.where(grad_norm > clip_overall_score, clip_overall_score*vmap_grad/grad_norm, vmap_grad)
+        vmap_grad_T1 = jnp.where(jnp.isnan(vmap_grad_T1), 0, vmap_grad_T1)
 
         if(self.use_repulsion_energy):
             vmap_div_energy, vmap_grad_div, t_decay_factor = self.get_diversity_log_prob_grad(x,counter,SDE_params) 
             vmap_log_prob = vmap_log_prob + jax.lax.stop_gradient(vmap_div_energy)*t_decay_factor
+            vmap_grad_T1 = vmap_grad_T1 + jax.lax.stop_gradient(vmap_grad_div)*t_decay_factor
             vmap_grad = vmap_grad + jax.lax.stop_gradient(vmap_grad_div)*t_decay_factor
 
-        return vmap_log_prob, vmap_grad, key
+        grad_out_dict = {"log_prob": vmap_log_prob, "combined_grads_at_T1": vmap_grad_T1, "combined_grads_at_T": vmap_grad}
+        return grad_out_dict, key
     
     def prior_target_grad_interpolation(self, x, counter, Energy_params, SDE_params, temp, key):
-        x_stopped = jax.lax.stop_gradient(x) ### TODO for bridges in rKL w repara this should not be stopped
+        x = jax.lax.stop_gradient(x) ### TODO for bridges in rKL w repara this should not be stopped
         #interpol = lambda x: self.Energy_Class.calc_energy(x, Energy_params, key)
-        (log_prob, key), (grad)  = jax.value_and_grad(self.interpol_func, has_aux=True)( x_stopped, counter[0], SDE_params, Energy_params, temp, key)
+        (log_prob_target, key), (grad_target)  = jax.value_and_grad(self.target_func, has_aux=True)( x, counter[0], SDE_params, Energy_params, key)
+        (log_prob_prior, key), (grad_prior)  = jax.value_and_grad(self.prior_func, has_aux=True)( x, counter[0], SDE_params, Energy_params, key)
+
+        combined_grads_at_T1 = grad_prior + grad_target
+        combined_grads_at_T = grad_prior + grad_target/temp
+
+        overall_log_probs = jnp.expand_dims(log_prob_target + log_prob_prior, axis = -1)
         #grad = jnp.clip(grad, -10**2, 10**2)
-        return jnp.expand_dims(log_prob, axis = -1), grad
+        out_dict = {"log_prob": overall_log_probs, "combined_grads_at_T1": combined_grads_at_T1, "combined_grads_at_T": combined_grads_at_T}
+        return out_dict
 
     def interpol_func(self, x, counter, SDE_params, Energy_params, temp, key):
         clipped_temp = jnp.clip(temp, min = 0.0001)
@@ -142,6 +153,30 @@ class Base_SDE_Class:
         log_prior = self.get_log_prior(log_prior_params,x)  ### only stop gradient for log prior but not for beta_interpol or x
         interpol = (beta_interpol)*log_prior  - (1-beta_interpol)*Energy_value / clipped_temp
         return interpol, key
+    
+    def target_func(self, x, counter, SDE_params, Energy_params, key):
+        
+        if(self.learn_interpolation_params):
+            interpolation_params = SDE_params
+        else:
+            interpolation_params = jax.lax.stop_gradient(SDE_params)
+
+        beta_interpol = self.compute_energy_interpolation_time(interpolation_params, counter, SDE_param_key = "beta_interpol_params")
+        Energy_value, key = self.Energy_Class.calc_energy(x, Energy_params, key)
+        log_prob = - (1-beta_interpol)*Energy_value
+        return log_prob, key
+    
+    def prior_func(self, x, counter, SDE_params, Energy_params, key):
+        if(self.learn_interpolation_params):
+            interpolation_params = SDE_params
+        else:
+            interpolation_params = jax.lax.stop_gradient(SDE_params)
+
+        beta_interpol = self.compute_energy_interpolation_time(interpolation_params, counter, SDE_param_key = "beta_interpol_params")
+        log_prior_params = SDE_params
+        log_prior = self.get_log_prior(log_prior_params,x)  ### only stop gradient for log prior but not for beta_interpol or x
+        log_prob = (beta_interpol)*log_prior  
+        return log_prob, key
     
     def get_diversity_log_prob_grad(self, x_batch, counter, SDE_params):
         x_batch = jax.lax.stop_gradient(x_batch)
@@ -296,16 +331,21 @@ class Base_SDE_Class:
         new_hidden_state = hidden_state
         if(self.use_interpol_gradient):
             if(self.network_has_hidden_state):
-                log_prob, grad, key = self.vmap_prior_target_grad_interpolation(x, counter_arr, Energy_params, SDE_params, temp, key) 
-                log_prob_value = log_prob #Energy[...,None]
-                in_dict = {"x": x, "Energy_value": -log_prob_value, "t": t_arr, "grads": grad, "hidden_state": hidden_state}
+                grad_out_dict, key = self.vmap_prior_target_grad_interpolation(x, counter_arr, Energy_params, SDE_params, temp, key) 
+                log_prob_value = grad_out_dict["log_prob"]
+                grad = grad_out_dict["combined_grads_at_T"]
+                grad_T1 = grad_out_dict["combined_grads_at_T1"]
+                in_dict = {"x": x, "Energy_value": -log_prob_value, "t": t_arr, "grads": grad, "grads_T1": grad_T1, "hidden_state": hidden_state}
                 out_dict = model.apply(params, in_dict, train = True)
                 score = out_dict["score"]
                 new_hidden_state = out_dict["hidden_state"]
             else:
-                log_prob, grad, key = self.vmap_prior_target_grad_interpolation(x, counter_arr, Energy_params, SDE_params, temp, key) 
-                log_prob_value = log_prob
-                in_dict = {"x": x, "grads": grad,  "t": t_arr}
+                grad_out_dict, key = self.vmap_prior_target_grad_interpolation(x, counter_arr, Energy_params, SDE_params, temp, key) 
+                log_prob_value = grad_out_dict["log_prob"]
+                grad = grad_out_dict["combined_grads_at_T"]
+                grad_T1 = grad_out_dict["combined_grads_at_T1"]
+                in_dict = {"x": x, "grads": grad, "grads_T1": grad_T1,  "t": t_arr}
+
                 out_dict = model.apply(params, in_dict, train = True)
                 score = out_dict["score"]
         # if(jnp.isnan(concat_values).any()):
@@ -314,7 +354,7 @@ class Base_SDE_Class:
             
         else:
             grad = jnp.zeros((x.shape[0], self.dim_x))
-            in_dict = {"x": x, "t": t_arr, "Energy_value": jnp.zeros((x.shape[0], 1)),  "grads": grad}
+            in_dict = {"x": x, "t": t_arr, "Energy_value": jnp.zeros((x.shape[0], 1)),  "grads": grad, "grads_T1": grad}
             out_dict = model.apply(params, in_dict, train = True)
             score = out_dict["score"]
 
@@ -383,13 +423,13 @@ class Base_SDE_Class:
             x, t, counter, key, carry_dict = carry
             hidden_state = carry_dict["hidden_state"]
             apply_model_dict, key = self.apply_model(model, x, t, counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
-            carry_dict["hidden_state"] = new_hidden_state
 
             score = apply_model_dict["score"]
             new_hidden_state = apply_model_dict["hidden_state"]
             grad = apply_model_dict["grad"]
             SDE_params_extended =  apply_model_dict["SDE_params_extended"]
             interpol_log_prob = apply_model_dict["interpol_log_prob"]
+            carry_dict["hidden_state"] = new_hidden_state
 
             dt = self.reversed_dt_values[step]
             

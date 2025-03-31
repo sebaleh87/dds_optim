@@ -15,7 +15,7 @@ class FracScheduleClass(BaseScheduleClass):
         self.current_step += 1
         if(self.current_step < self.N_warmup_steps):
             return self.final_temperature *1/(1- 0.998**(  1 ))
-        elif self.current_step >= self.steps:
+        elif self.current_step >= self.steps + self.N_warmup_steps:
             return self.final_temperature
         else:
             lam = self.lam*300

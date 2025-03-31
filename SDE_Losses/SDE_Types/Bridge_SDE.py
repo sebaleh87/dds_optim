@@ -48,10 +48,17 @@ class Bridge_SDE_Class(Base_SDE_Class):
     def prior_target_grad_interpolation(self, x, counter, Energy_params, SDE_params, temp, key):
         #x = jax.lax.stop_gradient(x) ### TODO for bridges in rKL w repara this should not be stopped
         #interpol = lambda x: self.Energy_Class.calc_energy(x, Energy_params, key)
-        (log_prob, key), (grad)  = jax.value_and_grad(self.interpol_func, has_aux=True)( x, counter[0], SDE_params, Energy_params, temp, key)
+        (log_prob_target, key), (grad_target)  = jax.value_and_grad(self.target_func, has_aux=True)( x, counter[0], SDE_params, Energy_params, key)
+        (log_prob_prior, key), (grad_prior)  = jax.value_and_grad(self.prior_func, has_aux=True)( x, counter[0], SDE_params, Energy_params, key)
 
+        combined_grads_at_T1 = grad_prior + grad_target
+        combined_grads_at_T = grad_prior + grad_target/temp
+
+        overall_log_probs = jnp.expand_dims(log_prob_target + log_prob_prior, axis = -1)
         #grad = jnp.clip(grad, -10**2, 10**2)
-        return jnp.expand_dims(log_prob, axis = -1), grad
+        ### combined_grads_at_T1 is gradient without temperature scaling to reduce the distribution shift during training
+        out_dict = {"log_prob": overall_log_probs, "combined_grads_at_T1": combined_grads_at_T1, "combined_grads_at_T": combined_grads_at_T}
+        return out_dict
 
     def get_entropy_prior(self, SDE_params):
         if(self.invariance):

@@ -35,6 +35,7 @@ class Bridge_rKL_fKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
 
         log_prior = self.vmap_get_log_prior(SDE_params, x_prior)
 
+
         Energy, key = self.EnergyClass.vmap_calc_energy(x_last, Energy_params, key)
         mean_Energy = jnp.mean(Energy)
 

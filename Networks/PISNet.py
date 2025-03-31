@@ -13,6 +13,7 @@ class PISNetBaseClass(nn.Module):
 
 
     def setup(self):
+        raise NotImplementedError("not supported anymore")
         self.SDE_mode = self.SDE_Loss_Config["SDE_Type_Config"]["name"]
         self.beta_schedule = self.SDE_Loss_Config["SDE_Type_Config"]["beta_schedule"]
         self.use_interpol_gradient = self.SDE_Loss_Config["SDE_Type_Config"]["use_interpol_gradient"]
