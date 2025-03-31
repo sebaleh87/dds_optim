@@ -21,10 +21,14 @@ parameters:
     value: 20
   Energy_Config:
     value: GMMDistraxScaled
+  AnnealSchedule:
+    value: "Exp"
   GPU:
     value: -1
   N_anneal:
-    value: 1200
+    value: 1000
+  N_warmup:
+    value: 1000
   base_net:
     value: PISgradnet
   SDE_Loss:
@@ -34,7 +38,7 @@ parameters:
   lr_schedule:
     value: "const"
   SDE_lr:
-    values: [0.001, 0.0005, 0.0001]
+    values: [0.005, 0.001, 0.0005]
   Interpol_lr:
     values: [0.01, 0.001]
   n_eval_samples:
@@ -42,7 +46,7 @@ parameters:
   T_end:
     value: 1.
   T_start:
-    values: [150., 100., 80.]
+    values: [650, 500, 450]
   batch_size:
     value: 2000
   beta_min:

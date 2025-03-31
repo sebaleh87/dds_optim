@@ -131,12 +131,12 @@ class Base_SDE_Class:
         (log_prob_target, key), (grad_target)  = jax.value_and_grad(self.target_func, has_aux=True)( x, counter[0], SDE_params, Energy_params, key)
         (log_prob_prior, key), (grad_prior)  = jax.value_and_grad(self.prior_func, has_aux=True)( x, counter[0], SDE_params, Energy_params, key)
 
-        combined_grads_at_T0 = grad_prior + grad_target
+        combined_grads_at_T1 = grad_prior + grad_target
         combined_grads_at_T = grad_prior + grad_target/temp
 
         overall_log_probs = jnp.expand_dims(log_prob_target + log_prob_prior, axis = -1)
         #grad = jnp.clip(grad, -10**2, 10**2)
-        out_dict = {"log_prob": overall_log_probs, "combined_grads_at_T0": combined_grads_at_T0, "combined_grads_at_T": combined_grads_at_T}
+        out_dict = {"log_prob": overall_log_probs, "combined_grads_at_T1": combined_grads_at_T1, "combined_grads_at_T": combined_grads_at_T}
         return out_dict
 
     def interpol_func(self, x, counter, SDE_params, Energy_params, temp, key):
@@ -423,13 +423,13 @@ class Base_SDE_Class:
             x, t, counter, key, carry_dict = carry
             hidden_state = carry_dict["hidden_state"]
             apply_model_dict, key = self.apply_model(model, x, t, counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
-            carry_dict["hidden_state"] = new_hidden_state
 
             score = apply_model_dict["score"]
             new_hidden_state = apply_model_dict["hidden_state"]
             grad = apply_model_dict["grad"]
             SDE_params_extended =  apply_model_dict["SDE_params_extended"]
             interpol_log_prob = apply_model_dict["interpol_log_prob"]
+            carry_dict["hidden_state"] = new_hidden_state
 
             dt = self.reversed_dt_values[step]
             

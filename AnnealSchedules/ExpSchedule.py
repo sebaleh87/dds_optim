@@ -9,17 +9,22 @@ class ExpScheduleClass(BaseScheduleClass):
         self.N_warmup_steps = AnnealConfig["N_warmup"]
         self.lam = AnnealConfig["lam"]
         self.current_step = 0
+        self.eps = 0.01
         super().__init__(AnnealConfig)
 
     def update_temp(self):
         self.current_step += 1
         if(self.current_step < self.N_warmup_steps):
             return self.start_temperature
-        elif self.current_step >= self.steps:
+        elif self.current_step >= self.steps + self.N_warmup_steps:
             return self.final_temperature
-        lam = self.lam
-        value = self.final_temperature + jnp.exp(- lam * (self.current_step-self.N_warmup_steps) / self.steps )* (self.start_temperature - self.final_temperature)
+        lam = self.compute_k(self.eps, self.start_temperature)
+        value = jnp.exp(- lam * (self.current_step-self.N_warmup_steps) / self.steps )* (self.start_temperature)
         return value
+
+    def compute_k(self, eps, T_start):
+        k = -jnp.log((1+eps)/T_start)
+        return k
 
     def reset(self):
         self.current_step = 0

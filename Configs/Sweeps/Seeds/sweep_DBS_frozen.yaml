@@ -1,5 +1,5 @@
 program: main.py
-project: GMMScaled_no_anneal
+project: Seeds_gridsearch_DBS_31_03_all_frozen
 command:
   - ${env}
   - python
@@ -16,28 +16,28 @@ metric:
 # name: GMM Bridge LV, use_off_policy, 2k Steps, SDE-learning, n_part 3 SCAN T
 name: gridsearch
 parameters:
-  n_particles:
-    value: 20
+  learn_SDE_params_mode:
+    value: prior_only
   Energy_Config:
-    value: GMMDistraxScaled
+    value: Seeds
   GPU:
     value: -1
   N_anneal:
-    value: 2000
+    value: 800
+  Interpol_lr:
+    values: [0.0]
   base_net:
     value: PISgradnet
   SDE_Loss:
-    values: [Bridge_rKL_logderiv]
+    values: [Bridge_rKL_logderiv, Bridge_rKL, Bridge_LogVarLoss]
   SDE_Type:
     value: Bridge_SDE
-  lr_schedule:
-    value: "const"
+  Bridge_Type:
+    value: "DBS"
   SDE_lr:
-    values: [0.0001, 0.00005, 0.00001]
+    values: [0.001, 0.0005, 0.0001]
   Interpol_lr:
-    values: [0.01, 0.001]
-  n_eval_samples:
-    values: [16000]
+    values: [0.0]
   T_end:
     value: 1.
   T_start:
@@ -53,9 +53,9 @@ parameters:
   n_integration_steps:
     value: 128
   beta_max:
-    values: [0.3]
+    values: [0.1, 0.3]
   sigma_init:
-    values: [80., 40., 20.]
+    values: [1, 0.5, 0.2]
   model_seeds:
     # values: [1]
     values: [0]
