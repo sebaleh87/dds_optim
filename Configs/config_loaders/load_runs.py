@@ -253,7 +253,7 @@ if(__name__ == "__main__"):
                     plt.legend()
 
                     plt.tight_layout()
-                    plt.savefig(os.path.dirname(os.path.abspath(__file__)) + f'/{problem}_{loss_key}_curves.png', dpi=1000)
+                    plt.savefig(os.path.dirname(os.path.abspath(__file__))+ "/Figures/" + f'/{problem}_{loss_key}_curves.png', dpi=1000)
                     plt.close()
 
 

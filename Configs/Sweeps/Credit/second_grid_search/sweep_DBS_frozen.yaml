@@ -1,5 +1,5 @@
 program: main.py
-project: Brownian_gridsearch_05_02_all_frozen
+project: GermanCredit_gridsearch_02_04_DBS_frozen_finer_grid
 command:
   - ${env}
   - python
@@ -19,21 +19,23 @@ parameters:
   learn_SDE_params_mode:
     value: prior_only
   Energy_Config:
-    value: Brownian
+    value: GermanCredit
   GPU:
     value: -1
   N_anneal:
     value: 800
   base_net:
-    value: Vanilla
+    value: PISgradnet
   SDE_Loss:
     values: [Bridge_rKL_logderiv, Bridge_rKL, Bridge_LogVarLoss]
   SDE_Type:
     value: Bridge_SDE
+  Bridge_Type:  
+    value: DBS
   SDE_lr:
-    values: [0.005, 0.002, 0.001]
+    values: [0.0005, 0.001, 0.0001]
   Interpol_lr:
-    values: [0.001]
+    values: [0.0]
   T_end:
     value: 1.
   T_start:
@@ -41,7 +43,7 @@ parameters:
   batch_size:
     value: 2000
   beta_min:
-    value: 0.01
+    value: 0.001
   feature_dim:
     value: 64
   n_hidden:
@@ -49,9 +51,9 @@ parameters:
   n_integration_steps:
     value: 128
   beta_max:
-    values: [0.05]
+    values: [0.01]
   sigma_init:
-    values: [1, 0.5]
+    values: [1., 0.5]
   model_seeds:
     # values: [1]
     values: [0]

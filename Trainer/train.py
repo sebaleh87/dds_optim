@@ -477,7 +477,7 @@ class TrainerClass:
         # Only save based on Energy if we don't have a tractable distribution
         if not hasattr(self, 'sd_calculator'):
             Energy_values = self.SDE_LossClass.vmap_Energy_function(SDE_tracer["y_final"])
-            Best_Free_Energy_value_ever = self.check_improvement(params, Best_Free_Energy_value_ever, np.min(Energy_values), "Energy", epoch=epoch)
+            self.Best_Free_Energy_value_ever = self.check_improvement(params, self.Best_Free_Energy_value_ever, np.min(Energy_values), "Energy", epoch=epoch)
 
         if("beta_interpol_params" in self.SDE_LossClass.Interpol_params.keys()):
             beta_interpol_params = self.SDE_LossClass.Interpol_params["beta_interpol_params"]

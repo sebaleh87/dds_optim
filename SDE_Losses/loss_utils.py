@@ -70,7 +70,7 @@ def compute_fKL_log_deriv(optim_mode, log_prior, reverse_log_probs, forward_diff
         # delta_log_weights = jnp.maximum(radon_dykodin_derivative, log_weights_max_quantile)
 
         # print(log_prior.shape, delta_log_weights.shape,log_max_quantile.shape, log_weights_max_quantile.shape)
-        importance_weights = jax.lax.stop_gradient(jax.nn.softmax(1*radon_dykodin_derivative, axis=-1)) * radon_dykodin_derivative.shape[-1]
+        importance_weights = jax.lax.stop_gradient(jax.nn.softmax(radon_dykodin_derivative, axis=-1)) * radon_dykodin_derivative.shape[-1]
 
         unbiased_mean = jax.lax.stop_gradient(jnp.mean(radon_dykodin_derivative, keepdims=True, axis=-1))
         reward = jax.lax.stop_gradient((radon_dykodin_derivative - unbiased_mean))
@@ -80,5 +80,35 @@ def compute_fKL_log_deriv(optim_mode, log_prior, reverse_log_probs, forward_diff
 
         L1_log = jnp.mean(jax.lax.stop_gradient(importance_weights * radon_dykodin_derivative) * sum_forward_log_probs) 
         L2_log = jnp.mean(importance_weights * radon_nykodin_wo_forward)
+
+    return loss, L1_log, L2_log
+
+def compute_fKL_reparam(optim_mode, SDE_params, log_prior, reverse_log_probs, forward_diff_log_probs, entropy_minus_noise,Energy, temp, off_policy_weights = 1., use_off_policy = False):
+    log_prob_target = - Energy/temp
+    if(optim_mode == "optim"):
+        sum_forward_log_probs = temp*jnp.sum(forward_diff_log_probs, axis = 0) - Energy
+        #sum_forward_log_probs_without_energy = temp*jnp.sum(forward_diff_log_probs, axis = 0)
+        radon_dykodin_derivative = -(temp*log_prior + temp*entropy_minus_noise + Energy)
+        #radon_dykodin_derivative_no_energy = -(log_prior + entropy_minus_noise)
+        radon_nykodin_wo_forward = -(jnp.sum(reverse_log_probs, axis = 0) + log_prior)
+
+    elif(optim_mode == "equilibrium"):
+        sum_forward_log_probs = jnp.sum(forward_diff_log_probs, axis = 0) + log_prob_target
+        #sum_forward_log_probs_without_energy = jnp.sum(forward_diff_log_probs, axis = 0)
+        radon_dykodin_derivative = -(log_prior + entropy_minus_noise + Energy/temp)
+        #radon_dykodin_derivative_no_energy = -(log_prior + entropy_minus_noise)
+        radon_nykodin_wo_forward = -(jnp.sum(reverse_log_probs, axis = 0) + log_prior)
+
+    if(use_off_policy):
+
+        raise ValueError("Not implemented")
+    else:
+        importance_weights = jax.nn.softmax(radon_dykodin_derivative, axis = -1)*radon_dykodin_derivative.shape[-1]
+
+        L1 = jnp.mean(importance_weights*radon_dykodin_derivative)
+        loss = L1
+
+        L1_log = L1
+        L2_log = 0.
 
     return loss, L1_log, L2_log
