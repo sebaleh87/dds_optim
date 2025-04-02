@@ -54,7 +54,7 @@ parameters:
     # values: [1]
     values: [0]
 
-run_cap: 50
+
 
 # early_terminate:
 #   type: hyperband

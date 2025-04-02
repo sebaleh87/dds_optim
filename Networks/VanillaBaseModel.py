@@ -10,7 +10,6 @@ from .EncodingNetworks import get_sinusoidal_positional_encoding
 class VanillaBaseModelClass(nn.Module):
     network_config: dict
     SDE_Loss_Config: dict
-    weight_init: float = 1e-8
 
     def setup(self):
         self.SDE_mode = self.SDE_Loss_Config["SDE_Type_Config"]["name"]      
@@ -25,6 +24,7 @@ class VanillaBaseModelClass(nn.Module):
         self.time_encoder_mode = self.network_config["time_encoder_mode"]
         self.network_init = self.network_config["network_init"]
         self.langevin_precon = self.network_config["langevin_precon"]
+        self.weight_init = self.network_config["weight_init"]
 
         self.x_dim = self.network_config["x_dim"]
         if(self.model_mode == "latent"):

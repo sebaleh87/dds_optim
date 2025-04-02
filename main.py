@@ -20,7 +20,8 @@ parser.add_argument("--latent_dim", type=int, default=None)
 parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=["Reverse_KL_Loss","Reverse_KL_Loss_stop_grad","LogVariance_Loss", "LogVariance_Loss_MC",  "Bridge_fKL_logderiv",
                                                                                  "LogVariance_Loss_with_grad", "LogVariance_Loss_weighted", "Reverse_KL_Loss_logderiv", "Bridge_rKL_subtraj",
                                                                                  "Bridge_rKL", "Bridge_LogVarLoss", "Bridge_rKL_logderiv", "Bridge_rKL_logderiv_DiffUCO",
-                                                                                "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam", "Bridge_fKL_subtraj", "Bridge_rKL_fKL_logderiv"], help="select loss function")
+                                                                                "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam", "Bridge_fKL_subtraj",
+                                                                                  "Bridge_rKL_fKL_logderiv", "Bridge_fKL_reparam"], help="select loss function")
 parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE", "VE_SDE", "Bridge_SDE", "VE_Discrete"], help="select SDE type, subVP_SDE is currently deprecated")
 parser.add_argument("--Bridge_Type", type=str, default="CMCD", choices=["CMCD", "DBS"], help="select Bridge type")
 
@@ -110,10 +111,14 @@ parser.add_argument("--n_eval_samples", type=int, default=2000, help="Number of 
 parser.add_argument("--Pytheus_challenge", type=int, default=1, choices=[0,1,2,3,4,5], help="Pyhteus Chellange Index")
 parser.add_argument("--Scaling_factor", type=float, default=40., help="Scaling factor for Energy Functions")
 parser.add_argument("--Variances", type=float, default=1., help="Variances of Gaussian Mixtures before scalling when means ~Unif([-1,1])")
-parser.add_argument("--base_net", type=str, default="Vanilla", choices = ["PISgradnet", "Vanilla", "PISNet"], help="Variances of Gaussian Mixtures before scalling when means ~Unif([-1,1])")
+parser.add_argument("--base_net", type=str, default="Vanilla", choices = ["PISgradnet", "Vanilla"], help="Variances of Gaussian Mixtures before scalling when means ~Unif([-1,1])")
 parser.add_argument("--network_init", type=str, default="zeros", choices = ["zeros", "xavier", "slightly_positive"], help="defines the initialization of the last layer in vanilla network")
+parser.add_argument("--weight_init", type=float, default=1e-8, help="network initialization of last layer for PISgradnet, or when network_init == slightly_positive")
+
 parser.add_argument("--langevin_precon", type=str2bool, nargs='?',
                         const=True, default=True, help="use langevin preconditioning or not, only applies for vanilla net")
+parser.add_argument("--langevin_precon_mode", type=str, default = "time_dependent", choices=["time_dependent", "time_and_X_dependent"],
+                     help="mode for langevin preconditioning, time_dependent: only time dependent, time_and_X_dependent: also X dependent")
 
 parser.add_argument("--natural_gradient", type=str2bool, nargs='?',
                         const=True, default=False, help="for Bridges use nat gradient or not")
@@ -202,6 +207,8 @@ if(__name__ == "__main__"):
             "time_encoder_mode": args.time_encoder_mode,
             "network_init": args.network_init,
             "langevin_precon": args.langevin_precon,
+            "weight_init": args.weight_init,
+            "langevin_precon_mode": args.langevin_precon_mode,
         }
 
         if("Discrete_Time_rKL_Loss" in args.SDE_Loss):

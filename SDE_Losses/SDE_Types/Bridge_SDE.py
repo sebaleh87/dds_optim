@@ -351,7 +351,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
                 (reverse_log_prob, (apply_model_dict, reverse_out_dict, _)), (fisher_param_grad, fisher_SDE_grads) = value_and_grad_func( model, x, counter, params, Interpol_params, SDE_params, hidden_state, temp, batched_keys, dt,  t, sigma_scale)
                 fisher_grad_dict = {"fisher_param_grads": fisher_param_grad, "fisher_SDE_grads": fisher_SDE_grads}
                 
-                fisher_grad_dict = jax.lax.stop_gradient(fisher_grad_dict)
+                fisher_grad_dict = jax.lax.stop_gradient(fisher_grad_dict) ### stop gradient to save memory during compilation
                 fisher_grad_prev = carry_dict["fisher_grads"]
 
                 if(False):
@@ -413,7 +413,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
         else:
             x_prior, key = self.sample_prior(SDE_params, key, n_states)
             log_prob_prior_scaled = self.vmap_get_log_prior(SDE_params, x_prior)
-    
+        
         if(self.stop_gradient):
             x_prior = jax.lax.stop_gradient(x_prior)
 
@@ -441,7 +441,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
             jnp.arange(n_integration_steps)
         )
 
-
+        ### TODO create more abstract emthod for this
         ### TODO make last forward pass here
         hidden_state = carry_dict["hidden_state"]
         apply_model_dict, key = self.apply_model(model, x_final, t_final/self.n_integration_steps, counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
@@ -458,7 +458,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
 
         xs = jnp.concatenate([SDE_tracker_steps["xs"], x_final[None, :]], axis = 0)
         interpol_grads = jnp.concatenate([SDE_tracker_steps["interpolated_grad"], grad[None, :]], axis = 0)
-        #hidden_states = jnp.concatenate([ SDE_tracker_steps["hidden_state"], hidden_state[None, :]], axis = 0)
+
         diffusions = jnp.concatenate([SDE_tracker_steps["diffusions"], diffusion_final[None, :]], axis = 0)
         reverse_drifts = jnp.concatenate([SDE_tracker_steps["reverse_drifts"], reverse_drift_final[None, :]], axis = 0)
         interpol_log_probs = jnp.concatenate([SDE_tracker_steps["interpol_log_probs"], interpol_log_prob[None, :]], axis = 0)
