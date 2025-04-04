@@ -366,9 +366,11 @@ class Base_SDE_Class:
             "grad": grad,
             "SDE_params_extended": SDE_params,
             "hidden_state": new_hidden_state,
-            "interpol_log_prob": log_prob_value,
         }
 
+        if self.use_interpol_gradient:
+            apply_model_dict["interpol_log_prob"] = log_prob_value
+        
         if("forward_score" in out_dict.keys()):
             apply_model_dict["forward_score"] = out_dict["forward_score"]
 

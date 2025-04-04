@@ -98,10 +98,10 @@ class PisgradnetBaseClass(nn.Module):
         extended_input = jnp.concatenate((input_array, time_embedding), axis=-1)
         NN_score = diff_function_out_dict["NN_score"]
         out_state = NN_score(extended_input)
-        NN_grad_input = self.create_t2_net_input(input_array, time_array_emb)        
+        beta_net_input = self.create_t2_net_input(input_array, time_array_emb)        
 
         embedding_dict = {"out_state": out_state, "stopped_grad": stopped_grad, "time_array_emb": time_array_emb,
-                          "NN_grad_input": NN_grad_input, "grad": grad}
+                          "NN_grad_input": time_array_emb, "beta_net_input": beta_net_input, "grad": grad}
 
         return embedding_dict
     
