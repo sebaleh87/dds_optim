@@ -1,5 +1,5 @@
 program: main.py
-project: GermanCredit_gridsearch_05_02_all_frozen
+project: Brownian_gridsearch_05_02_LD
 command:
   - ${env}
   - python
@@ -16,10 +16,8 @@ metric:
 # name: GMM Bridge LV, use_off_policy, 2k Steps, SDE-learning, n_part 3 SCAN T
 name: gridsearch
 parameters:
-  learn_SDE_params_mode:
-    value: prior_only
   Energy_Config:
-    value: GermanCredit
+    value: Brownian
   GPU:
     value: -1
   N_anneal:
@@ -27,7 +25,7 @@ parameters:
   base_net:
     value: Vanilla
   SDE_Loss:
-    values: [Bridge_rKL_logderiv, Bridge_rKL, Bridge_LogVarLoss]
+    values: [Bridge_rKL_logderiv, Bridge_LogVarLoss]
   SDE_Type:
     value: Bridge_SDE
   SDE_lr:
@@ -49,13 +47,12 @@ parameters:
   n_integration_steps:
     value: 128
   beta_max:
-    values: [0.1, 0.3]
+    values: [0.1, 0.3, 0.05]
   sigma_init:
-    values: [1., 0.5]
+    values: [1, 0.5]
   model_seeds:
     # values: [1]
     values: [0]
-
 
 
 # early_terminate:

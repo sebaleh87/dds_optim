@@ -171,11 +171,54 @@ def Funnel_DBS(key):
         wandb_ids = ["leafy-haze-19", "gentle-sponge-14", "wise-lake-9"]
     return wandb_ids
 
+def Seeds_DBS(key):
+    #wandb_ids = ["amber-smoke-4", "lilac-plant-3", "crimson-eon-2", "helpful-thunder-1"]
+    if(key == "rKL_frozen"):
+        wandb_ids = ["vivid-forest-14", "vivid-disco-11", "distinctive-dragon-9"]
+    elif(key == "rKL_logderiv"):
+        wandb_ids = ["rose-surf-6", "devout-shadow-4", "daily-frost-2"]
+    elif(key == "rKL_logderiv_frozen"):
+        wandb_ids = ["hopeful-dew-8", "eternal-spaceship-7", "robust-frog-5"]
+    elif(key == "LogVarLoss"):
+        wandb_ids = ["sage-frog-17", "rose-monkey-17", "eager-tarrain-15"]
+    elif(key == "LogVarLoss_frozen"):
+        wandb_ids = ["stilted-valley-13", "chocolate-sea-12", "treasured-vortex-10"]
+    return wandb_ids
+
+def Sonar_DBS(key):
+    #wandb_ids = ["amber-smoke-4", "lilac-plant-3", "crimson-eon-2", "helpful-thunder-1"]
+    if(key == "rKL_frozen"):
+        wandb_ids = []
+    elif(key == "rKL_logderiv"):
+        wandb_ids = ["solar-terrain-11", "icy-wood-7", "fanciful-fire-2"]
+    elif(key == "rKL_logderiv_frozen"):
+        wandb_ids = ["leafy-snowball-23", "vocal-glade-22", "dainty-plant-20"]
+    elif(key == "LogVarLoss"):
+        wandb_ids = ["twilight-morning-13", "mild-glitter-10", "wild-pond-6"]
+    elif(key == "LogVarLoss_frozen"):
+        wandb_ids = ["lively-plasma-14", "fanciful-pyramid-9", "atomic-grass-5"]
+    return wandb_ids
+
+def LGCP_DBS(key):
+    #wandb_ids = ["amber-smoke-4", "lilac-plant-3", "crimson-eon-2", "helpful-thunder-1"]
+    if(key == "rKL_frozen"):
+        wandb_ids = ["fancy-fog-13", "exalted-blaze-8", "vital-wind-3"]
+    elif(key == "rKL_logderiv"):
+        wandb_ids = ["genial-forest-14", "wandering-meadow-9", "worthy-forest-4"]
+    elif(key == "rKL_logderiv_frozen"):
+        wandb_ids = ["deep-snowball-12", "firm-waterfall-7", "wise-bee-2"]
+    elif(key == "LogVarLoss"):
+        wandb_ids = ["wobbly-pond-15", "comic-energy-10", "rose-lake-5"]
+    elif(key == "LogVarLoss_frozen"):
+        wandb_ids = ["bright-frog-11", "wobbly-serenity-6", "fearless-snowflake-1"]
+    return wandb_ids
+
+
 if(__name__ == "__main__"):
     loss_keys = ["rKL_frozen", "rKL_logderiv", "rKL_logderiv_frozen", "LogVarLoss", "LogVarLoss_frozen"]
 
     problem_list = {"Seeds":  Seeds, "Sonar": Sonar, "Credit": Credit, "Funnel": Funnel, "Brownian": Brownian, "MoS": MoS,
-                    "LGCP": LGCP, "GMM": GMM, "GMM-DBS": GMM_DBS, "MoS-DBS": MoS_DBS, "Funnel-DBS": Funnel_DBS}
+                    "LGCP": LGCP, "GMM": GMM, "GMM-DBS": GMM_DBS, "MoS-DBS": MoS_DBS, "Funnel-DBS": Funnel_DBS, "Sonar-DBS": Sonar_DBS, "Seeds-DBS": Seeds_DBS, "LGCP-DBS": LGCP_DBS}
     k = 10
     for problem in problem_list.keys():
 
@@ -221,7 +264,7 @@ if(__name__ == "__main__"):
                 Free_energy_mean_over_seeds_rounded, Free_energy_std_over_seeds_rounded = compute_average_and_variance(Free_energy_value_per_seed)
 
                 print("Sinkhorn", f"${sink_mean_over_seeds_rounded:.2f}"+ r"\text{\tiny{$\pm " +  f"{sink_std_over_seeds_rounded}$" + "}}$")
-                print("Free Energy", f"${-Free_energy_mean_over_seeds_rounded:.2f}"+ r"\text{\tiny{$\pm " +  f"{Free_energy_std_over_seeds_rounded}$" + "}}$")
+                print("ELBO", f"${-Free_energy_mean_over_seeds_rounded:.2f}"+ r"\text{\tiny{$\pm " +  f"{Free_energy_std_over_seeds_rounded}$" + "}}$")
 
                 if(len(Curves[loss_key]["log_Z_at_T=1"]) > 0):
                     log_Z_value_per_seed = np.array([Curves[loss_key]["log_Z_at_T=1"][seed_idx][arg] for seed_idx, arg in enumerate(min_args)])
