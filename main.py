@@ -477,7 +477,7 @@ if(__name__ == "__main__"):
         
         #for plotting the prior distribution
         if args.n_particles == 2:
-            Energy_Config["sigma_init"]: args.sigma_init
+            Energy_Config["sigma_init"] = args.sigma_init
 
         Network_Config["x_dim"] = Energy_Config["dim_x"]
         if(Network_Config["model_mode"] == "latent"):
