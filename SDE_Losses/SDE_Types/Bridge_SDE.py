@@ -98,12 +98,12 @@ class Bridge_SDE_Class(Base_SDE_Class):
         key, subkey = random.split(key)
         prior_mean = self.get_mean_prior(SDE_params)[None, :]
         if(self.invariance):
-            overall_sigma = self.return_prior_covar(SDE_params, sigma_scale_factor = sigma_scale_factor)
-            x_prior = random.normal(subkey, shape=(n_states, self.dim_x))*overall_sigma + prior_mean
+            prior_sigma = self.return_prior_covar(SDE_params, sigma_scale_factor = sigma_scale_factor)
+            x_prior = random.normal(subkey, shape=(n_states, self.dim_x))*prior_sigma + prior_mean
         else:
             prior_sigma = self.return_prior_covar(SDE_params, sigma_scale_factor = sigma_scale_factor)
             x_prior = random.normal(subkey, shape=(n_states, self.dim_x))*prior_sigma + prior_mean
-        return x_prior, key    
+        return x_prior, prior_sigma, key    
     
     def sample_prior_mixture_with_log_probs(self, SDE_params, key, n_states, sigma_scale_factor = 1.):
         prior_mean = self.get_mean_prior(SDE_params)[None, :]
@@ -120,7 +120,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
             gauss_log_prob_noise = jnp.sum(jax.scipy.stats.norm.logpdf(mixed_noise, loc=0, scale=1), axis = -1)
             log_prob_noise_mixed = self.calc_mixture_probs( curr_mixture_prob, off_policy_log_prob_noise, gauss_log_prob_noise)
             x_prior = mixed_noise*prior_sigma[None, :] + prior_mean
-        return x_prior, log_prob_noise_mixed, key  
+        return x_prior, log_prob_noise_mixed, prior_sigma, key  
 
     def get_log_prior(self, SDE_params, x):
         mean = self.get_mean_prior(SDE_params)
@@ -292,10 +292,9 @@ class Bridge_SDE_Class(Base_SDE_Class):
         else:
             x_next = x + x_drift_update * dt  + dx
 
-
         ### TODO check at which x drift ref should be evaluated?
         reverse_out_dict = {"x_next": x_next, "diffusion": diffusion, "log_prob_on_policy": log_prob_on_policy, "off_policy_log_weights": off_policy_log_weights,
-                            "reverse_drift": reverse_drift_t_g_s, "dx": dx, "log_prob_noise": log_prob_noise} #"reverse_log_prob": log_prob_t_g_s
+                            "reverse_drift": reverse_drift_t_g_s, "dx": dx, "log_prob_noise": log_prob_noise, "noise_std": jnp.sqrt(dt)*diffusion} #"reverse_log_prob": log_prob_t_g_s
         return reverse_out_dict, key
     
     def compute_reverse_log_prob_for_grad( self, model, x, counter, params, Interpol_params, SDE_params, hidden_state, temp, key, dt,  t, sigma_scale):
@@ -333,6 +332,8 @@ class Bridge_SDE_Class(Base_SDE_Class):
         dt = 1.
         t = n_integration_steps
         counter = 0
+
+        #this implements the scaling of the noise in the SDE simulation when off-policy is used
         sigma_scale, scale_log_prob, temp, key = self.get_sigma_noise(n_states, key, sample_mode, temp)
 
         def scan_fn(carry, step):
@@ -389,6 +390,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
             "xs": x,
             "ts": jnp.array(t, dtype = jnp.float32),
             "diffusions": reverse_out_dict["diffusion"],
+            "noise_stds": reverse_out_dict["noise_std"],
             "reverse_drifts": reverse_out_dict["reverse_drift"],
             "dts": jnp.array(dt, dtype = jnp.float32),
             "key": key,
@@ -408,10 +410,12 @@ class Bridge_SDE_Class(Base_SDE_Class):
             t = t - dt
             return (x, t, key, carry_dict), SDE_tracker_step
 
+
+
         if(self.config["use_off_policy"] and (self.config["off_policy_mode"] == "laplace" or self.config["off_policy_mode"] == "gaussian")):
-            x_prior, log_prob_prior_scaled, key = self.sample_prior_mixture_with_log_probs(SDE_params, key, n_states, sigma_scale_factor = sigma_scale)
+            x_prior, log_prob_prior_scaled, prior_sigma, key = self.sample_prior_mixture_with_log_probs(SDE_params, key, n_states, sigma_scale_factor = sigma_scale)
         else:
-            x_prior, key = self.sample_prior(SDE_params, key, n_states)
+            x_prior, prior_sigma, key = self.sample_prior(SDE_params, key, n_states)
             log_prob_prior_scaled = self.vmap_get_log_prior(SDE_params, x_prior)
         
         if(self.stop_gradient):
@@ -494,6 +498,8 @@ class Bridge_SDE_Class(Base_SDE_Class):
             "scale_log_prob": scale_log_prob,
             "noise_scale": sigma_scale,
             "dx": SDE_tracker_steps["dx"],
+            "noise_stds": SDE_tracker_steps["noise_stds"],
+            "sigma_prior": prior_sigma,
             "xs": SDE_tracker_steps["xs"],
             "ts": SDE_tracker_steps["ts"],
             "forward_diff_log_probs": forward_diff_log_probs,

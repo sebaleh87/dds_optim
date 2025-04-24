@@ -23,6 +23,7 @@ class Bridge_rKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
         reverse_log_probs = SDE_tracer["reverse_log_probs"]
         log_prob_prior_scaled = SDE_tracer["log_prob_prior_scaled"]
 
+        #average over the time dimension (axis 0)
         entropy_minus_noise = jnp.sum(reverse_log_probs - forward_diff_log_probs, axis = 0)
 
         x_prior = SDE_tracer["x_prior"]
@@ -53,14 +54,13 @@ class Bridge_rKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
 
             log_weights = jnp.sum(self.weight_temperature* delta_log_weights, axis = 0)
 
-
-
             # log_weights = jnp.nan_to_num(log_weights, nan=0.0, posinf=1e10, neginf=-1e10)
             # Energy = jnp.nan_to_num(Energy, nan=1e10, posinf=1e10)
             off_policy_weights_normed = jax.lax.stop_gradient(jax.nn.softmax(log_weights, axis = -1))
             off_policy_weights_normed_times_n_samples = off_policy_weights_normed* log_prob_on_policy.shape[-1] ### multiply wiht numer of states so that mean instead of sum can be used later on
             loss, unbiased_loss, centered_loss = self.compute_rKL_log_deriv(SDE_params, log_prior, reverse_log_probs, forward_diff_log_probs, entropy_minus_noise,Energy, temp, 
                         off_policy_weights_normed_times_n_samples, use_off_policy = True)
+            
         else:
             off_policy_weights_normed_times_n_samples = 1.
             loss, unbiased_loss, centered_loss = self.compute_rKL_log_deriv(SDE_params, log_prior, reverse_log_probs, forward_diff_log_probs, entropy_minus_noise,Energy, temp)
@@ -70,7 +70,7 @@ class Bridge_rKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
                       "sigma": jnp.exp(SDE_params["log_sigma"]),"beta_min": jnp.exp(SDE_params["log_beta_min"]),
                         "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": SDE_params["mean"], "sigma_prior": jnp.exp(SDE_params["log_sigma_prior"])
                         }
-
+        
         if("fisher_grads" in SDE_tracer):
             fisher_grads = SDE_tracer["fisher_grads"]
             log_dict["fisher_grads"] = fisher_grads
@@ -105,6 +105,7 @@ class Bridge_rKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
             unbiased_mean = jax.lax.stop_gradient(jnp.mean(radon_dykodin_derivative, keepdims=True, axis = 0))
             reward = jax.lax.stop_gradient((radon_dykodin_derivative-unbiased_mean))
             L1 = jnp.mean(reward * sum_reverse_log_probs)
+            #add the extra term that arises in the bridge case if the forward process does also have learnable params (see our ICLR 25 workshop paper)
             loss = L1+ jnp.mean( radon_nykodin_wo_reverse)
 
             unbiased_loss = jnp.mean(jax.lax.stop_gradient((radon_dykodin_derivative)) * sum_reverse_log_probs) + jnp.mean( radon_nykodin_wo_reverse)

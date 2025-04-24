@@ -329,7 +329,6 @@ if(__name__ == "__main__"):
                 "num_components": num_gaussians,
                 "loc_scaling": 40.,
                 "seed": seed
-
             }
         elif(args.Energy_Config == "GMMDistraxScaled"):
             torch.manual_seed(seed)
@@ -475,6 +474,10 @@ if(__name__ == "__main__"):
             raise ValueError("Energy Config not found")
 
         Energy_Config["scaling"] = args.Scaling_factor
+        
+        #for plotting the prior distribution
+        if args.n_particles == 2:
+            Energy_Config["sigma_init"] = args.sigma_init
 
         Network_Config["x_dim"] = Energy_Config["dim_x"]
         if(Network_Config["model_mode"] == "latent"):

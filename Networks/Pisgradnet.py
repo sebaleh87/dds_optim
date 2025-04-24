@@ -134,10 +134,13 @@ class PisgradnetBaseClass(nn.Module):
         return score, out_dict
     
     def create_t2_net_input(self, input_array, time_array_emb):
-        if(self.langevin_precon_mode == "time_dependent"):
+        if(self.beta_schedule != "neural" and self.langevin_precon_mode == "time_dependent"):
             t2_net_input = time_array_emb
-        else:
+        elif self.beta_schedule == "neural":
             t2_net_input = jnp.concatenate([input_array, time_array_emb], axis=-1)
+        else:
+            raise ValueError("Config of beta_schedule and langevin_precon_mode are incompatible")  # Raise an error for unsupported configurations
+
         return t2_net_input
 
 
