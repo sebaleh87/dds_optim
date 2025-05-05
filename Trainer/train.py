@@ -48,7 +48,7 @@ class TrainerClass:
             key = jax.random.PRNGKey(self.config["sample_seed"])
             reps = 1
             for n_sample in n_samples:
-                distances = []
+                distances = {"Sinkhorn": [], "MMD": []}
                 for rep in range(reps):
                     self.n_sinkhorn_samples = n_sample
                     start_sample_time = time.time()
@@ -58,14 +58,18 @@ class TrainerClass:
                     self.sd_calculator = SD(self.EnergyClass, n_sample, key, epsilon=1e-3)
                     start_time = time.time()
                     distance = self.sd_calculator.compute_SD(model_samples)
+                    self.MMD_samples = 4000
+                    MMD = self.sd_calculator.mmd_loss_jax(model_samples, n_samples = self.MMD_samples)
                     end_time = time.time()
                     print("sample time", end_sample_time - start_sample_time)
                     print("time needed", end_time - start_time)
-                    distances.append(distance)
+                    distances["Sinkhorn"].append(distance)
+                    distances["MMD"].append(MMD)
 
-                avg_distance = np.mean(distances)
-                std_distance = np.std(distances)
-                print(f"Average distance for {n_sample} samples: {avg_distance}, Std: {std_distance}")
+                for key in distances.keys():
+                    avg_distance = np.mean(distances[key])
+                    std_distance = np.std(distances[key])
+                    print(f"Average distance for {n_sample} samples Metric {key}: {avg_distance}, Std: {std_distance}")
 
 
         self._init_wandb()
@@ -107,8 +111,9 @@ class TrainerClass:
 
         num_params = sum(x.size for x in jax.tree_util.tree_leaves(self.params))
         wandb.log({"Network/num_params": num_params})
-
-        ### TODO write code that checks equivariance here!
+        print("Parameter count:", num_params)  #Parameter count: 66902 beta neural #Parameter count: 47076 beta const # --n_hidden 75 Parameter count: 67180 beta const
+            # Parameter count: 46274 beta neurel --n_hidden 52
+        #raise ValueError("Check if the network is initialized correctly")
 
     def _test_invariance(self):
         key = jax.random.PRNGKey(0)
@@ -238,6 +243,7 @@ class TrainerClass:
         self.save_metric_dict = {"Free_Energy_at_T=1": [], "ELBO_at_T=1": [], "log_Z_at_T=1": [],  "n_eff": [], "epoch": [], "EUBO_at_T=1": []}
         if hasattr(self, 'sd_calculator'):
             self.save_metric_dict["sinkhorn_divergence"] = []
+            self.save_metric_dict["MMD"] = []
         
         if hasattr(self.EnergyClass, 'compute_emc'):
             self.save_metric_dict["EMC"] = []
@@ -422,8 +428,10 @@ class TrainerClass:
             if hasattr(self, 'sd_calculator'):
                 model_samples = out_dict["X_0"][0:self.n_sinkhorn_samples]
                 distance = self.sd_calculator.compute_SD(model_samples)
+                MMD = self.sd_calculator.mmd_loss_jax(model_samples, n_samples = self.MMD_samples)
                 
                 # Store Sinkhorn metrics
+                MMD_metric_name = f"eval_{sample_mode}/MMD"
                 sd_metric_name = f"eval_{sample_mode}/sinkhorn_divergence"
                 if sd_metric_name not in self.metric_history:
                     self.metric_history[sd_metric_name] = []
@@ -431,6 +439,7 @@ class TrainerClass:
                 
                 # Add Sinkhorn to metrics dict
                 eval_metrics[sd_metric_name] = distance
+                eval_metrics[MMD_metric_name] = MMD
 
                 # Save model if this is the best Sinkhorn divergence so far
                 if sample_mode == "eval":  # Only save on eval mode

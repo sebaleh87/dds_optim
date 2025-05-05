@@ -65,6 +65,7 @@ class Bridge_rKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
             off_policy_weights_normed_times_n_samples = 1.
             loss, unbiased_loss, centered_loss = self.compute_rKL_log_deriv(SDE_params, log_prior, reverse_log_probs, forward_diff_log_probs, entropy_minus_noise,Energy, temp)
 
+
         log_dict = {"loss": loss, "mean_energy": mean_Energy, "losses/unbiased_loss": unbiased_loss, "losses/centered_loss": centered_loss,
                       "best_Energy": jnp.min(Energy), "noise_loss": noise_loss, "entropy_loss": entropy_loss, "key": key, "X_0": x_last, 
                       "sigma": jnp.exp(SDE_params["log_sigma"]),"beta_min": jnp.exp(SDE_params["log_beta_min"]),
@@ -110,6 +111,10 @@ class Bridge_rKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
 
             unbiased_loss = jnp.mean(jax.lax.stop_gradient((radon_dykodin_derivative)) * sum_reverse_log_probs) + jnp.mean( radon_nykodin_wo_reverse)
             centered_loss = L1
+
+        # jax.debug.print("🤯 reward {reward} 🤯", reward=jnp.mean(reward))
+        # jax.debug.print("🤯 L1 {L1} 🤯", L1=L1)
+        # jax.debug.print("🤯 loss {loss} 🤯", loss=loss)
 
         return loss, unbiased_loss, centered_loss
 

@@ -121,7 +121,9 @@ class Base_SDE_Class:
             vmap_log_prob = vmap_log_prob + jax.lax.stop_gradient(vmap_div_energy)*t_decay_factor
             vmap_grad_T1 = vmap_grad_T1 + jax.lax.stop_gradient(vmap_grad_div)*t_decay_factor
             vmap_grad = vmap_grad + jax.lax.stop_gradient(vmap_grad_div)*t_decay_factor
-
+        
+        #jax.debug.print("🤯 Energy {mean_energy} 🤯", mean_energy=jnp.mean(vmap_log_prob))
+        #jax.debug.print("🤯 mean_grad {mean_grad} 🤯", mean_grad=jnp.mean(vmap_grad_T1))
         grad_out_dict = {"log_prob": vmap_log_prob, "combined_grads_at_T1": vmap_grad_T1, "combined_grads_at_T": vmap_grad}
         return grad_out_dict, key
     

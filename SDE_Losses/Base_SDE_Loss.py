@@ -144,8 +144,8 @@ class Base_SDE_Loss_Class:
         updates, opt_state = self.optimizer.update(grads, opt_state)
         params = optax.apply_updates(params, updates)
         
-        # check_nans(grads)
-        # check_nans(SDE_params_grad)
+        #check_nan_in_params(grads, "grads")
+        # check_nan_in_params(SDE_params_grad, "SDE grads")
         # print(loss_value)
         Interpol_params_updates, Interpol_params_state = self.Interpol_params_optimizer.update(Interpol_params_grad, Interpol_params_state, Interpol_params)
         Interpol_params = optax.apply_updates(Interpol_params, Interpol_params_updates)
@@ -395,10 +395,12 @@ def check_nan_in_params(params, s):
     nan_trees = jax.tree_util.tree_map(contains_nan, params)
 
     # Combine results to check if any NaNs are present
-    has_nan = jax.tree_util.tree_reduce(lambda x, y: x or y, nan_trees)
+    has_nan = jax.tree_util.tree_reduce(lambda x, y: x + y, nan_trees)
 
-    print("Does the parameter tree contain NaNs?", s, has_nan)
-    print(nan_trees)
+    jax.debug.print("🤯 {s} 🤯", s=s)
+    jax.debug.print("🤯 {has_nan} 🤯", has_nan=has_nan)
+    jax.debug.print("🤯 nan_trees {nan_trees} 🤯", x_min=nan_trees)
+
 
 
 # Get the paths where NaNs appeared
