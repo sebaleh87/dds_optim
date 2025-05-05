@@ -57,6 +57,7 @@ class Base_SDE_Loss_Class:
         self.vmap_diff_factor = jax.vmap(self.SDE_type.get_diffusion, in_axes=(None, None, 0))
         self.vmap_drift_divergence = jax.vmap(self.SDE_type.get_div_drift, in_axes = (None, 0))
         self.vmap_get_log_prior = jax.vmap(self.SDE_type.get_log_prior, in_axes = (None, 0))
+        # with self.optim_mode = "optim" one would optimize temp*rKL like in the Diffuco or SDDS, i.e. then the energy term would be temp independent and the entropy term would be temp dependent
         self.optim_mode = "equilibrium"
         self.natural_gradient_mode = SDE_Type_Config.get("natural_gradient_mode", None)
 
@@ -231,13 +232,14 @@ class Base_SDE_Loss_Class:
         loss, out_dict = self.evaluate_loss(params, Energy_params, SDE_params, SDE_tracer, key)     #TODO add not implemented template class for self.evaluate_loss
         key, subkey = jax.random.split(key)                                                 
         batched_key = jax.random.split(subkey, n_states)
-        #TODO really want to scale the output for eval?
+        #TODO remove the shift_samples function since it does not to anything?
         SDE_tracer["ys"] = jax.vmap(jax.vmap(self.shift_samples, in_axes=(0, None,0)), in_axes=(0, None, None))(SDE_tracer["xs"], Energy_params, batched_key)
         SDE_tracer["y_final"] = jax.vmap(self.shift_samples, in_axes=(0,None, 0))(SDE_tracer["x_final"], Energy_params, batched_key)
         return SDE_tracer, out_dict, key
     
     @partial(jax.jit, static_argnums=(0,), static_argnames=("n_integration_steps", "n_states"))
     def evaluate_model(self, params, Energy_params, SDE_params, key, n_states = 100, n_integration_steps = 1000):
+        #still used?
         loss, SDE_tracer = self.compute_loss(params, Energy_params, SDE_params, key, n_integration_steps = n_integration_steps, n_states = n_states)
 
         return SDE_tracer, SDE_tracer["key"]

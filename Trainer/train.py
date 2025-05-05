@@ -212,7 +212,11 @@ class TrainerClass:
 
     def plot_figures(self, SDE_tracer, epoch, sample_mode = "train"):
         overall_dict = {}
-        fig_traj_dict = self.EnergyClass.plot_trajectories(np.array(SDE_tracer["ys"])[:,0:10,:])
+        if "noise_stds" in SDE_tracer and "sigma_prior" in SDE_tracer:
+            fig_traj_dict = self.EnergyClass.plot_trajectories(np.array(SDE_tracer["ys"])[:,0:10,:], np.array(SDE_tracer["noise_stds"])[:,0:10,:], np.array(SDE_tracer["sigma_prior"]))
+        else:
+            fig_traj_dict = self.EnergyClass.plot_trajectories(np.array(SDE_tracer["ys"])[:,0:10,:])
+
         fig_hist_dict = self.EnergyClass.plot_histogram(np.array(SDE_tracer["y_final"]))
         fig_last_samples_dict = self.EnergyClass.plot_last_samples(np.array(SDE_tracer["y_final"]))
 
@@ -284,6 +288,7 @@ class TrainerClass:
 
             pbar.set_description(f"mean_loss {mean_loss:.4f}, best energy: {self.Best_Energy_value_ever:.4f}")
 
+            #TODO this is not used, still needed?
             Free_Energy_values = np.mean(self.aggregated_out_dict["Free_Energy_at_T=1"])
             for save_key in self.save_metric_dict.keys():
                 if(save_key in self.aggregated_out_dict.keys()):
@@ -311,7 +316,7 @@ class TrainerClass:
             n_samples = self.config["n_eval_samples"]
             SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Interpol_params, self.SDE_LossClass.SDE_params, T_curr, key, sample_mode = "eval", n_integration_steps = self.n_integration_steps, n_states = n_samples)
             
-            self.plot_figures(SDE_tracer, self.num_epochs+1)
+            self.plot_figures(SDE_tracer, self.num_epochs+1, sample_mode= "ckpt_best_sinkhorn")
         except:
             pass
 

@@ -84,7 +84,7 @@ parser.add_argument("--update_params_mode", type=str, choices = ["all_in_one", "
 parser.add_argument("--epochs_per_eval", type=int, default=50)
 
 parser.add_argument("--beta_min", type=float, default=0.05)
-parser.add_argument("--beta_max", type=float ,default=[0.1], nargs="+" , help=r'serves at initial beta for all beta schedules, initial \sigma_diff is controlled with beta as $\sigma*beta$')
+parser.add_argument("--beta_max", type=float ,default=[0.1], nargs="+" , help=r'serves at initial beta for all beta schedules, initial \sigma_diff is given by beta as $\sigma_diff*\beta_max$')
 parser.add_argument('--temp_mode', action='store_true', default=True, help='only for discrete time model')
 parser.add_argument('--no-temp_mode', action='store_false', dest='temp_mode', help='')
 
@@ -332,7 +332,6 @@ if(__name__ == "__main__"):
                 "num_components": num_gaussians,
                 "loc_scaling": 40.,
                 "seed": seed
-
             }
         elif(args.Energy_Config == "GMMDistraxScaled"):
             torch.manual_seed(seed)
@@ -478,6 +477,10 @@ if(__name__ == "__main__"):
             raise ValueError("Energy Config not found")
 
         Energy_Config["scaling"] = args.Scaling_factor
+        
+        #for plotting the prior distribution
+        if args.n_particles == 2:
+            Energy_Config["sigma_init"] = args.sigma_init
 
         Network_Config["x_dim"] = Energy_Config["dim_x"]
         if(Network_Config["model_mode"] == "latent"):
