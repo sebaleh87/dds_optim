@@ -328,7 +328,9 @@ class EnergyModelClass:
 
     def plot_tsne_last_samples(self, Xs, panel = "fig"):
         # print("TSNE plot")
+        # Remove NaN values from Xs
         Xs = Xs[:1000]
+        Xs = Xs[~np.isnan(Xs).any(axis=1)]
         if(hasattr(self, 'means')):
             means_reshaped = self.means.reshape(-1, self.dim_x)
             Xs = np.concatenate([Xs, means_reshaped], axis=0)

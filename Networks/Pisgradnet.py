@@ -7,8 +7,6 @@ class PisgradnetBaseClass(nn.Module):
     network_config: dict
     SDE_Loss_Config: dict
 
-    num_layers: int = 2
-    num_hid: int = 64
     outer_clip: float = 1e4
     inner_clip: float = 1e2
 
@@ -24,10 +22,11 @@ class PisgradnetBaseClass(nn.Module):
         self.n_integration_steps = self.SDE_Loss_Config["n_integration_steps"]
         self.network_init = self.network_config["network_init"]
         self.langevin_precon = self.network_config["langevin_precon"]
-        self.langevin_precon_mode = self.network_config.get("langevin_precon_mode", "time_dependent") #self.network_config["langevin_precon_mode"]
+        self.beta_schedule_neural_mode = self.network_config.get("beta_schedule_neural_mode", "time_dependent")
 
         self.weight_init = self.network_config.get("weight_init", 1e-8)
-        self.n_hidden = self.network_config.get("n_hidden", 64)
+        self.num_hid = self.network_config.get("n_hidden", 64)
+        self.num_layers = self.network_config.get("num_layers", 2)
 
         #self.num_hid = self.network_config["n_hidden"]
         self.x_dim = self.network_config["x_dim"]
@@ -108,6 +107,7 @@ class PisgradnetBaseClass(nn.Module):
     def parameterize_score(self, out_dict, diff_function_out_dict, embedding_dict):
         out_state = embedding_dict["out_state"]
         NN_grad_input = embedding_dict["NN_grad_input"]     
+        beta_net_input = embedding_dict["beta_net_input"] 
         grad = embedding_dict["grad"]
         lgv_term = embedding_dict["stopped_grad"]
 
@@ -128,13 +128,13 @@ class PisgradnetBaseClass(nn.Module):
 
         if(self.beta_schedule == "neural"):
             beta_schedule_network = diff_function_out_dict["beta_schedule_network"]
-            log_beta_x_t = beta_schedule_network(NN_grad_input)
+            log_beta_x_t = beta_schedule_network(beta_net_input)
             out_dict["log_beta_x_t"] = log_beta_x_t
 
         return score, out_dict
     
     def create_t2_net_input(self, input_array, time_array_emb):
-        if(self.langevin_precon_mode == "time_dependent"):
+        if(self.beta_schedule_neural_mode == "time_dependent"):
             t2_net_input = time_array_emb
         else:
             t2_net_input = jnp.concatenate([input_array, time_array_emb], axis=-1)

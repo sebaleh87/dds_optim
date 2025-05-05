@@ -13,7 +13,7 @@ class FeedForwardNetwork(nn.Module):
     #@partial(flax.linen.jit, static_argnums=(0,))
     def __call__(self, in_dict):
         x = in_dict["encoding"]
-        for _ in range(self.n_layers - 1):
+        for _ in range(self.n_layers):
             x_skip = x
             x = nn.Dense(self.hidden_dim, kernel_init=nn.initializers.he_normal(),
                                  bias_init=nn.initializers.zeros)(x)

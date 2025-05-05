@@ -53,10 +53,10 @@ class Bridge_SDE_Class(Base_SDE_Class):
 
         combined_grads_at_T1 = grad_prior + grad_target
         combined_grads_at_T = grad_prior + grad_target/temp
-
         overall_log_probs = jnp.expand_dims(log_prob_target + log_prob_prior, axis = -1)
         #grad = jnp.clip(grad, -10**2, 10**2)
         ### combined_grads_at_T1 is gradient without temperature scaling to reduce the distribution shift during training
+        
         out_dict = {"log_prob": overall_log_probs, "combined_grads_at_T1": combined_grads_at_T1, "combined_grads_at_T": combined_grads_at_T}
         return out_dict
 
@@ -180,7 +180,19 @@ class Bridge_SDE_Class(Base_SDE_Class):
         elif(self.config["beta_schedule"] == "neural"):
             inverse_beta_x_t = SDE_params["log_beta_x_t"]
             inverse_beta = jax.lax.stop_gradient(self.inverse_beta_init)
-            return jnp.exp(inverse_beta_x_t + inverse_beta)
+
+            beta_x_t = jnp.exp(inverse_beta_x_t + inverse_beta)
+            # x_mean = jnp.mean(beta_x_t)
+            # x_std = jnp.std(beta_x_t)
+            # x_min = jnp.min(beta_x_t)
+            # x_max = jnp.max(beta_x_t)
+            # jax.debug.print("🤯 mean {x_mean} 🤯", x_mean=x_mean)
+            # jax.debug.print("🤯 std {x_std} 🤯", x_std=x_std)
+            # jax.debug.print("🤯 max {x_max} 🤯", x_max=x_max)
+            # jax.debug.print("🤯 min {x_min} 🤯", x_min=x_min)
+            # jax.debug.print("🤯 t {t} 🤯", t=t)
+            # jax.debug.print("🤯 t_discrete {t_discrete} 🤯", t_discrete=t_discrete)
+            return beta_x_t
         else:
             raise ValueError("beta schedule not implemented")
 
@@ -479,6 +491,8 @@ class Bridge_SDE_Class(Base_SDE_Class):
             forward_drift = (diffusion_next**2*grads_next - forward_drifts_next)
         x_pos_next = x_next + forward_drift*dt
 
+        # jax.debug.print("🤯 xs {xs} 🤯", xs=xs)
+        # jax.debug.print("🤯 diffusions {diffusions} 🤯", diffusions=diffusions)
 
         ## TODO compute forward log probs here
         reverse_log_prob_func = jax.vmap(self.calc_diff_log_prob, in_axes=(0, 0, 0))

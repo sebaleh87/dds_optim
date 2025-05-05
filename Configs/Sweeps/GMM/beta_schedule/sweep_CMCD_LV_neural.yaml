@@ -1,5 +1,5 @@
 program: main.py
-project: GMMDistrax_gridsearch_02_03_LV_and_LD
+project: GMMDistrax_gridsearch_03_05_LV_neural_beta
 command:
   - ${env}
   - python
@@ -26,8 +26,10 @@ parameters:
     value: 1200
   base_net:
     value: PISgradnet
+  beta_schedule:
+    value: neural
   SDE_Loss:
-    values: [Bridge_LogVarLoss, Bridge_rKL_logderiv]
+    values: [Bridge_LogVarLoss]
   SDE_Type:
     value: Bridge_SDE
   SDE_lr:
@@ -47,11 +49,11 @@ parameters:
   feature_dim:
     value: 64
   n_hidden:
-    value: 64
+    value: 52
   n_integration_steps:
     value: 128
   beta_max:
-    values: [1., 1.5]
+    values: [1., 0.3]
   sigma_init:
     values: [80.]
   model_seeds:

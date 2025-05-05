@@ -69,12 +69,15 @@ parser.add_argument('--weight_temperature', type=float, default=1., help='temper
 parser.add_argument("--sigma_scale_factor", type=float, default=1., help="amount of noise for off policy sampling, 0 has no effect = no-use_off_policy")
 
 parser.add_argument("--disable_jit", action='store_true', default=False, help="disable jit for debugging")
+parser.add_argument("--debug_nans", action='store_true', default=False, help="debug nans")
 
 parser.add_argument("--N_anneal", type=int, default=1000)
 parser.add_argument("--N_warmup", type=int, default=0)
 parser.add_argument("--steps_per_epoch", type=int, default=10)
 
 parser.add_argument("--beta_schedule", type=str, choices = ["constant", "cosine", "learned", "neural", "linear"], default="constant", help="defines the noise schedule for Bridge_SDE")
+parser.add_argument("--beta_schedule_neural_mode", type=str, default = "time_dependent", choices=["time_dependent", "time_and_X_dependent"],
+                     help="mode for input into beta_schedule network when --beta_schedule == neural, time_dependent: only time dependent, time_and_X_dependent: also X dependent")
 parser.add_argument("--time_encoder_mode", type=str, default="normal_embedding", choices=["all", "fourier_embedding", "normal_embedding", "normal_x_t_embedding"], 
                     help="Time encoder mode: onyl applied when beta_schedule == neural and base_net == Vanilla")
 parser.add_argument("--update_params_mode", type=str, choices = ["all_in_one", "DKL"], default="all_in_one", help="keep all_in_one as default. This is currently not used")
@@ -87,7 +90,7 @@ parser.add_argument('--no-temp_mode', action='store_false', dest='temp_mode', he
 
 parser.add_argument("--feature_dim", type=int, default=124)
 parser.add_argument("--n_hidden", type=int, default=64)
-parser.add_argument("--n_layers", type=int, default=3)
+parser.add_argument("--n_layers", type=int, default=2)
 
 parser.add_argument('--use_interpol_gradient', action='store_true', default=True, help='use gradient of energy function to parameterize the score')
 parser.add_argument('--no-use_interpol_gradient', dest='use_interpol_gradient', action='store_false', help='dont use gradient of energy function to parameterize the score')
@@ -117,8 +120,6 @@ parser.add_argument("--weight_init", type=float, default=1e-8, help="network ini
 
 parser.add_argument("--langevin_precon", type=str2bool, nargs='?',
                         const=True, default=True, help="use langevin preconditioning or not, only applies for vanilla net")
-parser.add_argument("--langevin_precon_mode", type=str, default = "time_dependent", choices=["time_dependent", "time_and_X_dependent"],
-                     help="mode for langevin preconditioning, time_dependent: only time dependent, time_and_X_dependent: also X dependent")
 
 parser.add_argument("--natural_gradient", type=str2bool, nargs='?',
                         const=True, default=False, help="for Bridges use nat gradient or not")
@@ -155,6 +156,8 @@ if(__name__ == "__main__"):
 
     if(args.disable_jit):
         jax.config.update("jax_disable_jit", True)
+
+    if(args.debug_nans):
         jax.config.update("jax_debug_nans", True)
 
     if(args.gridsearch):
@@ -208,7 +211,7 @@ if(__name__ == "__main__"):
             "network_init": args.network_init,
             "langevin_precon": args.langevin_precon,
             "weight_init": args.weight_init,
-            "langevin_precon_mode": args.langevin_precon_mode,
+            "beta_schedule_neural_mode": args.beta_schedule_neural_mode,
         }
 
         if("Discrete_Time_rKL_Loss" in args.SDE_Loss):

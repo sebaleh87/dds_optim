@@ -180,7 +180,7 @@ def Seeds_DBS(key):
     elif(key == "rKL_logderiv_frozen"):
         wandb_ids = ["hopeful-dew-8", "eternal-spaceship-7", "robust-frog-5"]
     elif(key == "LogVarLoss"):
-        wandb_ids = ["sage-frog-17", "rose-monkey-17", "eager-tarrain-15"]
+        wandb_ids = ["sage-frog-17", "rose-monkey-16", "eager-terrain-15"]
     elif(key == "LogVarLoss_frozen"):
         wandb_ids = ["stilted-valley-13", "chocolate-sea-12", "treasured-vortex-10"]
     return wandb_ids
@@ -188,7 +188,7 @@ def Seeds_DBS(key):
 def Sonar_DBS(key):
     #wandb_ids = ["amber-smoke-4", "lilac-plant-3", "crimson-eon-2", "helpful-thunder-1"]
     if(key == "rKL_frozen"):
-        wandb_ids = []
+        wandb_ids = ["clean-disco-26", "robust-grass-25", "giddy-yogurt-24"]
     elif(key == "rKL_logderiv"):
         wandb_ids = ["solar-terrain-11", "icy-wood-7", "fanciful-fire-2"]
     elif(key == "rKL_logderiv_frozen"):
@@ -213,12 +213,39 @@ def LGCP_DBS(key):
         wandb_ids = ["bright-frog-11", "wobbly-serenity-6", "fearless-snowflake-1"]
     return wandb_ids
 
+def Brownian_DBS(key):
+    if(key == "rKL_frozen"):
+        wandb_ids = ["daily-bee-15", "warm-deluge-11", "warm-fog-7"]
+    elif(key == "rKL_logderiv"):
+        wandb_ids = ["grateful-aardvark-3", "sandy-wildflower-2", "ethereal-bee-1"]
+    elif(key == "rKL_logderiv_frozen"):
+        wandb_ids = ["glamorous-bird-14", "kind-gorge-10", "glad-snowball-6"]
+    elif(key == "LogVarLoss"):
+        wandb_ids = ["winter-yogurt-13", "prime-breeze-8", "stoic-dew-4"]
+    elif(key == "LogVarLoss_frozen"):
+        wandb_ids = ["hearty-darkness-12", "snowy-dew-9", "fanciful-sun-5"]
+    return wandb_ids
+
+def German_DBS(key):
+    if(key == "rKL_frozen"):
+        wandb_ids = ["logical-hill-15", "easy-dust-12", "eager-vortex-6"]
+    elif(key == "rKL_logderiv"):
+        wandb_ids = []
+    elif(key == "rKL_logderiv_frozen"):
+        wandb_ids = ["logical-eon-14", "fiery-glade-11", "major-waterfall-5"]
+    elif(key == "LogVarLoss"):
+        wandb_ids = ["splendid-voice-8", "apricot-dragon-3", "celestial-sun-2"]
+    elif(key == "LogVarLoss_frozen"):
+        wandb_ids = ["pious-butterfly-18", "radiant-snow-17", "dutiful-lake-16"]
+    return wandb_ids
+
 
 if(__name__ == "__main__"):
     loss_keys = ["rKL_frozen", "rKL_logderiv", "rKL_logderiv_frozen", "LogVarLoss", "LogVarLoss_frozen"]
 
     problem_list = {"Seeds":  Seeds, "Sonar": Sonar, "Credit": Credit, "Funnel": Funnel, "Brownian": Brownian, "MoS": MoS,
-                    "LGCP": LGCP, "GMM": GMM, "GMM-DBS": GMM_DBS, "MoS-DBS": MoS_DBS, "Funnel-DBS": Funnel_DBS, "Sonar-DBS": Sonar_DBS, "Seeds-DBS": Seeds_DBS, "LGCP-DBS": LGCP_DBS}
+                    "LGCP": LGCP, "GMM": GMM, "GMM-DBS": GMM_DBS, "MoS-DBS": MoS_DBS, 
+                    "Funnel-DBS": Funnel_DBS, "Sonar-DBS": Sonar_DBS, "Seeds-DBS": Seeds_DBS, "LGCP-DBS": LGCP_DBS, "German_DBS": German_DBS, "Brownian_DBS": Brownian_DBS}
     k = 10
     for problem in problem_list.keys():
 
