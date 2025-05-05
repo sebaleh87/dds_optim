@@ -282,6 +282,7 @@ class TrainerClass:
 
             pbar.set_description(f"mean_loss {mean_loss:.4f}, best energy: {self.Best_Energy_value_ever:.4f}")
 
+            #TODO this is not used, still needed?
             Free_Energy_values = np.mean(self.aggregated_out_dict["Free_Energy_at_T=1"])
             for save_key in self.save_metric_dict.keys():
                 if(save_key in self.aggregated_out_dict.keys()):
