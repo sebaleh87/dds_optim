@@ -245,7 +245,7 @@ class TrainerClass:
         self.save_metric_dict = {"Free_Energy_at_T=1": [], "ELBO_at_T=1": [], "log_Z_at_T=1": [],  "n_eff": [], "epoch": [], "EUBO_at_T=1": []}
         if hasattr(self, 'sd_calculator'):
             self.save_metric_dict["sinkhorn_divergence"] = []
-            self.save_metric_dict["MMD"] = []
+            self.save_metric_dict["MMD^2"] = []
         
         if hasattr(self.EnergyClass, 'compute_emc'):
             self.save_metric_dict["EMC"] = []
@@ -434,7 +434,7 @@ class TrainerClass:
                 MMD = self.sd_calculator.mmd_loss_jax(model_samples, n_samples = self.MMD_samples)
                 
                 # Store Sinkhorn metrics
-                MMD_metric_name = f"eval_{sample_mode}/MMD"
+                MMD_metric_name = f"eval_{sample_mode}/MMD^2"
                 sd_metric_name = f"eval_{sample_mode}/sinkhorn_divergence"
                 if sd_metric_name not in self.metric_history:
                     self.metric_history[sd_metric_name] = []
