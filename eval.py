@@ -190,7 +190,7 @@ def evaluate_runs(wandb_ids):
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkpoint_metric", default = "params_and_config_train_end.pkl", choices=["params_and_config_train_end.pkl","Free_Energy_at_T=1", "Sinkhorn"], type=str, help="Wandb run name of run to evaluate")
     parser.add_argument("--n_eval_samples", type=int, default=16000)
-    parser.add_argument("--chunk_size", type=int, default=20)
+    parser.add_argument("--chunk_size", type=int, default=1)
     parser.add_argument("--GPU", type=int, default=0)
     args = parser.parse_args()
 
