@@ -158,7 +158,7 @@ class SD:
         self.key, subkey = jax.random.split(self.key)
         self.groundtruth = self.resample_energy(subkey, model_samples.shape[0])
         
-        geom = pointcloud.PointCloud(self.groundtruth, model_samples, epsilon=self.epsilon)
+        geom = pointcloud.PointCloud(self.groundtruth, model_samples, epsilon=self.eps)
         sd = sinkhorn_divergence.sinkhorn_divergence(geom, x=geom.x, y=geom.y)
         return sd[1].divergence
 
