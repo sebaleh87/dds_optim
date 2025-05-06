@@ -43,7 +43,6 @@ class TrainerClass:
         # Generate ground truth samples for SD metric if available
         if hasattr(self.EnergyClass, 'has_tractable_distribution') and self.EnergyClass.has_tractable_distribution:
             n_samples = [self.config["n_eval_samples"]]
-            print("Warning: samples have to be rescaled for GMMDistraxRandom")
             
             key = jax.random.PRNGKey(self.config["sample_seed"])
             reps = 1
@@ -64,12 +63,13 @@ class TrainerClass:
                     print("sample time", end_sample_time - start_sample_time)
                     print("time needed", end_time - start_time)
                     distances["Sinkhorn"].append(distance)
-                    distances["MMD"].append(MMD)
+                    distances["MMD"].append(jnp.sqrt(MMD))
 
                 for key in distances.keys():
                     avg_distance = np.mean(distances[key])
                     std_distance = np.std(distances[key])
                     print(f"Average distance for {n_sample} samples Metric {key}: {avg_distance}, Std: {std_distance}")
+
 
 
         self._init_wandb()

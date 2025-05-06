@@ -69,7 +69,7 @@ class SD:
     def resample_energy(self, key, n_samples):
         return self.energy_function.generate_samples(key, n_samples)
 
-    def compute_SD(self, model_samples):
+    def compute_SD(self, model_samples, gt_samples = None):
         """
         Compute Sinkhorn divergence between ground truth and model samples.
         
@@ -80,7 +80,8 @@ class SD:
             float: The Sinkhorn divergence
         """
         self.key, subkey = jax.random.split(self.key)
-        self.groundtruth = self.resample_energy(subkey, self.n_samples)
+
+        self.groundtruth = self.resample_energy(subkey, model_samples.shape[0])
         geom = pointcloud.PointCloud(self.groundtruth, model_samples, epsilon=self.epsilon)
         sd = sinkhorn_divergence.sinkhorn_divergence(geom, x=geom.x, y=geom.y)
         return sd[1].divergence
@@ -114,10 +115,17 @@ class SD:
 
 
     def mmd_loss_jax(self, model_samples, kernel_mul=2.0, kernel_num=10, fix_sigma=None, n_samples = 2000):
+        ### TODO pay attention the output is MMD^2!
         self.key, subkey = jax.random.split(self.key)
         self.groundtruth = self.resample_energy(subkey, n_samples)
         mmd_loss = self.mmd_loss(model_samples[0:n_samples], self.groundtruth, kernel_mul, kernel_num)
         return mmd_loss
+    
+    def compute_MMD_and_Sinkhorn(self, model_samples, kernel_mul=2.0, kernel_num=10, fix_sigma=None, n_MMD_samples = 4000):
+        mmd_loss = self.mmd_loss_jax(model_samples[0:n_MMD_samples], kernel_mul, kernel_num, fix_sigma, n_MMD_samples)
+        sd = self.compute_SD(model_samples)
+        out_dict = {"MMD^2": mmd_loss, "Sinkhorn divergence": sd}
+        return out_dict
 
 
 
