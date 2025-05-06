@@ -13,7 +13,7 @@ import pickle
 import os
 from utils.rotate_vector import rotate_vector
 from matplotlib import pyplot as plt
-from Metrics.optimal_transport import SD  # Import the Sinkhorn divergence class
+from Metrics.optimal_transport import SD, Sinkhorn  # Import the Sinkhorn divergence class
 
 class TrainerClass:
     def __init__(self, base_config, mode = "train"):
@@ -55,9 +55,11 @@ class TrainerClass:
                     key, subkey =  jax.random.split(key)
                     model_samples = self.EnergyClass.generate_samples(subkey, self.n_sinkhorn_samples)
                     end_sample_time = time.time()
-                    self.sd_calculator = SD(self.EnergyClass, n_sample, key, epsilon=1e-3)
+                    #self.sd_calculator = SD(self.EnergyClass, n_sample, key, epsilon=1e-3)
+                    self.sd_calculator = Sinkhorn(self.EnergyClass, n_sample, key, epsilon=1e-3)
                     start_time = time.time()
-                    distance = self.sd_calculator.compute_SD(model_samples)
+                    #distance = self.sd_calculator.compute_SD(model_samples)
+                    distance,_,_ = self.sd_calculator.compute_SD(model_samples)
                     end_time = time.time()
                     print("sample time", end_sample_time - start_sample_time)
                     print("time needed", end_time - start_time)
@@ -263,7 +265,7 @@ class TrainerClass:
                     # Calculate Sinkhorn divergence if the energy model has a tractable distribution
                     if hasattr(self, 'sd_calculator'):
                         model_samples = out_dict["X_0"][0:self.n_sinkhorn_samples]
-                        distance = self.sd_calculator.compute_SD(model_samples)
+                        distance,_,_ = self.sd_calculator.compute_SD(model_samples)
                         
                         # Store Sinkhorn metrics
                         sd_metric_name = f"eval_{sample_mode}/sinkhorn_divergence"

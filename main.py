@@ -28,7 +28,7 @@ parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choi
                                                                                      "DoubleWellEquivariant", "DoubleWell", "Sonar", "Funnel",
                                                                                       "Pytheus", "WavePINN_latent", "WavePINN_hyperparam", "DoubleMoon",
                                                                                       "Banana", "Brownian", "Lorenz", "Seeds", "Ionosphere", "Sonar", "LGCP", "GermanCredit", "MW54",
-                                                                                      "StudentTMixture", "FunnelDistrax"], help="EnergyClass")
+                                                                                      "MW54_1", "StudentTMixture", "FunnelDistrax"], help="EnergyClass")
 parser.add_argument("--n_particles", type=int, default=2, help="the dimension can be controlled for some problems")
 parser.add_argument("--T_start", type=float, default=[1.], nargs="+" ,  help="Starting Temperature")
 parser.add_argument("--T_end", type=float, default=0., help="End Temperature")
@@ -126,10 +126,11 @@ args = parser.parse_args()
 
 if(__name__ == "__main__"):
 
+    
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   # see issue #152
     if args.GPU != -1:                              # GPU -1 means select GPU via env var in command line
         os.environ["CUDA_VISIBLE_DEVICES"]=f"{str(args.GPU)}"
-
+    
 
     # importing after set visible devices seems to be important! othervice all gpus remain visible
     import jax
@@ -381,7 +382,6 @@ if(__name__ == "__main__"):
                 "m": N,
                 "dim_x": N + N,
             }
-
         elif("WavePINN" in args.Energy_Config):
             Energy_Config = {
                 "name": args.Energy_Config,
@@ -442,7 +442,15 @@ if(__name__ == "__main__"):
                 "name": args.Energy_Config,
                 "d": N,
                 "m": N,
-                "dim_x": N + N,
+                "dim_x": N,
+            }
+        elif(args.Energy_Config == "MW54_1"):
+            N = args.n_particles
+            Energy_Config = {
+                "name": args.Energy_Config,
+                "d": N,
+                "m": N,
+                "dim_x": N,
             }
         elif(args.Energy_Config == "StudentTMixture"):
             dim = args.n_particles
