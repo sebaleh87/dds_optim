@@ -7,6 +7,8 @@ from .WavePINN_latent import WavePINN_latent_Class
 from .LennardJones import LennardJonesClass
 from .DoubleWell import DoubleWellClass
 from .DoubleWellEquivariant import DoubleWellEquivariantClass
+from .MW54 import ManyWellClass
+from .MW54_1 import ManyWellClass1
 from .DoubleMoon import DoubleMoonClass
 from .Sonar import SonarClass
 from .InferenceGym import InferenceGymClass
@@ -21,7 +23,9 @@ Energy_Registry = {"GaussianMixture": GaussianMixtureClass, "MexicanHat": Mexica
                 "WavePINN_hyperparam": WavePINN_hyperparam_Class, "WavePINN_latent": WavePINN_latent_Class, "LennardJones": LennardJonesClass,
                 "DoubleWellEquivariant": DoubleWellEquivariantClass, "DoubleWell": DoubleWellClass, "DoubleMoon": DoubleMoonClass,
                 "Lorenz": InferenceGymClass, "Brownian": InferenceGymClass, "Banana": InferenceGymClass, "Seeds": InferenceGymClass, 
-                "Ionosphere" : InferenceGymClass, "Sonar": InferenceGymClass, "Funnel": FunnelClass, "LGCP": LGCPClass, "GermanCredit": GermanCreditClass, "MW54": DoubleWellClass,
+                "Ionosphere" : InferenceGymClass, "Sonar": InferenceGymClass, "Funnel": FunnelClass, "LGCP": LGCPClass, "GermanCredit": GermanCreditClass,
+                "MW54": ManyWellClass,
+                "MW54_1": ManyWellClass1,
                 "StudentTMixture": StudentTMixtureClass, "GMMDistrax": GMMDistraxClass
                 #"FunnelDistrax": FunnelDistraxClass
                 }
