@@ -4,7 +4,7 @@
 conda env create -f environment.yml
 ```
 ```
-conda activate /system/apps/userenv/bartmann/rayjay_clone_test
+conda activate /system/user/publicwork/gruber/conda_envs/ddsoptim1 
 ```
 
 When installation crashes, do the following: (WORK IN PROGRESS)

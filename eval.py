@@ -7,7 +7,7 @@ import argparse
 from Trainer.train import TrainerClass
 import jax
 import jax.numpy as jnp
-from Configs import run_wandb_ids
+from Configs.config_loaders import run_wandb_ids
 
 
 def load_params_and_config(wandb_run_name, filename = "params_and_config_train_end.pkl"):
@@ -198,21 +198,50 @@ def evaluate_runs(wandb_ids):
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID" 
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.GPU)
     
-    metric_dict = { "MMD": [], "Sinkhorn": []}
+    # metric_dict = { "MMD": [], "Sinkhorn": []}
 
-    for wandb_id in wandb_ids:
-        metrix_dict_per_run = evaluate_on_run(wandb_id, args.n_eval_samples, args.chunk_size)
-        metric_dict["MMD"].append(metrix_dict_per_run["MMD"]["mean"])
-        metric_dict["Sinkhorn"].append(metrix_dict_per_run["Sinkhorn"]["mean"])
+    # for wandb_id in wandb_ids:
+    #     metrix_dict_per_run = evaluate_on_run(wandb_id, args.n_eval_samples, args.chunk_size)
+    #     metric_dict["MMD"].append(metrix_dict_per_run["MMD"]["mean"])
+    #     metric_dict["Sinkhorn"].append(metrix_dict_per_run["Sinkhorn"]["mean"])
 
-    print(metric_dict["Sinkhorn"])
-    print("Sinkhorn", np.mean(metric_dict["Sinkhorn"]) , np.std(metric_dict["Sinkhorn"]))
-    print("MMD", np.mean(metric_dict["MMD"]) , np.std(metric_dict["MMD"]))
+    # print(metric_dict["Sinkhorn"])
+    # Sinkhorn_metric_text = compute_average_and_variance(metric_dict["Sinkhorn"])
+    # MMD_metric_text = compute_average_and_variance(metric_dict["MMD"])
+    # print("Sinkhorn", Sinkhorn_metric_text)
+    # print("MMD", MMD_metric_text)
+
+    # Save MMD and Sinkhorn distances into a text file
+    output_dir = os.path.dirname(os.path.abspath(__file__)) + "/Data/eval"
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, "evaluation_metrics.txt")
+
+    with open(output_file, "w") as f:
+        f.write("MMD Distances:\n")
+        f.write(", ".join(map(str, metric_dict["MMD"])) + "\n")
+        f.write(f"{MMD_metric_text}\n\n")
+        
+        f.write("Sinkhorn Distances:\n")
+        f.write(", ".join(map(str, metric_dict["Sinkhorn"])) + "\n")
+        f.write(f"{Sinkhorn_metric_text}\n\n")
+
+    print(f"Metrics saved to {output_file}")
+
+def compute_average_and_variance(curve_per_seed, round_mean = 2, round_sdt = 3):
+    mean_over_seeds = np.mean(curve_per_seed)
+    std_over_seeds = np.std(curve_per_seed)/np.sqrt(len(curve_per_seed))
+    mean_over_seeds_rounded = np.round(mean_over_seeds, round_mean)
+    std_over_seeds_rounded = np.round(std_over_seeds, round_sdt)
+
+    metric_text = f"${mean_over_seeds_rounded:.2f}"+ r"\text{\tiny{$\pm " +  f"{std_over_seeds_rounded}$" + "}}$"
+    return metric_text
 
 if __name__ == "__main__":
 
     ### GMM 
     # log_derivative 
+    problem_list = { "MoS": run_wandb_ids.MoS, "GMM": run_wandb_ids.GMM, "GMM-DBS": run_wandb_ids.GMM_DBS, "MoS-DBS": run_wandb_ids.MoS_DBS}
+
     GMM_rKL_LD = ["clone-trooper-25", "legendary-bantha-29", "jedi-fighter-33", "galactic-speeder-37", "tusken-republic-41"
                     ,"grievous-carrier-45", "carbonite-lightsaber-48"]
 

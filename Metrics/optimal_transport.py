@@ -59,38 +59,51 @@ class OT:
 class SD:
     """Sinkhorn Divergence class for computing distribution distances."""
     
-    def __init__(self, Energy_function, n_samples, key, epsilon=1e-3):
-        """
-        Initialize with ground truth samples and regularization parameter.
-        
-        Args:
-            gt_samples: Ground truth samples to compare against
-            epsilon: Regularization parameter for numerical stability
-        """
-        self.epsilon = epsilon
-        self.energy_function = Energy_function
+    def __init__(
+        self,
+        energy_function,
+        n_samples,
+        key,
+        p: float = 2,
+        epsilon: float = 1e-3,
+        max_iters: int = 100,
+        stop_thresh: float = 1e-5,
+        verbose: bool = False,
+        n_max: int | None = None,
+        **kwargs,
+    ):
+        if not isinstance(p, int):
+            raise TypeError(f"p must be an integer greater than 0, got {p}")
+        if p <= 0:
+            raise ValueError(f"p must be an integer greater than 0, got {p}")
+        self.p = p
+
+        if epsilon <= 0:
+            raise ValueError("Entropy regularization term eps must be > 0")
+        self.eps = epsilon
+
+        if not isinstance(max_iters, int) or max_iters <= 0:
+            raise TypeError(f"max_iters must be an integer > 0, got {max_iters}")
+        self.max_iters = max_iters
+
+        if not isinstance(stop_thresh, float):
+            raise TypeError(f"stop_thresh must be a float, got {stop_thresh}")
+        self.stop_thresh = stop_thresh
+
+        self.n_max = n_max
+        self.verbose = verbose
+        self.energy_function = energy_function
         self.key = key
         self.n_samples = n_samples
 
     def resample_energy(self, key, n_samples):
         return self.energy_function.generate_samples(key, n_samples)
-
+    
     def compute_SD(self, model_samples, gt_samples = None):
-        """
-        Compute Sinkhorn divergence between ground truth and model samples.
-        
-        Args:
-            model_samples: Samples from the model to compare against ground truth
-            
-        Returns:
-            float: The Sinkhorn divergence
-        """
-        self.key, subkey = jax.random.split(self.key)
-        self.groundtruth = self.resample_energy(subkey, model_samples.shape[0])
-        
-        geom = pointcloud.PointCloud(self.groundtruth, model_samples, epsilon=self.epsilon)
-        sd = sinkhorn_divergence.sinkhorn_divergence(geom, x=geom.x, y=geom.y)
-        return sd[1].divergence
+        if("MW" in self.energy_function.config['name']):
+            return self.compute_SD_many_well(model_samples, gt_samples)
+        else:
+            return self.compute_SD_others(model_samples, gt_samples)
     
     # JAX implementation
     #@partial(jax.jit, static_argnums=(0,-1,-2))
@@ -132,70 +145,24 @@ class SD:
         out_dict = {"MMD^2": mmd_loss, "Sinkhorn divergence": sd}
         return out_dict    
 
+    def compute_SD_others(self, model_samples, gt_samples = None):
+        """
+        Compute Sinkhorn divergence between ground truth and model samples.
+        
+        Args:
+            model_samples: Samples from the model to compare against ground truth
+            
+        Returns:
+            float: The Sinkhorn divergence
+        """
+        self.key, subkey = jax.random.split(self.key)
+        self.groundtruth = self.resample_energy(subkey, model_samples.shape[0])
+        
+        geom = pointcloud.PointCloud(self.groundtruth, model_samples, epsilon=self.epsilon)
+        sd = sinkhorn_divergence.sinkhorn_divergence(geom, x=geom.x, y=geom.y)
+        return sd[1].divergence
 
-
-class Sinkhorn:
-    """
-    Compute the Entropy-Regularized p-Wasserstein Distance between two d-dimensional point clouds
-    using the Sinkhorn scaling algorithm. This code will use the GPU if you pass in GPU tensors.
-    Note that this algorithm can be backpropped through
-    (though this may be slow if using many iterations).
-    :param x: A [n, d] tensor representing a d-dimensional point cloud with n points (one per row)
-    :param y: A [m, d] tensor representing a d-dimensional point cloud with m points (one per row)
-    :param p: Which norm to use. Must be an integer greater than 0.
-    :param w_x: A [n,] shaped tensor of optional weights for the points x (None for uniform weights). Note that these must sum to the same value as w_y. Default is None.
-    :param w_y: A [m,] shaped tensor of optional weights for the points y (None for uniform weights). Note that these must sum to the same value as w_y. Default is None.
-    :param eps: The reciprocal of the sinkhorn entropy regularization parameter.
-    :param max_iters: The maximum number of Sinkhorn iterations to perform.
-    :param stop_thresh: Stop if the maximum change in the parameters is below this amount
-    :param verbose: Print iterations
-    :return: a triple (d, corrs_x_to_y, corr_y_to_x) where:
-    * d is the approximate p-wasserstein distance between point clouds x and y
-    * corrs_x_to_y is a [n,]-shaped tensor where corrs_x_to_y[i] is the index of the approximate correspondence in point cloud y of point x[i] (i.e. x[i] and y[corrs_x_to_y[i]] are a corresponding pair)
-    * corrs_y_to_x is a [m,]-shaped tensor where corrs_y_to_x[i] is the index of the approximate correspondence in point cloud x of point y[j] (i.e. y[j] and x[corrs_y_to_x[j]] are a corresponding pair)
-    """
-
-    def __init__(
-        self,
-        energy_function,
-        n_samples,
-        key,
-        p: float = 2,
-        epsilon: float = 1e-3,
-        max_iters: int = 100,
-        stop_thresh: float = 1e-5,
-        verbose: bool = False,
-        n_max: int | None = None,
-        **kwargs,
-    ):
-        if not isinstance(p, int):
-            raise TypeError(f"p must be an integer greater than 0, got {p}")
-        if p <= 0:
-            raise ValueError(f"p must be an integer greater than 0, got {p}")
-        self.p = p
-
-        if epsilon <= 0:
-            raise ValueError("Entropy regularization term eps must be > 0")
-        self.eps = epsilon
-
-        if not isinstance(max_iters, int) or max_iters <= 0:
-            raise TypeError(f"max_iters must be an integer > 0, got {max_iters}")
-        self.max_iters = max_iters
-
-        if not isinstance(stop_thresh, float):
-            raise TypeError(f"stop_thresh must be a float, got {stop_thresh}")
-        self.stop_thresh = stop_thresh
-
-        self.n_max = n_max
-        self.verbose = verbose
-        self.energy_function = energy_function
-        self.key = key
-        self.n_samples = n_samples
-
-    def resample_energy(self, key, n_samples):
-        return self.energy_function.generate_samples(key, n_samples)
-
-    def compute_SD(
+    def compute_SD_many_well(
         self,
         model_samples,
         w_x: torch.Tensor | None = None,
@@ -316,22 +283,8 @@ class Sinkhorn:
             distance = (P_ij * M_ij).sum(dim=1).sum()
         else:
             distance = (P_ij * M_ij).sum(dim=0).sum()
-        return distance, approx_corr_1, approx_corr_2
+        return distance
 
-    def __call__(
-        self,
-        x: torch.Tensor,
-        y: torch.Tensor,
-        w_x: torch.Tensor | None = None,
-        w_y: torch.Tensor | None = None,
-    ):
-        if self.n_max is not None:
-            x, y = x[: self.n_max], y[: self.n_max]
-            if w_x is not None:
-                w_x = w_x[: self.n_max]
-            if w_y is not None:
-                w_y = w_y[: self.n_max]
-        return self.compute(x, y, w_x=w_x, w_y=w_y)[0]
     
 
     # def compute_approximate_W2(self, model_samples):
