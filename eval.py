@@ -198,18 +198,18 @@ def evaluate_runs(wandb_ids):
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID" 
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.GPU)
     
-    # metric_dict = { "MMD": [], "Sinkhorn": []}
+    metric_dict = { "MMD": [], "Sinkhorn": []}
 
-    # for wandb_id in wandb_ids:
-    #     metrix_dict_per_run = evaluate_on_run(wandb_id, args.n_eval_samples, args.chunk_size)
-    #     metric_dict["MMD"].append(metrix_dict_per_run["MMD"]["mean"])
-    #     metric_dict["Sinkhorn"].append(metrix_dict_per_run["Sinkhorn"]["mean"])
+    for wandb_id in wandb_ids:
+        metrix_dict_per_run = evaluate_on_run(wandb_id, args.n_eval_samples, args.chunk_size)
+        metric_dict["MMD"].append(metrix_dict_per_run["MMD"]["mean"])
+        metric_dict["Sinkhorn"].append(metrix_dict_per_run["Sinkhorn"]["mean"])
 
-    # print(metric_dict["Sinkhorn"])
-    # Sinkhorn_metric_text = compute_average_and_variance(metric_dict["Sinkhorn"])
-    # MMD_metric_text = compute_average_and_variance(metric_dict["MMD"])
-    # print("Sinkhorn", Sinkhorn_metric_text)
-    # print("MMD", MMD_metric_text)
+    print(metric_dict["Sinkhorn"])
+    Sinkhorn_metric_text = compute_average_and_variance(metric_dict["Sinkhorn"])
+    MMD_metric_text = compute_average_and_variance(metric_dict["MMD"])
+    print("Sinkhorn", Sinkhorn_metric_text)
+    print("MMD", MMD_metric_text)
 
     # Save MMD and Sinkhorn distances into a text file
     output_dir = os.path.dirname(os.path.abspath(__file__)) + "/Data/eval"
