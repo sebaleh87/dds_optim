@@ -4,12 +4,7 @@ from jax import numpy as jnp
 from functools import partial
 from jax import nn
 from .loss_utils import compute_rKL_log_deriv, compute_fKL_log_deriv
-# Note: Functions from Bridge_fKL_logderivative.py and Bridge_rKL_logderivative.py 
-# have been moved to loss_utils.py and are imported here
 
-### TODO implement add Bridge_rKL_rKL_logderiv_Loss_Class to SDE_Loss_registry in __init__.py and also to argparse in main.py
-
-### try out on GMM-2D and if it works try out sweeps in Configs/Sweeps/GMM/
 
 class Bridge_rKL_fKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
 
@@ -34,6 +29,7 @@ class Bridge_rKL_fKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
         x_last = SDE_tracer["x_final"]
 
         log_prior = self.vmap_get_log_prior(SDE_params, x_prior)
+
 
         Energy, key = self.EnergyClass.vmap_calc_energy(x_last, Energy_params, key)
         mean_Energy = jnp.mean(Energy)

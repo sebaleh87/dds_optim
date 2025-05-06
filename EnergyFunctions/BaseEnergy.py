@@ -1,6 +1,7 @@
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
+from matplotlib.patches import Ellipse
 import numpy as np
 import os
 import wandb
@@ -159,9 +160,9 @@ class EnergyModelClass:
         plt.show()
         return wfig
 
-    def plot_trajectories(self, Xs, panel = "fig"):
+    def plot_trajectories(self, Xs, noise_stds=None, prior_std=None, panel = "fig"):
         if(self.dim_x == 2):
-            return {"trajectories": self.plot_2_D_trajectories(Xs, panel = panel)}
+            return {"trajectories": self.plot_2_D_trajectories(Xs, noise_stds, prior_std, panel = panel)}
         elif(self.dim_x == 1):
             return {"trajectories": self.plot_1_D_trajectories(Xs, panel = panel)}
         else:
@@ -169,7 +170,7 @@ class EnergyModelClass:
 
     def plot_last_samples(self, Xs, panel = "fig"):
         if(self.dim_x == 2):
-            return {"last_samples": self.plot_2_D_last_samples(Xs, panel = panel)}
+            return {"last_samples_unzoomed": self.plot_2_D_last_samples(Xs, panel = panel)}
         elif(self.dim_x == 1):
             pass
         elif(self.config["name"] == "LennardJones"):
@@ -285,7 +286,7 @@ class EnergyModelClass:
         plt.close()
         return wandb.Image(fig)
 
-    def plot_2_D_trajectories(self, Xs, panel = "fig"):
+    def plot_2_D_trajectories(self, Xs, noise_stds=None, prior_std=None, panel = "fig"):
         T, B, dim = Xs.shape
         if dim != 2:
             raise ValueError("The dimension of the trajectories must be 2.")
@@ -309,15 +310,65 @@ class EnergyModelClass:
         log_probs_plot = plt.contourf(X, Y, Z_log_probs, levels=self.levels, cmap='Blues', alpha=0.3)
         plt.colorbar(log_probs_plot, label='Log Probability')
 
+        #plot the prior covariance
+        prior_ellipse = Ellipse(
+        xy=[0,0],
+        width= 2 * prior_std[0],
+        height= 2 * prior_std[1],
+        angle=0,
+        edgecolor='green',
+        facecolor='none',
+        linewidth=1.5,
+        linestyle='--',
+        label='Prior Covariance'
+        )
+        plt.gca().add_patch(prior_ellipse)
+
         for b in range(B):
             trajectory = Xs[:, b, :]
             plt.plot(trajectory[:, 0], trajectory[:, 1], label=f'Trajectory {b+1}')
+            
+            # Mark the initial point with a star
+            plt.scatter(trajectory[0, 0], trajectory[0, 1], color='gold', edgecolor='black', s=100, marker='*')
+
+            if noise_stds is not None:
+                for t in range(T):
+                    mean = trajectory[t]
+
+                    if noise_stds.shape[1] != 1:
+                        #if each trajectory has different noise stds
+                        width, height = 2 * noise_stds[t, b, 0], 2 * noise_stds[t, b, 1]
+                    else:
+                        #if all trajectories have the same noise stds
+                        width, height = 2 * noise_stds[t, 0, 0], 2 * noise_stds[t, 0, 0]
+                    angle = 0
+
+                    ellipse = Ellipse(
+                    xy=mean,
+                    width=width,
+                    height=height,
+                    angle=angle,
+                    edgecolor='red',
+                    facecolor='none',
+                    linewidth=0.5,
+                    alpha=0.5
+                    )
+                    plt.gca().add_patch(ellipse)     
+
+                    # Add a label showing the width and height of the ellipse
+                    if t%30==0 or t==T-1:
+                        plt.text(
+                            mean[0] + 0.1, mean[1] + 0.1,  # Offset the text slightly from the ellipse center
+                            f'#{t}: w={width:.2f}, h={height:.2f}',
+                            color='red',
+                            fontsize=8
+                        )
 
         
-        
+
         plt.xlabel('X-axis')
         plt.ylabel('Y-axis')
-        plt.title('2D Trajectories')
+        plt.title('2D Trajectories: Stds Ellipses are plotted around samples, not the mean!')
         plt.legend()
         plt.grid(True)
 
@@ -328,7 +379,9 @@ class EnergyModelClass:
 
     def plot_tsne_last_samples(self, Xs, panel = "fig"):
         # print("TSNE plot")
+        # Remove NaN values from Xs
         Xs = Xs[:1000]
+        Xs = Xs[~np.isnan(Xs).any(axis=1)]
         if(hasattr(self, 'means')):
             means_reshaped = self.means.reshape(-1, self.dim_x)
             Xs = np.concatenate([Xs, means_reshaped], axis=0)
@@ -352,9 +405,15 @@ class EnergyModelClass:
     def plot_2_D_last_samples(self, Xs, panel = "fig"):
         fig = plt.figure(figsize=(10, 6))
 
+        #extract maximal coordinates
+        x_min = np.min(Xs[:,0])
+        x_max = np.max(Xs[:,0])
+        y_min = np.min(Xs[:,1])
+        y_max = np.max(Xs[:,1])
+
         # Create a grid of points over the specified range
-        x = jnp.linspace(self.x_min, self.x_max, 100) 
-        y = jnp.linspace(self.y_min, self.x_max, 100)
+        x = jnp.linspace(x_min, x_max, 100) 
+        y = jnp.linspace(y_min, y_max, 100)
         X, Y = jnp.meshgrid(x, y)
 
         # Stack X and Y into a 2D array of coordinates for vectorized evaluation
@@ -373,10 +432,10 @@ class EnergyModelClass:
 
         plt.xlabel('X-axis')
         plt.ylabel('Y-axis')
-        plt.title('2D last samples')
+        plt.title('2D last samples Unzoomed')
         plt.grid(True)
-        plt.xlim(self.x_min, self.x_max)
-        plt.ylim(self.y_min, self.y_max)
+        plt.xlim(x_min, x_max)
+        plt.ylim(y_min, y_max)
 
         wfig = wandb.Image(fig)
         #wandb.log({f"{panel}/last_samples": wfig})
@@ -438,8 +497,8 @@ class EnergyModelClass:
         fig.colorbar(energy_plot, ax=ax, label='log probs')
         
         # Plot the zoomed-in heatmap
-        hist2d = ax.hist2d(x_samples, y_samples, bins=n_bins, cmap='Blues', alpha=0.7)
-        fig.colorbar(hist2d[3], ax=ax, label='Likelihood')
+        hist2d = ax.hist2d(x_samples, y_samples, bins=n_bins, cmap='cool', alpha=0.7)
+        fig.colorbar(hist2d[3], ax=ax, label='Bin count')
         
         ax.set_xlim(xmin=self.x_min, xmax=self.x_max)
         ax.set_ylim(ymin=self.y_min, ymax=self.y_max)

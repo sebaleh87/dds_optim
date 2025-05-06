@@ -20,11 +20,12 @@ parser.add_argument("--latent_dim", type=int, default=None)
 parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=["Reverse_KL_Loss","Reverse_KL_Loss_stop_grad","LogVariance_Loss", "LogVariance_Loss_MC",  "Bridge_fKL_logderiv",
                                                                                  "LogVariance_Loss_with_grad", "LogVariance_Loss_weighted", "Reverse_KL_Loss_logderiv", "Bridge_rKL_subtraj",
                                                                                  "Bridge_rKL", "Bridge_LogVarLoss", "Bridge_rKL_logderiv", "Bridge_rKL_logderiv_DiffUCO",
-                                                                                "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam", "Bridge_fKL_subtraj", "Bridge_rKL_fKL_logderivative"], help="select loss function")
+                                                                                "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam", "Bridge_fKL_subtraj",
+                                                                                  "Bridge_rKL_fKL_logderiv", "Bridge_fKL_reparam"], help="select loss function")
 parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE", "VE_SDE", "Bridge_SDE", "VE_Discrete"], help="select SDE type, subVP_SDE is currently deprecated")
 parser.add_argument("--Bridge_Type", type=str, default="CMCD", choices=["CMCD", "DBS"], help="select Bridge type")
 
-parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "GMMDistrax", "GMMDistraxRandom", "GaussianMixtureToy", "Rastrigin", "LennardJones", 
+parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choices=["GaussianMixture", "GMMDistrax", "GMMDistraxScaled", "GaussianMixtureToy", "Rastrigin", "LennardJones", 
                                                                                      "DoubleWellEquivariant", "DoubleWell", "Sonar", "Funnel",
                                                                                       "Pytheus", "WavePINN_latent", "WavePINN_hyperparam", "DoubleMoon",
                                                                                       "Banana", "Brownian", "Lorenz", "Seeds", "Ionosphere", "Sonar", "LGCP", "GermanCredit", "MW54",
@@ -41,7 +42,7 @@ parser.add_argument("--project_name", type=str, default="")
 parser.add_argument("--minib_time_steps", type=int, default=20)
 parser.add_argument("--batch_size", type=int, default=200)
 parser.add_argument("--optimizer", type=str, choices = ["ADAM", "SGD"], default = "ADAM")
-parser.add_argument( "--lr", type=float, default=[0.001], nargs="+")
+parser.add_argument("--lr", type=float, default=[0.001], nargs="+")
 parser.add_argument("--lr_schedule", type=str, choices = ["cosine", "const", "cosine_warmup"], default = "cosine")
 parser.add_argument("--Energy_lr", type=float, default=0.0)
 parser.add_argument("--Interpol_lr", type=float, default=0.001)
@@ -55,7 +56,7 @@ parser.add_argument("--learn_covar", action='store_true', default=False, help="l
 parser.add_argument("--sigma_init", type=float, default=1., help="init value of sigma")
 parser.add_argument("--repulsion_strength", type=float, default=0., help="repulsion_strength >= 0")
 parser.add_argument("--use_repulsion_energy", type=str2bool, nargs='?',
-                        const=True, default=False, help="use langevin preconditioning or not, only applies for vanilla net")
+                        const=True, default=False, help="use repulsion or not use repulsion within interpolation between prior and target")
 
 ### TODO explain the effect
 parser.add_argument('--use_off_policy', action='store_true', default=False, help='use off policy sampling')
@@ -68,25 +69,28 @@ parser.add_argument('--weight_temperature', type=float, default=1., help='temper
 parser.add_argument("--sigma_scale_factor", type=float, default=1., help="amount of noise for off policy sampling, 0 has no effect = no-use_off_policy")
 
 parser.add_argument("--disable_jit", action='store_true', default=False, help="disable jit for debugging")
+parser.add_argument("--debug_nans", action='store_true', default=False, help="debug nans")
 
 parser.add_argument("--N_anneal", type=int, default=1000)
 parser.add_argument("--N_warmup", type=int, default=0)
 parser.add_argument("--steps_per_epoch", type=int, default=10)
 
 parser.add_argument("--beta_schedule", type=str, choices = ["constant", "cosine", "learned", "neural", "linear"], default="constant", help="defines the noise schedule for Bridge_SDE")
+parser.add_argument("--beta_schedule_neural_mode", type=str, default = "time_dependent", choices=["time_dependent", "time_and_X_dependent"],
+                     help="mode for input into beta_schedule network when --beta_schedule == neural, time_dependent: only time dependent, time_and_X_dependent: also X dependent")
 parser.add_argument("--time_encoder_mode", type=str, default="normal_embedding", choices=["all", "fourier_embedding", "normal_embedding", "normal_x_t_embedding"], 
                     help="Time encoder mode: onyl applied when beta_schedule == neural and base_net == Vanilla")
 parser.add_argument("--update_params_mode", type=str, choices = ["all_in_one", "DKL"], default="all_in_one", help="keep all_in_one as default. This is currently not used")
 parser.add_argument("--epochs_per_eval", type=int, default=50)
 
 parser.add_argument("--beta_min", type=float, default=0.05)
-parser.add_argument("--beta_max", type=float ,default=[0.1], nargs="+" , help=r'serves at initial beta for all beta schedules, initial \sigma_diff is controlled with beta as $\sigma*beta$')
+parser.add_argument("--beta_max", type=float ,default=[0.1], nargs="+" , help=r'serves at initial beta for all beta schedules, initial \sigma_diff is given by beta as $\sigma_diff*\beta_max$')
 parser.add_argument('--temp_mode', action='store_true', default=True, help='only for discrete time model')
 parser.add_argument('--no-temp_mode', action='store_false', dest='temp_mode', help='')
 
 parser.add_argument("--feature_dim", type=int, default=124)
 parser.add_argument("--n_hidden", type=int, default=64)
-parser.add_argument("--n_layers", type=int, default=3)
+parser.add_argument("--n_layers", type=int, default=2)
 
 parser.add_argument('--use_interpol_gradient', action='store_true', default=True, help='use gradient of energy function to parameterize the score')
 parser.add_argument('--no-use_interpol_gradient', dest='use_interpol_gradient', action='store_false', help='dont use gradient of energy function to parameterize the score')
@@ -110,8 +114,10 @@ parser.add_argument("--n_eval_samples", type=int, default=2000, help="Number of 
 parser.add_argument("--Pytheus_challenge", type=int, default=1, choices=[0,1,2,3,4,5], help="Pyhteus Chellange Index")
 parser.add_argument("--Scaling_factor", type=float, default=40., help="Scaling factor for Energy Functions")
 parser.add_argument("--Variances", type=float, default=1., help="Variances of Gaussian Mixtures before scalling when means ~Unif([-1,1])")
-parser.add_argument("--base_net", type=str, default="Vanilla", choices = ["PISgradnet", "Vanilla", "PISNet"], help="Variances of Gaussian Mixtures before scalling when means ~Unif([-1,1])")
+parser.add_argument("--base_net", type=str, default="Vanilla", choices = ["PISgradnet", "Vanilla"], help="Variances of Gaussian Mixtures before scalling when means ~Unif([-1,1])")
 parser.add_argument("--network_init", type=str, default="zeros", choices = ["zeros", "xavier", "slightly_positive"], help="defines the initialization of the last layer in vanilla network")
+parser.add_argument("--weight_init", type=float, default=1e-8, help="network initialization of last layer for PISgradnet, or when network_init == slightly_positive")
+
 parser.add_argument("--langevin_precon", type=str2bool, nargs='?',
                         const=True, default=True, help="use langevin preconditioning or not, only applies for vanilla net")
 
@@ -119,6 +125,8 @@ parser.add_argument("--natural_gradient", type=str2bool, nargs='?',
                         const=True, default=False, help="for Bridges use nat gradient or not")
 parser.add_argument("--natural_gradient_mode", type=str, default="diag", choices=["diag", "blockwise"], help="mode for natural gradient")
 parser.add_argument('--gridsearch', action='store_true', default=False, help='when gridearch = True, lr is overwritten by SDE_lr')
+parser.add_argument("--float64", type=str2bool, nargs='?',
+                        const=True, default=False, help="use float 64 or not")
 
 
 args = parser.parse_args()
@@ -144,10 +152,13 @@ if(__name__ == "__main__"):
     #disable JIT compilation
     # import jax.numpy as jnp
     # import jax.lax as lax
-    #jax.config.update("jax_enable_x64", True)
+    if(args.float64):
+        jax.config.update("jax_enable_x64", True)
 
     if(args.disable_jit):
         jax.config.update("jax_disable_jit", True)
+
+    if(args.debug_nans):
         jax.config.update("jax_debug_nans", True)
 
     if(args.gridsearch):
@@ -200,6 +211,8 @@ if(__name__ == "__main__"):
             "time_encoder_mode": args.time_encoder_mode,
             "network_init": args.network_init,
             "langevin_precon": args.langevin_precon,
+            "weight_init": args.weight_init,
+            "beta_schedule_neural_mode": args.beta_schedule_neural_mode,
         }
 
         if("Discrete_Time_rKL_Loss" in args.SDE_Loss):
@@ -320,15 +333,16 @@ if(__name__ == "__main__"):
                 "num_components": num_gaussians,
                 "loc_scaling": 40.,
                 "seed": seed
-
             }
-        elif(args.Energy_Config == "GMMDistraxRandom"):
+        elif(args.Energy_Config == "GMMDistraxScaled"):
             torch.manual_seed(seed)
             #np.random.seed(42)
             dim = args.n_particles
             num_gaussians = 40
             np.random.seed(seed)
-            scales = np.random.uniform(low = 1/400, high = 1.0, size = (1, dim))
+            #scales = np.random.uniform(low = 1/400, high = 1.0, size = (1, dim))
+            ### TODO make a shedule here
+            scales = np.linspace(0.2, 1., dim, endpoint=True)[None, ...]
 
             Energy_Config = {
                 "name": "GMMDistrax",
@@ -471,6 +485,10 @@ if(__name__ == "__main__"):
             raise ValueError("Energy Config not found")
 
         Energy_Config["scaling"] = args.Scaling_factor
+        
+        #for plotting the prior distribution
+        if args.n_particles == 2:
+            Energy_Config["sigma_init"] = args.sigma_init
 
         Network_Config["x_dim"] = Energy_Config["dim_x"]
         if(Network_Config["model_mode"] == "latent"):

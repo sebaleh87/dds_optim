@@ -10,7 +10,6 @@ from .EncodingNetworks import get_sinusoidal_positional_encoding
 class VanillaBaseModelClass(nn.Module):
     network_config: dict
     SDE_Loss_Config: dict
-    weight_init: float = 1e-8
 
     def setup(self):
         self.SDE_mode = self.SDE_Loss_Config["SDE_Type_Config"]["name"]      
@@ -25,6 +24,7 @@ class VanillaBaseModelClass(nn.Module):
         self.time_encoder_mode = self.network_config["time_encoder_mode"]
         self.network_init = self.network_config["network_init"]
         self.langevin_precon = self.network_config["langevin_precon"]
+        self.weight_init = self.network_config["weight_init"]
 
         self.x_dim = self.network_config["x_dim"]
         if(self.model_mode == "latent"):
@@ -130,13 +130,14 @@ class VanillaBaseModelClass(nn.Module):
     def normal_forward_pass(self, in_dict, train = False):
 
         copy_grads = in_dict["grads"]
+        grads_T1_stop_grad = jax.lax.stop_gradient(in_dict["grads_T1"])
         if(self.use_normal or self.SDE_mode == "Bridge_SDE"):
             pass
             #in_dict["grads"] = jnp.zeros_like(in_dict["grads"])
             #in_dict["Energy_value"] = jnp.zeros_like(in_dict["Energy_value"])
         else:
             ### parametrization as in Learning to learn by gradient descent by gradient descent
-            grad = in_dict["grads"]
+            grad = grads_T1_stop_grad
             Energy = jnp.zeros_like(in_dict["Energy_value"])
             eps = 10**-10
             scaled_energy = Energy
@@ -160,14 +161,14 @@ class VanillaBaseModelClass(nn.Module):
         if(self.SDE_mode == "Bridge_SDE" and self.use_normal):
             # follows SEQUENTIAL CONTROLLED LANGEVIN DIFFUSIONS (32)
             grad = copy_grads
-            grad_detach = jax.lax.stop_gradient(grad)
+            grad_detach = grads_T1_stop_grad
 
             ### control what input the time encoder network receives
             if(self.beta_schedule == "neural"):
                 if(self.time_encoder_mode == "all"):
                     time_in_dict = in_dict
                 elif(self.time_encoder_mode == "time_fourier"):
-                    sin_time = get_sinusoidal_positional_encoding(t, self.feature_dim, self.max_time)
+                    sin_time = get_sinusoidal_positional_encoding(in_dict["t"], self.feature_dim, self.max_time)
                     encoding = jnp.concatenate([in_dict["t"], sin_time], axis=-1)
                     time_in_dict = {"encoding": encoding}
                 elif(self.time_encoder_mode == "normal_embedding"):

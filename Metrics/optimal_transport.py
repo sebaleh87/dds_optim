@@ -75,7 +75,7 @@ class SD:
     def resample_energy(self, key, n_samples):
         return self.energy_function.generate_samples(key, n_samples)
 
-    def compute_SD(self, model_samples):
+    def compute_SD(self, model_samples, gt_samples = None):
         """
         Compute Sinkhorn divergence between ground truth and model samples.
         
@@ -86,12 +86,52 @@ class SD:
             float: The Sinkhorn divergence
         """
         self.key, subkey = jax.random.split(self.key)
-        self.groundtruth = self.resample_energy(subkey, self.n_samples)
-        #with open('./Data/mw_d5_m5_del4_genours.pkl', 'wb') as f:
-         #   pickle.dump(model_samples, f)
+        self.groundtruth = self.resample_energy(subkey, model_samples.shape[0])
+        
         geom = pointcloud.PointCloud(self.groundtruth, model_samples, epsilon=self.epsilon)
         sd = sinkhorn_divergence.sinkhorn_divergence(geom, x=geom.x, y=geom.y)
         return sd[1].divergence
+    
+    # JAX implementation
+    #@partial(jax.jit, static_argnums=(0,-1,-2))
+    def mmd_loss(self, source, target, kernel_mul=2.0, kernel_num=10, fix_sigma = 100):
+        batch_size = source.shape[0]
+        total = jnp.concatenate([source, target], axis=0)
+        total0 = jnp.expand_dims(total, 0)
+        total1 = jnp.expand_dims(total, 1)
+        L2_distance = jnp.sum((total0 - total1) ** 2, axis=2)
+
+        n_samples = source.shape[0] + target.shape[0]
+
+        bandwidth = fix_sigma#jnp.sum(L2_distance) / (n_samples**2 - n_samples + 1e-8)
+
+        # jax.debug.print("kernel_mul: {kernel_mul}", kernel_mul = kernel_mul)
+        # jax.debug.print("kernel_mul: {kernel_num}", kernel_num = kernel_num)
+        # jax.debug.print("🤯 kernel_num {kernel_num} 🤯", kernel_num=kernel_num)
+        bandwidth /= kernel_mul ** (kernel_num // 2)
+        bandwidth_list = [bandwidth * (kernel_mul**i) for i in range(kernel_num)]
+        kernel_vals = jnp.array([jnp.exp(-L2_distance / bw) for bw in bandwidth_list])
+        kernels = jnp.sum(kernel_vals, axis = 0)
+        XX = kernels[:batch_size, :batch_size]
+        YY = kernels[batch_size:, batch_size:]
+        XY = kernels[:batch_size, batch_size:]
+        YX = kernels[batch_size:, :batch_size]
+        return jnp.mean(XX + YY - XY - YX)
+
+
+    def mmd_loss_jax(self, model_samples, kernel_mul=2.0, kernel_num=10, fix_sigma=None, n_samples = 2000):
+        ### TODO pay attention the output is MMD^2!
+        self.key, subkey = jax.random.split(self.key)
+        self.groundtruth = self.resample_energy(subkey, n_samples)
+        mmd_loss = self.mmd_loss(model_samples[0:n_samples], self.groundtruth, kernel_mul, kernel_num)
+        return mmd_loss
+    
+    def compute_MMD_and_Sinkhorn(self, model_samples, kernel_mul=2.0, kernel_num=10, fix_sigma=None, n_MMD_samples = 4000):
+        mmd_loss = self.mmd_loss_jax(model_samples[0:n_MMD_samples], kernel_mul, kernel_num, fix_sigma, n_MMD_samples)
+        sd = self.compute_SD(model_samples)
+        out_dict = {"MMD^2": mmd_loss, "Sinkhorn divergence": sd}
+        return out_dict    
+
 
 
 class Sinkhorn:
@@ -333,6 +373,7 @@ class Sinkhorn:
     #         log=True
     #     )
     #     return float(div[0])  # Extract just the transport cost
+
 
 
 if __name__ == "__main__":
