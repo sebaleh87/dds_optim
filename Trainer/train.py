@@ -13,7 +13,7 @@ import pickle
 import os
 from utils.rotate_vector import rotate_vector
 from matplotlib import pyplot as plt
-from Metrics.optimal_transport import SD, Sinkhorn  # Import the Sinkhorn divergence class
+from Metrics.optimal_transport import SD  
 
 class TrainerClass:
     def __init__(self, base_config, mode = "train"):
@@ -54,13 +54,8 @@ class TrainerClass:
                     key, subkey =  jax.random.split(key)
                     model_samples = self.EnergyClass.generate_samples(subkey, self.n_sinkhorn_samples)
                     end_sample_time = time.time()
-                    #self.sd_calculator = SD(self.EnergyClass, n_sample, key, epsilon=1e-3)
-                    self.sd_calculator = Sinkhorn(self.EnergyClass, n_sample, key, epsilon=1e-3)
+                    self.sd_calculator = SD(self.EnergyClass, n_sample, key, epsilon=1e-3)
                     start_time = time.time()
-
-                    raise ValueError("add condition for MW ")
-                    #distance = self.sd_calculator.compute_SD(model_samples)
-                    distance,_,_ = self.sd_calculator.compute_SD(model_samples)
 
                     distance = self.sd_calculator.compute_SD(model_samples)
                     self.MMD_samples = 4000

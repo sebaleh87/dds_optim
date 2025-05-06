@@ -22,7 +22,7 @@ if(__name__ == "__main__"):
     for problem in problem_list.keys():
 
         if(problem == "MoS" or problem == "GMM"):
-            loss_keys = [ "rKL_logderiv", "rKL_logderiv_frozen", "LogVarLoss", "LogVarLoss_frozen", "rKL_frozen"]
+            loss_keys = wandb.loss_keys
 
         Curves = {}
         for loss_key in loss_keys:

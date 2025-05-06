@@ -93,17 +93,17 @@ def MoS(key):
     if(key == "rKL_frozen"):
         wandb_ids = ["elderberry-meringue-10", "buttermilk-brownie-4", "custard-bun-15"]
     elif(key == "rKL_logderiv"):
-        wandb_ids = ["bumbleberry-cake-13", "chocolate-strudel-8", "peach-tart-1", "star-force-16", "rebel-fleet-20", "carbonite-wars-24",
-                     "galactic-admiral-28", "holographic-commander-32", "stellar-commander-36", "holographic-wars-40"]
+        wandb_ids = [ "star-force-16", "rebel-fleet-20", "carbonite-wars-24",
+                     "galactic-admiral-28", "holographic-commander-32", "stellar-commander-36", "holographic-wars-40"] #"bumbleberry-cake-13", "chocolate-strudel-8", "peach-tart-1",
     elif(key == "rKL_logderiv_frozen"):
-        wandb_ids = ["bumbleberry-pastry-11", "currant-flambee-6", "hershey-flan-3", "scruffy-looking-pilot-18", "stellar-podracer-21", "sith-womprat-25", "scruffy-looking-rancor-29",
-                     "ancient-womprat-33", "civilized-nexu-37", "hokey-wookie-41"]
+        wandb_ids = [ "scruffy-looking-pilot-18", "stellar-podracer-21", "sith-womprat-25", "scruffy-looking-rancor-29",
+                     "ancient-womprat-33", "civilized-nexu-37", "hokey-wookie-41"] #"bumbleberry-pastry-11", "currant-flambee-6", "hershey-flan-3",
     elif(key == "LogVarLoss"):
-        wandb_ids = ["custard-brulee-14", "pumpkin-pastry-9", "key-lime-crumble-2", "forgotten-wars-17", "rebel-tie-fighter-23", "grievous-speeder-27", "hokey-rancor-31",
-                     "dark-nexu-35", "mythical-jawa-39", "civilized-lightsaber-43"]
+        wandb_ids = [ "forgotten-wars-17", "rebel-tie-fighter-23", "grievous-speeder-27", "hokey-rancor-31",
+                     "dark-nexu-35", "mythical-jawa-39", "civilized-lightsaber-43"] #"custard-brulee-14", "pumpkin-pastry-9", "key-lime-crumble-2",
     elif(key == "LogVarLoss_frozen"):
-        wandb_ids = ["butterscotch-brulee-12", "spiced-bun-7", "buttermilk-cake-5", "jedi-bothan-19", "old-pilot-22", "light-parsec-26", "legendary-droid-30", "old-council-34"
-                     , "scruffy-looking-republic-38", "jedi-emperor-42"]
+        wandb_ids = [ "jedi-bothan-19", "old-pilot-22", "light-parsec-26", "legendary-droid-30", "old-council-34"
+                     , "scruffy-looking-republic-38", "jedi-emperor-42"] #"butterscotch-brulee-12", "spiced-bun-7", "buttermilk-cake-5",
     return wandb_ids
 
 def GMM(key):
@@ -111,19 +111,19 @@ def GMM(key):
     if(key == "rKL_frozen"):
         wandb_ids = ["stilted-wildflower-21", "dry-silence-17", "celestial-feather-11"]
     elif(key == "rKL_logderiv"):
-        wandb_ids = ["gallant-monkey-1", "fresh-dream-9", "rosy-fire-15", "clone-trooper-25", "legendary-bantha-29", "jedi-fighter-33", "galactic-speeder-37", "tusken-republic-41"
-                    ,"grievous-carrier-45", "carbonite-lightsaber-48"]
+        wandb_ids = [ "clone-trooper-25", "legendary-bantha-29", "jedi-fighter-33", "galactic-speeder-37", "tusken-republic-41"
+                    ,"grievous-carrier-45", "carbonite-lightsaber-48"] #"gallant-monkey-1", "fresh-dream-9", "rosy-fire-15",
     elif(key == "rKL_logderiv_frozen"):
-        wandb_ids = ["smart-forest-20", "fluent-terrain-16", "fearless-frost-10", "ancient-parsec-23", "jedi-womprat-31", "star-council-35", "imperial-wookie-39",
-                     "forgotten-bantha-43", "imperial-republic-49", "mythical-ewok-51"]
+        wandb_ids = [ "ancient-parsec-23", "jedi-womprat-31", "star-council-35", "imperial-wookie-39",
+                     "forgotten-bantha-43", "imperial-republic-49", "mythical-ewok-51"] #"smart-forest-20", "fluent-terrain-16", "fearless-frost-10",
     # elif(key == "rKL_logderiv_off_policy"):
     #     wandb_ids = ["curious-deluge-18", "prime-tarrain-17", "peach-sound-16"]
     elif(key == "LogVarLoss"):
-        wandb_ids = ["valiant-serenity-19", "misunderstood-dragon-14", "splendid-grass-8", "forgotten-bothan-24", "jedi-ewok-28",
-                     "grievous-parsec-32", "mythical-xwing-36", "dark-parsec-40", "star-shuttle-44", "jedi-admiral-47"]
+        wandb_ids = [ "forgotten-bothan-24", "jedi-ewok-28",
+                     "grievous-parsec-32", "mythical-xwing-36", "dark-parsec-40", "star-shuttle-44", "jedi-admiral-47"] #"valiant-serenity-19", "misunderstood-dragon-14", "splendid-grass-8",
     elif(key == "LogVarLoss_frozen"):
-        wandb_ids = ["prime-totem-18", "curious-bee-13", "solar-violet-12", "light-trooper-26", "imperial-midichlorian-30", "legendary-force-34", "star-speeder-38",
-                     "elegant-wookie-42", "carbonite-tie-fighter-46", "hokey-midichlorian-50"]
+        wandb_ids = [ "light-trooper-26", "imperial-midichlorian-30", "legendary-force-34", "star-speeder-38",
+                     "elegant-wookie-42", "carbonite-tie-fighter-46", "hokey-midichlorian-50"] # "prime-totem-18", "curious-bee-13", "solar-violet-12",
     return wandb_ids
 
 def MoS_DBS(key):
@@ -131,17 +131,17 @@ def MoS_DBS(key):
     if(key == "rKL_frozen"):
         wandb_ids = ["tough-waterfall-17", "skilled-disco-9", "fiery-sun-4"]
     elif(key == "rKL_logderiv"):
-        wandb_ids = ["drawn-fire-34", "sage-eon-32", "likely-oath-29", "sith-wars-35", "hokey-nexu-39", "ancient-podracer-43", "clean-forest-47",
-                     "cerulean-disco-51", "robust-bee-55", "chocolate-leaf-59"]
+        wandb_ids = [ "sith-wars-35", "hokey-nexu-39", "ancient-podracer-43", "clean-forest-47",
+                     "cerulean-disco-51", "robust-bee-55", "chocolate-leaf-59"] #"drawn-fire-34", "sage-eon-32", "likely-oath-29",
     elif(key == "rKL_logderiv_frozen"):
-        wandb_ids = ["robust-cosmos-33", "restful-sound-31", "polar-aardvark-30", "scruffy-looking-republic-37", "sith-republic-41", "stellar-droid-45", "woven-river-49",
-                     "misunderstood-glade-53", "twilight-blaze-57", "cool-salad-62"]
+        wandb_ids = [ "scruffy-looking-republic-37", "sith-republic-41", "stellar-droid-45", "woven-river-49",
+                     "misunderstood-glade-53", "twilight-blaze-57", "cool-salad-62"] #"robust-cosmos-33", "restful-sound-31", "polar-aardvark-30",
     elif(key == "LogVarLoss"):
-        wandb_ids = ["swept-wind-16", "eager-eon-10", "graceful-eon-5", "rebel-shuttle-36", "forgotten-nerf-herder-40", "civilized-parsec-44", "autumn-armadillo-48", "balmy-vortex-52"
-                     , "grateful-salad-56", "gentle-music-60"]
+        wandb_ids = [ "rebel-shuttle-36", "forgotten-nerf-herder-40", "civilized-parsec-44", "autumn-armadillo-48", "balmy-vortex-52"
+                     , "grateful-salad-56", "gentle-music-60"] # "swept-wind-16", "eager-eon-10", "graceful-eon-5",
     elif(key == "LogVarLoss_frozen"):
-        wandb_ids = ["misty-microwave-15", "major-planet-6", "colorful-morning-2", "rogue-master-38", "old-shuttle-42", "clone-cantina-46", "honest-glade-50", "sunny-gorge-54",
-                     "whole-firefly-58", "deft-moon-61"]
+        wandb_ids = [ "rogue-master-38", "old-shuttle-42", "clone-cantina-46", "honest-glade-50", "sunny-gorge-54",
+                     "whole-firefly-58", "deft-moon-61"] #"misty-microwave-15", "major-planet-6", "colorful-morning-2",
     return wandb_ids
 
 def GMM_DBS(key):
@@ -240,3 +240,4 @@ def German_DBS(key):
         wandb_ids = ["pious-butterfly-18", "radiant-snow-17", "dutiful-lake-16"]
     return wandb_ids
 
+loss_keys = [ "rKL_logderiv", "rKL_logderiv_frozen", "LogVarLoss", "LogVarLoss_frozen", "rKL_frozen"]
