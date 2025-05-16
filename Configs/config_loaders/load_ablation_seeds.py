@@ -52,11 +52,11 @@ if(__name__ == "__main__"):
 
     for sigma, curve in zip(ablation_wandb_ids_sigma_leared["sigmas"], ablation_wandb_ids_sigma_leared["curves"]):
         rel_curve = compute_rel_error(curve, min_value)
-        plt.plot(np.arange(0, len(rel_curve))*step + x_min ,rel_curve, label=r'rKL-LD $\star$ $\sigma_{\mathrm{diff, init}} = $' + f'{sigma}', color=next(color_cycle), marker=next(marker_cycle))
+        plt.plot(np.arange(0, len(rel_curve))*step + x_min ,rel_curve, label=r'rKL: LD  $\sigma_{\mathrm{diff, init}} = $' + f'{sigma}', color=next(color_cycle), marker=next(marker_cycle))
 
     for sigma, curve in zip(ablation_wandb_ids_sigma_frozen["sigmas"], ablation_wandb_ids_sigma_frozen["curves"]):
         rel_curve = compute_rel_error(curve, min_value)
-        plt.plot(np.arange(0, len(rel_curve))*step + x_min , rel_curve, label=r'rKL-LD $\sigma_{\mathrm{diff, init}} = $' + f'{sigma}', color=next(color_cycle), marker=next(marker_cycle))
+        plt.plot(np.arange(0, len(rel_curve))*step + x_min , rel_curve, label=r'rKL: LD $\star$ $\sigma_{\mathrm{diff, init}} = $' + f'{sigma}', color=next(color_cycle), marker=next(marker_cycle))
 
     plt.xticks(fontsize=14)
     plt.yticks(fontsize=16)

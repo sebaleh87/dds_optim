@@ -140,6 +140,7 @@ class SD:
         return mmd_loss
     
     def compute_MMD_and_Sinkhorn(self, model_samples, kernel_mul=2.0, kernel_num=10, fix_sigma=None, n_MMD_samples = 4000):
+        n_MMD_samples = min(n_MMD_samples, model_samples.shape[0])
         mmd_loss = self.mmd_loss_jax(model_samples[0:n_MMD_samples], kernel_mul, kernel_num, fix_sigma, n_MMD_samples)
         sd = self.compute_SD(model_samples)
         out_dict = {"MMD^2": mmd_loss, "Sinkhorn divergence": sd}

@@ -47,9 +47,9 @@ if(__name__ == "__main__"):
     sorted_indices = np.argsort(avg_sigma)
     sorted_avg_sigma = avg_sigma[sorted_indices]
     sorted_std_sigma = std_sigma[sorted_indices]
-    plt.plot(range(len(sorted_avg_sigma)), sorted_avg_sigma , "-x", alpha=0.8, label = r"CMCD-rKL-LD $\sigma_\mathrm{diff, init} = 0.05$", color = "blue")
+    plt.plot(range(len(sorted_avg_sigma)), sorted_avg_sigma , "-x", alpha=0.8, label = r"CMCD: rKL-LD", color = "blue")
     plt.fill_between(range(len(sorted_avg_sigma)), sorted_avg_sigma - sorted_std_sigma, sorted_avg_sigma + sorted_std_sigma, alpha=0.3)
-    plt.hlines(0.0188, 0, len(sorted_avg_sigma) , label = r"CMCD-rKL-LD $ \star$ $\sigma_\mathrm{diff, init} \approx 0.018$", linestyles = "dashed", color = "red")
+    plt.hlines(0.0188, 0, len(sorted_avg_sigma) , label = r"CMCD: rKL-LD $ \star$ $\sigma_\mathrm{diff, avrg}$", linestyles = "dashed", color = "red")
     plt.xlabel(r'Dimension sorted by $\sigma_\mathrm{diff}$', fontsize=18)
     plt.ylabel(r'$\sigma_\mathrm{diff}$', fontsize=18)
     #plt.title("Bayesian task: Brownian", fontsize=18)

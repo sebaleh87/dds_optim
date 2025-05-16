@@ -49,7 +49,7 @@ parameters:
   n_integration_steps:
     value: 128
   beta_max:
-    values: [0.05]
+    values: [0.1, 0.3, 0.05]
   sigma_init:
     values: [1, 0.5]
   model_seeds:

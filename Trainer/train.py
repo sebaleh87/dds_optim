@@ -69,7 +69,7 @@ class TrainerClass:
 
                 for key in distances.keys():
                     avg_distance = np.mean(distances[key])
-                    std_distance = np.std(distances[key])
+                    std_distance = np.std(distances[key])/np.sqrt(reps)
                     print(f"Average distance for {n_sample} samples Metric {key}: {avg_distance}, Std: {std_distance}")
 
 
@@ -448,6 +448,7 @@ class TrainerClass:
                 if sample_mode == "eval":  # Only save on eval mode
                     self.Best_Sinkhorn_value_ever = self.check_improvement(params, self.Best_Sinkhorn_value_ever, distance, "Sinkhorn", epoch=epoch)
                     self.save_metric_dict["sinkhorn_divergence"].append(distance)
+                    self.save_metric_dict["MMD^2"].append(MMD)
 
                 if hasattr(self.EnergyClass, 'compute_emc'):
                     emc = self.EnergyClass.compute_emc(out_dict["X_0"])

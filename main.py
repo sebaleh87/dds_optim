@@ -21,7 +21,7 @@ parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=
                                                                                  "LogVariance_Loss_with_grad", "LogVariance_Loss_weighted", "Reverse_KL_Loss_logderiv", "Bridge_rKL_subtraj",
                                                                                  "Bridge_rKL", "Bridge_LogVarLoss", "Bridge_rKL_logderiv", "Bridge_rKL_logderiv_DiffUCO",
                                                                                 "Discrete_Time_rKL_Loss_log_deriv", "Discrete_Time_rKL_Loss_reparam", "Bridge_fKL_subtraj",
-                                                                                  "Bridge_rKL_fKL_logderiv", "Bridge_fKL_reparam"], help="select loss function")
+                                                                                  "Bridge_rKL_fKL_logderiv", "Bridge_fKL_reparam", "Bridge_LogVarLoss_clipped"], help="select loss function")
 parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE", "VE_SDE", "Bridge_SDE", "VE_Discrete"], help="select SDE type, subVP_SDE is currently deprecated")
 parser.add_argument("--Bridge_Type", type=str, default="CMCD", choices=["CMCD", "DBS"], help="select Bridge type")
 

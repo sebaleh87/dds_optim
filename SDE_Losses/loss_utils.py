@@ -27,7 +27,7 @@ def compute_rKL_log_deriv(optim_mode, log_prior, reverse_log_probs, forward_diff
         unbiased_mean = jax.lax.stop_gradient(jnp.mean(radon_dykodin_derivative, keepdims=True, axis=0))
         reward = jax.lax.stop_gradient((radon_dykodin_derivative - unbiased_mean))
         L1 = jnp.mean(reward * sum_reverse_log_probs)
-        loss = jax.lax.stop_gradient(L1) + jnp.mean(radon_nykodin_wo_reverse)
+        loss = L1 + jnp.mean(radon_nykodin_wo_reverse)
 
         unbiased_loss = jnp.mean(jax.lax.stop_gradient((radon_dykodin_derivative)) * sum_reverse_log_probs) + jnp.mean(radon_nykodin_wo_reverse)
         centered_loss = L1
@@ -74,9 +74,9 @@ def compute_fKL_log_deriv(optim_mode, log_prior, reverse_log_probs, forward_diff
 
         unbiased_mean = jax.lax.stop_gradient(jnp.mean(radon_dykodin_derivative, keepdims=True, axis=-1))
         reward = jax.lax.stop_gradient((radon_dykodin_derivative - unbiased_mean))
-        L1 = 0#jnp.mean(importance_weights * reward * sum_forward_log_probs)
+        L1 = jnp.mean(importance_weights * reward * sum_forward_log_probs)
         L2 = jnp.mean(importance_weights * radon_nykodin_wo_forward)
-        loss = jax.lax.stop_gradient(L1) + L2
+        loss = L1 + L2
 
         L1_log = jnp.mean(jax.lax.stop_gradient(importance_weights * radon_dykodin_derivative) * sum_forward_log_probs) 
         L2_log = jnp.mean(importance_weights * radon_nykodin_wo_forward)

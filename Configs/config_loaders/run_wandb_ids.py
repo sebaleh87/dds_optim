@@ -91,7 +91,7 @@ def Funnel(key):
 def MoS(key):
     #wandb_ids = ["amber-smoke-4", "lilac-plant-3", "crimson-eon-2", "helpful-thunder-1"]
     if(key == "rKL_frozen"):
-        wandb_ids = ["elderberry-meringue-10", "buttermilk-brownie-4", "custard-bun-15"]
+        wandb_ids = ["splendid-hill-46", "sunny-resonance-45", "proud-valley-44"]
     elif(key == "rKL_logderiv"):
         wandb_ids = [ "star-force-16", "rebel-fleet-20", "carbonite-wars-24",
                      "galactic-admiral-28", "holographic-commander-32", "stellar-commander-36", "holographic-wars-40"] #"bumbleberry-cake-13", "chocolate-strudel-8", "peach-tart-1",
@@ -109,7 +109,7 @@ def MoS(key):
 def GMM(key):
     #wandb_ids = ["amber-smoke-4", "lilac-plant-3", "crimson-eon-2", "helpful-thunder-1"]
     if(key == "rKL_frozen"):
-        wandb_ids = ["stilted-wildflower-21", "dry-silence-17", "celestial-feather-11"]
+        wandb_ids = ["hearty-mountain-54", "upbeat-valley-53", "decent-eon-52"]
     elif(key == "rKL_logderiv"):
         wandb_ids = [ "clone-trooper-25", "legendary-bantha-29", "jedi-fighter-33", "galactic-speeder-37", "tusken-republic-41"
                     ,"grievous-carrier-45", "carbonite-lightsaber-48"] #"gallant-monkey-1", "fresh-dream-9", "rosy-fire-15",
@@ -129,16 +129,14 @@ def GMM(key):
 def MoS_DBS(key):
     #wandb_ids = ["amber-smoke-4", "lilac-plant-3", "crimson-eon-2", "helpful-thunder-1"]
     if(key == "rKL_frozen"):
-        wandb_ids = ["tough-waterfall-17", "skilled-disco-9", "fiery-sun-4"]
+        wandb_ids = ["devoted-blaze-79", "resilient-pine-78", "deft-thunder-77"]
     elif(key == "rKL_logderiv"):
         wandb_ids = [ "sith-wars-35", "hokey-nexu-39", "ancient-podracer-43", "clean-forest-47",
                      "cerulean-disco-51", "robust-bee-55", "chocolate-leaf-59"] #"drawn-fire-34", "sage-eon-32", "likely-oath-29",
     elif(key == "rKL_logderiv_frozen"):
-        wandb_ids = [ "scruffy-looking-republic-37", "sith-republic-41", "stellar-droid-45", "woven-river-49",
-                     "misunderstood-glade-53", "twilight-blaze-57", "cool-salad-62"] #"robust-cosmos-33", "restful-sound-31", "polar-aardvark-30",
+        wandb_ids = [ "wise-universe-64", "fiery-grass-66", "woven-cloud-68", "polished-shape-70", "sandy-armadillo-72", "faithful-tree-73", "balmy-glitter-75"] #"robust-cosmos-33", "restful-sound-31", "polar-aardvark-30",
     elif(key == "LogVarLoss"):
-        wandb_ids = [ "rebel-shuttle-36", "forgotten-nerf-herder-40", "civilized-parsec-44", "autumn-armadillo-48", "balmy-vortex-52"
-                     , "grateful-salad-56", "gentle-music-60"] # "swept-wind-16", "eager-eon-10", "graceful-eon-5",
+        wandb_ids = ["prime-monkey-63", "brisk-pine-65", "winter-music-67", "deft-disco-69", "balmy-music-71", "dandy-glitter-74", "rosy-elevator-76" ] # "swept-wind-16", "eager-eon-10", "graceful-eon-5",
     elif(key == "LogVarLoss_frozen"):
         wandb_ids = [ "rogue-master-38", "old-shuttle-42", "clone-cantina-46", "honest-glade-50", "sunny-gorge-54",
                      "whole-firefly-58", "deft-moon-61"] #"misty-microwave-15", "major-planet-6", "colorful-morning-2",
@@ -147,15 +145,15 @@ def MoS_DBS(key):
 def GMM_DBS(key):
     #wandb_ids = ["amber-smoke-4", "lilac-plant-3", "crimson-eon-2", "helpful-thunder-1"]
     if(key == "rKL_frozen"):
-        wandb_ids = ["vivid-forest-40", "peachy-morning-37", "restful-vortex-31"]
+        wandb_ids = ["sandy-lion-71", "dutiful-serenity-70", "dazzling-flower-69"]
     elif(key == "rKL_logderiv"):
-        wandb_ids = ["sweet-monkey-34", "efficient-sky-27", "chocolate-hill-17"]
+        wandb_ids = ["summer-wildflower-66", "comic-monkey-62", "devoted-elevator-58", "wise-star-54", "sith-council-50", "forgotten-rancor-46", "dark-force-43"]
     elif(key == "rKL_logderiv_frozen"):
-        wandb_ids = ["true-fog-33", "spring-pond-26", "prime-wood-14"]
+        wandb_ids = ["elegant-republic-41", "sith-xwing-48", "fearless-energy-52", "fine-serenity-56", "good-vortex-60", "worthy-darkness-64", "atomic-morning-68"]
     elif(key == "LogVarLoss"):
-        wandb_ids = ["pious-plasma-35", "swept-snowflake-38", "trim-wildflower-32"]
+        wandb_ids = ["floral-butterfly-65", "jumping-paper-61", "fallen-tree-57", "valiant-rain-53", "imperial-astromech-49", "elegant-lightsaber-45", "hokey-nerf-herder-44"]
     elif(key == "LogVarLoss_frozen"):
-        wandb_ids = ["fanciful-firefly-39", "confused-tree-36", "playful-haze-30"]
+        wandb_ids = ["noble-sound-67", "pleasant-dew-63", "helpful-grass-59", "rural-grass-55", "tusken-wookie-51", "jedi-wookie-47", "dark-republic-42"]
     return wandb_ids
 
 def Funnel_DBS(key):
@@ -238,6 +236,32 @@ def German_DBS(key):
         wandb_ids = ["splendid-voice-8", "apricot-dragon-3", "celestial-sun-2"]
     elif(key == "LogVarLoss_frozen"):
         wandb_ids = ["pious-butterfly-18", "radiant-snow-17", "dutiful-lake-16"]
+    return wandb_ids
+
+def MW54(key):
+    if(key == "rKL_frozen"):
+        wandb_ids = ["splendid-paper-54", "jolly-sun-53", "easy-night-51"]
+    elif(key == "rKL_logderiv"):
+        wandb_ids = ["radiant-armadillo-32", "wandering-grass-28", "iconic-serenity-21"]
+    elif(key == "rKL_logderiv_frozen"):
+        wandb_ids = ["effortless-yogurt-31", "fanciful-donkey-27", "bright-capybara-22"]
+    elif(key == "LogVarLoss"):
+        wandb_ids = ["wild-bee-29", "misunderstood-tree-25", "robust-energy-23"]
+    elif(key == "LogVarLoss_frozen"):
+        wandb_ids = ["neat-totem-37", "grateful-sky-30", "comic-dawn-26"]
+    return wandb_ids
+
+def MW54_DBS(key):
+    if(key == "rKL_frozen"):
+        wandb_ids = ["skilled-star-58", "graceful-armadillo-57", "restful-disco-55"]
+    elif(key == "rKL_logderiv"):
+        wandb_ids = ["dry-totem-47", "curious-monkey-43", "visionary-river-39"]
+    elif(key == "rKL_logderiv_frozen"):
+        wandb_ids = ["twilight-donkey-48", "swift-field-44", "dulcet-water-40"]
+    elif(key == "LogVarLoss"):
+        wandb_ids = ["whole-fog-46", "firm-wood-42", "unique-glade-38"]
+    elif(key == "LogVarLoss_frozen"):
+        wandb_ids = ["eager-darkness-49", "driven-tree-45", "icy-tree-41"]
     return wandb_ids
 
 loss_keys = [ "rKL_logderiv", "rKL_logderiv_frozen", "LogVarLoss", "LogVarLoss_frozen", "rKL_frozen"]

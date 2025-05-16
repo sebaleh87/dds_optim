@@ -66,19 +66,24 @@ class Bridge_rKL_fKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
                 self.optim_mode, log_prior, reverse_log_probs, forward_diff_log_probs, 
                 entropy_minus_noise, Energy, temp
             )
-            
-            # Combine the losses
-            loss = (fKL_loss + rKL_loss)
-            L1 = (fKL_L1 + rKL_unbiased)
-            L2 = (fKL_L2 + rKL_centered)
-
-        log_dict = {"loss": loss, "mean_energy": mean_Energy, "losses/L1": L1, "losses/L2": L2,
-                      "best_Energy": jnp.min(Energy), "noise_loss": noise_loss, "entropy_loss": entropy_loss, "key": key, "X_0": x_last, 
-                      "sigma": jnp.exp(SDE_params["log_sigma"]),"beta_min": jnp.exp(SDE_params["log_beta_min"]),
-                        "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": SDE_params["mean"], "sigma_prior": jnp.exp(SDE_params["log_sigma_prior"]),
-                        "fKL_loss": fKL_loss, "rKL_loss": rKL_loss
-                        }
-
+        
+        log_dict = {}
         log_dict = self.compute_partition_sum(entropy_minus_noise, jnp.zeros_like(entropy_minus_noise), log_prior, Energy, log_dict, off_policy_weights = off_policy_weights_normed_times_n_samples)
 
+        # Combine the losses
+        clip_value = 0.001
+        ess = jax.lax.stop_gradient(log_dict["n_eff"])
+        #jax.debug.print("🤯 ess {ess} 🤯", ess=ess)
+
+        mixture_loss = (ess*fKL_loss + (1-ess)*rKL_loss)
+        loss = jnp.where(ess < clip_value, rKL_loss, mixture_loss)  
+        L1 = (fKL_L1 + rKL_unbiased)
+        L2 = (fKL_L2 + rKL_centered)
+
+        log_dict.update({"loss": loss, "mean_energy": mean_Energy, "losses/L1": L1, "losses/L2": L2,
+                "best_Energy": jnp.min(Energy), "noise_loss": noise_loss, "entropy_loss": entropy_loss, "key": key, "X_0": x_last, 
+                "sigma": jnp.exp(SDE_params["log_sigma"]),"beta_min": jnp.exp(SDE_params["log_beta_min"]),
+                "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": SDE_params["mean"], "sigma_prior": jnp.exp(SDE_params["log_sigma_prior"]),
+                "fKL_loss": fKL_loss, "rKL_loss": rKL_loss
+                })
         return loss, log_dict

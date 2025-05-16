@@ -17,6 +17,7 @@ from .Bridge_fKL_logderivative import Bridge_fKL_logderiv_Loss_Class
 from .Bridge_rKL_subtraj import Bridge_rKL_subtraj_Loss_Class
 from .Bridge_rKL_fKL_logderivative import Bridge_rKL_fKL_logderiv_Loss_Class
 from .Bridge_fKL_reparam import Bridge_fKL_reparam_Loss_Class
+from .Bridge_LogVarLoss_clipped import Bridge_LogVarLoss_clipped_Class
 
 
 SDE_Loss_registry = {"Reverse_KL_Loss": Reverse_KL_Loss_Class, "Reverse_KL_Loss_logderiv": Reverse_KL_Loss_log_deriv_Class, 
@@ -26,7 +27,7 @@ SDE_Loss_registry = {"Reverse_KL_Loss": Reverse_KL_Loss_Class, "Reverse_KL_Loss_
                        "Discrete_Time_rKL_Loss_log_deriv": Discrete_Time_rKL_Loss_Class_log_deriv, "LogVariance_Loss_weighted": LogVariance_Loss_weighted_Class,
                        "Bridge_rKL_logderiv_DiffUCO": Bridge_rKL_logderiv_DiffUCO_Loss_Class, "Bridge_fKL_subtraj": Bridge_fKL_subtraj_Loss_Class, 
                        "Bridge_rKL_subtraj": Bridge_rKL_subtraj_Loss_Class, "Bridge_fKL_logderiv": Bridge_fKL_logderiv_Loss_Class,
-                       "Bridge_rKL_fKL_logderiv": Bridge_rKL_fKL_logderiv_Loss_Class, "Bridge_fKL_reparam": Bridge_fKL_reparam_Loss_Class}
+                       "Bridge_rKL_fKL_logderiv": Bridge_rKL_fKL_logderiv_Loss_Class, "Bridge_fKL_reparam": Bridge_fKL_reparam_Loss_Class, "Bridge_LogVarLoss_clipped": Bridge_LogVarLoss_clipped_Class}
 
 def get_SDE_Loss_class(SDE_Loss_Config, Optimizer_Config, Energy_Class, Network_Config, model):
     return SDE_Loss_registry[SDE_Loss_Config["name"]](SDE_Loss_Config, Optimizer_Config, Energy_Class, Network_Config, model)

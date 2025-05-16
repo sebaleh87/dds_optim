@@ -4,11 +4,23 @@ import wandb
 import numpy as np
 from tqdm.auto import tqdm
 import argparse
-from Trainer.train import TrainerClass
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--checkpoint_metric", default = "params_and_config_train_end.pkl", choices=["params_and_config_train_end.pkl","Free_Energy_at_T=1", "Sinkhorn"], type=str, help="Wandb run name of run to evaluate")
+parser.add_argument("--n_eval_samples", type=int, default=16000)
+parser.add_argument("--chunk_size", type=int, default=30)
+parser.add_argument("--GPU", type=int, default=1)
+args = parser.parse_args()
+
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID" 
+os.environ["CUDA_VISIBLE_DEVICES"] = str(args.GPU)
+
 import jax
 import jax.numpy as jnp
+from Trainer.train import TrainerClass
 from Configs.config_loaders import run_wandb_ids
-
+# Print the device being used by JAX
+# Set GPU
 
 def load_params_and_config(wandb_run_name, filename = "params_and_config_train_end.pkl"):
     script_dir = os.path.dirname(os.path.abspath(__file__)) + "/TrainerCheckpoints/" + wandb_run_name + "/"
@@ -186,17 +198,28 @@ def evaluate_on_run(wandb_run_name, n_eval_samples, chunk_size):
     return {"MMD": metrics["MMD"], "Sinkhorn": metrics["Sinkhorn"]}
 
 
-def evaluate_runs(wandb_ids):
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--checkpoint_metric", default = "params_and_config_train_end.pkl", choices=["params_and_config_train_end.pkl","Free_Energy_at_T=1", "Sinkhorn"], type=str, help="Wandb run name of run to evaluate")
-    parser.add_argument("--n_eval_samples", type=int, default=16000)
-    parser.add_argument("--chunk_size", type=int, default=1)
-    parser.add_argument("--GPU", type=int, default=0)
-    args = parser.parse_args()
+def compute_model_MMD(wandb_ids, problem_name = "", loss_name = ""):
+    print("JAX is using device:", jax.devices())
+    
+    metric_dict = { "MMD": [], "Sinkhorn": []}
 
-    # Set GPU
-    os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID" 
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.GPU)
+    for wandb_id in wandb_ids:
+        params, config = load_params_and_config(wandb_id)
+        
+        if "EnergyConfig" in config:
+            for key in ["means", "variances"]:
+                if key in config['EnergyConfig']:
+                    parse_energy_config_array(config['EnergyConfig'], key)
+
+        config.update({"n_eval_samples": args.n_eval_samples})
+
+        #config = config_completer(config)
+        evaluator = EvaluatorClass(config, wandb_id, params)
+
+
+
+def evaluate_runs(wandb_ids, problem_name = "", loss_name = ""):
+    print("JAX is using device:", jax.devices())
     
     metric_dict = { "MMD": [], "Sinkhorn": []}
 
@@ -207,12 +230,12 @@ def evaluate_runs(wandb_ids):
 
     print(metric_dict["Sinkhorn"])
     Sinkhorn_metric_text = compute_average_and_variance(metric_dict["Sinkhorn"])
-    MMD_metric_text = compute_average_and_variance(metric_dict["MMD"])
+    MMD_metric_text = compute_average_and_variance(metric_dict["MMD"], round_mean = 3, round_sdt = 3)
     print("Sinkhorn", Sinkhorn_metric_text)
     print("MMD", MMD_metric_text)
 
     # Save MMD and Sinkhorn distances into a text file
-    output_dir = os.path.dirname(os.path.abspath(__file__)) + "/Data/eval"
+    output_dir = os.path.dirname(os.path.abspath(__file__)) + f"/Data/eval/{problem_name}/{loss_name}/"
     os.makedirs(output_dir, exist_ok=True)
     output_file = os.path.join(output_dir, "evaluation_metrics.txt")
 
@@ -227,7 +250,7 @@ def evaluate_runs(wandb_ids):
 
     print(f"Metrics saved to {output_file}")
 
-def compute_average_and_variance(curve_per_seed, round_mean = 2, round_sdt = 3):
+def compute_average_and_variance(curve_per_seed, round_mean = 3, round_sdt = 3):
     mean_over_seeds = np.mean(curve_per_seed)
     std_over_seeds = np.std(curve_per_seed)/np.sqrt(len(curve_per_seed))
     mean_over_seeds_rounded = np.round(mean_over_seeds, round_mean)
@@ -240,9 +263,17 @@ if __name__ == "__main__":
 
     ### GMM 
     # log_derivative 
-    problem_list = { "MoS": run_wandb_ids.MoS, "GMM": run_wandb_ids.GMM, "GMM-DBS": run_wandb_ids.GMM_DBS, "MoS-DBS": run_wandb_ids.MoS_DBS}
+    # problem_list = { "GMM-DBS": run_wandb_ids.GMM_DBS, "GMM": run_wandb_ids.GMM, 
+    #                 "MoS": run_wandb_ids.MoS, "MoS-DBS": run_wandb_ids.MoS_DBS, "MW54": run_wandb_ids.MW54,
+    #                 } 
 
-    GMM_rKL_LD = ["clone-trooper-25", "legendary-bantha-29", "jedi-fighter-33", "galactic-speeder-37", "tusken-republic-41"
-                    ,"grievous-carrier-45", "carbonite-lightsaber-48"]
+    problem_list = {  "MW54": run_wandb_ids.MW54,
+                    } 
+    #loss_key_list = [ "rKL_logderiv", "rKL_logderiv_frozen", "LogVarLoss", "LogVarLoss_frozen"]
+    loss_key_list = ["rKL_frozen"]
 
-    evaluate_runs(GMM_rKL_LD) 
+    for problem_key in problem_list.keys():
+        print(problem_key)
+        for loss_key in loss_key_list:
+            #compute_model_MMD(problem_list[problem_key](loss_key), problem_name = problem_key, loss_name = loss_key) 
+            evaluate_runs(problem_list[problem_key](loss_key), problem_name = problem_key, loss_name = loss_key) 
