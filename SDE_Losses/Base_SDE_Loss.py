@@ -22,8 +22,9 @@ class Base_SDE_Loss_Class:
         self.x_dim = self.EnergyClass.dim_x
 
         self.optimizer_type = SDE_config.get("optimizer", "ADAM")
+        self.optimizer_beta_1 = SDE_config.get("optimizer_beta_1", 0.9)
         if(self.optimizer_type == "ADAM"):
-            self.optax_chain = lambda schedule_func, clip_value: optax.chain(optax.zero_nans(), optax.clip_by_global_norm(clip_value), optax.scale_by_radam(), optax.scale_by_schedule(lambda epoch: -schedule_func(epoch)))
+            self.optax_chain = lambda schedule_func, clip_value: optax.chain(optax.zero_nans(), optax.clip_by_global_norm(clip_value), optax.scale_by_radam(b1 = self.optimizer_beta_1), optax.scale_by_schedule(lambda epoch: -schedule_func(epoch)))
         elif(self.optimizer_type == "SGD"):
             self.optax_chain = lambda schedule_func, clip_value: optax.chain(optax.zero_nans(), optax.clip_by_global_norm(clip_value), optax.scale_by_schedule(lambda epoch: -schedule_func(epoch)))
 
@@ -60,6 +61,7 @@ class Base_SDE_Loss_Class:
         # with self.optim_mode = "optim" one would optimize temp*rKL like in the Diffuco or SDDS, i.e. then the energy term would be temp independent and the entropy term would be temp dependent
         self.optim_mode = "equilibrium"
         self.natural_gradient_mode = SDE_Type_Config.get("natural_gradient_mode", None)
+        self.logging_gradients = SDE_config.get("logging_gradients", False)
 
 
     def _init_lr_schedule(self, l_max, l_start, lr_min, overall_steps, warmup_steps):
@@ -85,11 +87,11 @@ class Base_SDE_Loss_Class:
         return loss, key
 
     def update_step(self, params, opt_state, key, T_curr):
-        params, self.Interpol_params, self.SDE_params, opt_state, self.Interpol_params_state, self.SDE_params_state, loss_value, out_dict =  self.update_params(params, self.Interpol_params, self.SDE_params
+        params, self.Interpol_params, self.SDE_params, opt_state, self.Interpol_params_state, self.SDE_params_state, loss_value, out_dict, gradients_dict =  self.update_params(params, self.Interpol_params, self.SDE_params
                                                                                                                                                             , opt_state, self.Interpol_params_state, self.SDE_params_state, key, T_curr)
         # for key in out_dict:
         #     print(key, jnp.mean(out_dict[key]))
-        return params, opt_state, loss_value, out_dict
+        return params, opt_state, loss_value, out_dict, gradients_dict
 
     @partial(jax.jit, static_argnums=(0,))
     def update_params_DKL(self, params, Energy_params, SDE_params, opt_state, Energy_params_state, SDE_params_state, key, T_curr):
@@ -165,9 +167,13 @@ class Base_SDE_Loss_Class:
         elif( self.Optimizer_Config["learn_SDE_params_mode"] == "all_and_beta"):
             if(self.SDE_type.config["name"] == "Bridge_SDE"):
                 SDE_params["log_sigma"] = self.init_SDE_params["log_beta_delta"] ### log sigma does not exist in config as it is controled via beta
-            pass			
+            pass
         
-        return params, Interpol_params, SDE_params, opt_state, Interpol_params_state, SDE_params_state, loss_value, out_dict
+        gradients_dict = {}
+        if(self.logging_gradients):
+            gradients_dict = {"grads": grads, "Interpol_params_grad": Interpol_params_grad, "SDE_params_grad": SDE_params_grad}
+
+        return params, Interpol_params, SDE_params, opt_state, Interpol_params_state, SDE_params_state, loss_value, out_dict, gradients_dict
     
     @partial(jax.jit, static_argnums=(0,))
     def update_net_params_only(self, params, Energy_params, SDE_params, opt_state, Energy_params_state, SDE_params_state, key, T_curr):

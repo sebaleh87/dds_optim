@@ -29,7 +29,7 @@ parser.add_argument("--Energy_Config", type=str, default="GaussianMixture", choi
                                                                                      "DoubleWellEquivariant", "DoubleWell", "Sonar", "Funnel",
                                                                                       "Pytheus", "WavePINN_latent", "WavePINN_hyperparam", "DoubleMoon",
                                                                                       "Banana", "Brownian", "Lorenz", "Seeds", "Ionosphere", "Sonar", "LGCP", "GermanCredit", "MW54",
-                                                                                      "MW54_1", "StudentTMixture", "FunnelDistrax"], help="EnergyClass")
+                                                                                      "MW54_1", "StudentTMixture", "FunnelDistrax", "NICE"], help="EnergyClass")
 parser.add_argument("--n_particles", type=int, default=2, help="the dimension can be controlled for some problems")
 parser.add_argument("--T_start", type=float, default=[1.], nargs="+" ,  help="Starting Temperature")
 parser.add_argument("--T_end", type=float, default=0., help="End Temperature")
@@ -42,6 +42,7 @@ parser.add_argument("--project_name", type=str, default="")
 parser.add_argument("--minib_time_steps", type=int, default=20)
 parser.add_argument("--batch_size", type=int, default=200)
 parser.add_argument("--optimizer", type=str, choices = ["ADAM", "SGD"], default = "ADAM")
+parser.add_argument("--optimizer_beta_1", type=float, default=0.9 )
 parser.add_argument("--lr", type=float, default=[0.001], nargs="+")
 parser.add_argument("--lr_schedule", type=str, choices = ["cosine", "const", "cosine_warmup"], default = "cosine")
 parser.add_argument("--Energy_lr", type=float, default=0.0)
@@ -53,6 +54,7 @@ parser.add_argument("--learn_SDE_params_mode", type=str, default="all", choices=
                     help="prior_only: only learn prior params are learned, all: learn all SDE params except betas, all_and_beta: not relevant for CMCD, learn all params including beta")
 
 parser.add_argument("--learn_covar", action='store_true', default=False, help="learn additional covar of target")
+parser.add_argument("--mean_init", type=float, default=0., help="init value of prior mean")
 parser.add_argument("--sigma_init", type=float, default=1., help="init value of sigma")
 parser.add_argument("--repulsion_strength", type=float, default=0., help="repulsion_strength >= 0")
 parser.add_argument("--use_repulsion_energy", type=str2bool, nargs='?',
@@ -127,6 +129,9 @@ parser.add_argument("--natural_gradient_mode", type=str, default="diag", choices
 parser.add_argument('--gridsearch', action='store_true', default=False, help='when gridearch = True, lr is overwritten by SDE_lr')
 parser.add_argument("--float64", type=str2bool, nargs='?',
                         const=True, default=False, help="use float 64 or not")
+
+parser.add_argument("--logging_gradients", type=str2bool, nargs='?',
+                        const=True, default=False, help="should gradients be logged or not")
 
 
 args = parser.parse_args()
@@ -253,6 +258,7 @@ if(__name__ == "__main__"):
                 "use_normal": args.use_normal,
                 "learn_covar": args.learn_covar,
                 "sigma_init": args.sigma_init,
+                "mean_init": args.mean_init,
                 "repulsion_strength": args.repulsion_strength,
                 "use_repulsion_energy": args.use_repulsion_energy,
                 "sigma_scale_factor": args.sigma_scale_factor,
@@ -277,6 +283,8 @@ if(__name__ == "__main__"):
                 "quantile": args.quantile,
                 "weight_temperature": args.weight_temperature,
                 "optimizer": args.optimizer,
+                "optimizer_beta_1": args.optimizer_beta_1,
+                "logging_gradients": args.logging_gradients,
 
             }
         n_eval_samples = args.n_eval_samples
@@ -435,6 +443,12 @@ if(__name__ == "__main__"):
                 "eta": 3,
                 "scaling": args.Scaling_factor
             }
+        elif(args.Energy_Config == "NICE"):
+            dim = 14*14
+            Energy_Config = {
+                "name": "NICE",
+                "dim_x": dim,
+            }
 
         elif(args.Energy_Config == "LGCP"):
             Energy_Config = {
@@ -516,7 +530,8 @@ if(__name__ == "__main__"):
             "n_eval_samples": n_eval_samples,
             "project_name": args.project_name,
             "disable_jit": args.disable_jit,
-            "sample_seed": sample_seed
+            "sample_seed": sample_seed,
+            "track_gradients": args.logging_gradients,
         }
 
         trainer = TrainerClass(base_config)

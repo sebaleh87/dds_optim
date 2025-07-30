@@ -109,10 +109,10 @@ class SD:
     #@partial(jax.jit, static_argnums=(0,-1,-2))
     def mmd_loss(self, source, target, kernel_mul=2.0, kernel_num=10, fix_sigma = 100):
         batch_size = source.shape[0]
-        total = jnp.concatenate([source, target], axis=0)
-        total0 = jnp.expand_dims(total, 0)
-        total1 = jnp.expand_dims(total, 1)
-        L2_distance = jnp.sum((total0 - total1) ** 2, axis=2)
+        total = np.concatenate([source, target], axis=0)
+        total0 = np.expand_dims(total, 0)
+        total1 = np.expand_dims(total, 1)
+        L2_distance = np.sum((total0 - total1) ** 2, axis=2)
 
         n_samples = source.shape[0] + target.shape[0]
 
@@ -123,13 +123,13 @@ class SD:
         # jax.debug.print("🤯 kernel_num {kernel_num} 🤯", kernel_num=kernel_num)
         bandwidth /= kernel_mul ** (kernel_num // 2)
         bandwidth_list = [bandwidth * (kernel_mul**i) for i in range(kernel_num)]
-        kernel_vals = jnp.array([jnp.exp(-L2_distance / bw) for bw in bandwidth_list])
-        kernels = jnp.sum(kernel_vals, axis = 0)
+        kernel_vals = np.array([jnp.exp(-L2_distance / bw) for bw in bandwidth_list])
+        kernels = np.sum(kernel_vals, axis = 0)
         XX = kernels[:batch_size, :batch_size]
         YY = kernels[batch_size:, batch_size:]
         XY = kernels[:batch_size, batch_size:]
         YX = kernels[batch_size:, :batch_size]
-        return jnp.mean(XX + YY - XY - YX)
+        return np.mean(XX + YY - XY - YX)
 
 
     def mmd_loss_jax(self, model_samples, kernel_mul=2.0, kernel_num=10, fix_sigma=None, n_samples = 2000):

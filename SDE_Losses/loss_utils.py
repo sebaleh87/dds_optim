@@ -70,11 +70,13 @@ def compute_fKL_log_deriv(optim_mode, log_prior, reverse_log_probs, forward_diff
         # delta_log_weights = jnp.maximum(radon_dykodin_derivative, log_weights_max_quantile)
 
         # print(log_prior.shape, delta_log_weights.shape,log_max_quantile.shape, log_weights_max_quantile.shape)
-        importance_weights = jax.lax.stop_gradient(jax.nn.softmax(radon_dykodin_derivative, axis=-1)) * radon_dykodin_derivative.shape[-1]
+
+        # THIS is not the implementation of fKL as a regularizer to prevent mode collapse
+        importance_weights = 1.#jax.lax.stop_gradient(jax.nn.softmax(radon_dykodin_derivative, axis=-1)) * radon_dykodin_derivative.shape[-1]
 
         unbiased_mean = jax.lax.stop_gradient(jnp.mean(radon_dykodin_derivative, keepdims=True, axis=-1))
         reward = jax.lax.stop_gradient((radon_dykodin_derivative - unbiased_mean))
-        L1 = jnp.mean(importance_weights * reward * sum_forward_log_probs)
+        L1 = jnp.mean(importance_weights*reward * sum_forward_log_probs)
         L2 = jnp.mean(importance_weights * radon_nykodin_wo_forward)
         loss = L1 + L2
 

@@ -45,6 +45,7 @@ class Base_SDE_Class:
         self.invariance = self.Energy_Class.invariance
         
         self.sigma_init = config["sigma_init"]
+        self.mean_init = config["mean_init"]
         self.learn_covar = config["learn_covar"]
         self.use_repulsion_energy = config.get("use_repulsion_energy", False)
         self.repulsion_strength = config["repulsion_strength"]
@@ -67,9 +68,9 @@ class Base_SDE_Class:
         raise NotImplementedError("get_diffusion method not implemented")
 
     def get_Interpol_params(self):
-        InterpoL_params = {"beta_interpol_params": jnp.ones((self.n_integration_steps)),
+        Interpol_params = {"beta_interpol_params": jnp.ones((self.n_integration_steps)),
                             "repulsion_interpol_params": jnp.ones((self.n_integration_steps))}
-        return InterpoL_params
+        return Interpol_params
 
     def get_SDE_params(self):
         raise NotImplementedError("get_diffusion method not implemented")

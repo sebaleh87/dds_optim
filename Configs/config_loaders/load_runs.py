@@ -49,7 +49,7 @@ if(__name__ == "__main__"):
                     "Funnel-DBS": wandb_ids.Funnel_DBS, "Sonar-DBS": wandb_ids.Sonar_DBS, "Seeds-DBS": wandb_ids.Seeds_DBS, "LGCP-DBS": wandb_ids.LGCP_DBS, 
                     "German_DBS": wandb_ids.German_DBS, "Brownian_DBS": wandb_ids.Brownian_DBS, "MW54": wandb_ids.MW54, "MW54-DBS": wandb_ids.MW54_DBS}
     
-    #problem_list = { "Funnel-DBS": wandb_ids.Funnel_DBS, "Funnel": wandb_ids.Funnel, "MW54": wandb_ids.MW54, "MW54-DBS": wandb_ids.MW54_DBS}
+    problem_list = { "GMM-100-DBS": wandb_ids.GMM_100D_DBS, "GMM-100-CMCD": wandb_ids.GMM_100D_CMCD}
 
     k = 10
     for problem in problem_list.keys():
@@ -88,7 +88,7 @@ if(__name__ == "__main__"):
                 pad_idx = 0
 
                 #min_args = [(pad_idx + np.argmin(value[pad_idx:])) for value in Curves[loss_key]["sinkhorn_divergence"]]
-                if(problem == "MoS" or problem == "GMM"):
+                if( "MoS" in problem or "GMM" in problem):
                     min_args = [-1 for value in Curves[loss_key]["sinkhorn_divergence"]]
                     min_args_eval_metrics = min_args
                     min_args_train_metrics = min_args
@@ -126,8 +126,9 @@ if(__name__ == "__main__"):
                     print("EMC", f"${EMC_mean_over_seeds_rounded:.3f}"+ r"\text{\tiny{$\pm " +  f"{EMC_std_over_seeds_rounded:.3f}$" + "}}$")
                 if(len(Curves[loss_key]["MMD"]) > 0):                    
                     MMD_value_per_seed = np.array([Curves[loss_key]["MMD"][seed_idx][arg] for seed_idx, arg in enumerate(min_args_eval_metrics)])   
-                    MMD_mean_over_seeds_rounded, MMD_std_over_seeds_rounded = compute_average_and_variance(EMC_value_per_seed, round_mean=4, round_sdt=5)  
+                    MMD_mean_over_seeds_rounded, MMD_std_over_seeds_rounded = compute_average_and_variance(MMD_value_per_seed, round_mean=4, round_sdt=5)  
                     print("MMD", f"${MMD_mean_over_seeds_rounded:.3f}"+ r"\text{\tiny{$\pm " +  f"{MMD_std_over_seeds_rounded:.3f}$" + "}}$")
+                print("number of seeds", len(Curves[loss_key]["sinkhorn_divergence"]))
 
                 if(problem == "MoS" or problem == "GMM"):
                     average_sink_curve = np.mean(np.array([value for value in Curves[loss_key]["sinkhorn_divergence"]]), axis = 0)

@@ -24,7 +24,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
             ### if beta is learnable this also ahs to be dim(1)
             SDE_params = {"log_beta_delta": jnp.log((self.config["beta_max"] - self.config["beta_min"])), 
             "log_beta_min": jnp.log(self.config["beta_min"]),
-            "log_sigma": jnp.log(1.), "mean": jnp.zeros((self.dim_x,)),
+            "log_sigma": jnp.log(1.), "mean": self.mean_init*jnp.ones((self.dim_x,)),
             "log_sigma_prior": jnp.log(self.sigma_init)}
 
         else:
@@ -32,7 +32,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
             # rand_weights_repulse = jax.random.normal(random.PRNGKey(0), shape=(self.n_integration_steps,))
             SDE_params = {"log_beta_delta": jnp.log((self.config["beta_max"] - self.config["beta_min"] + 10**-3))* jnp.ones((self.dim_x,)), 
                         "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
-                        "log_sigma": jnp.log(1.)* jnp.ones((self.dim_x,)), "mean": jnp.zeros((self.dim_x,)),
+                        "log_sigma": jnp.log(1.)* jnp.ones((self.dim_x,)), "mean": self.mean_init*jnp.ones((self.dim_x,)),
                         "log_sigma_prior": jnp.log(self.sigma_init)* jnp.ones((self.dim_x,))}
             if(self.config["beta_schedule"] == "learned"):
                 SDE_params["log_beta_over_time"] = jnp.log(self.config["beta_max"])*jnp.ones((self.n_integration_steps, self.dim_x))
@@ -41,7 +41,6 @@ class Bridge_SDE_Class(Base_SDE_Class):
             elif(self.config["beta_schedule"] == "neural"):
                 #self.inverse_beta_init = inverse_softplus((self.config["beta_max"] - self.config["beta_min"] + 10**-3))
                 self.inverse_beta_init = jnp.log((self.config["beta_max"]))
-
 
         return SDE_params
 
@@ -161,6 +160,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
     def beta(self, SDE_params, t):
         t_discrete = jnp.int32(t)
         t = t/self.n_integration_steps
+        #jax.debug.print("🤯 t {t} 🤯", t=t)
         if(self.config["beta_schedule"] == "constant"):
             beta_min, beta_max = self.get_beta_min_and_max(SDE_params)
             return jax.lax.stop_gradient(beta_max)
@@ -170,10 +170,10 @@ class Bridge_SDE_Class(Base_SDE_Class):
             beta_curr = beta_min + (beta_max-beta_min)*t
             return beta_curr
         elif(self.config["beta_schedule"] == "cosine"):
-            beta_min = 0.01
+            beta_min = jax.lax.stop_gradient(self.config["beta_min"])
             offset = 1.008
             _, beta_max = self.get_beta_min_and_max(SDE_params)
-            beta_curr = beta_min + (beta_max-beta_min)*jnp.cos(jnp.pi/2*(offset-t)/offset) 
+            beta_curr =  (beta_max-beta_min)*jnp.cos(jnp.pi/2*(offset-t)/offset ) + beta_min
             return beta_curr
         elif(self.config["beta_schedule"] == "learned"):
             return jnp.exp(SDE_params["log_beta_over_time"][t_discrete])

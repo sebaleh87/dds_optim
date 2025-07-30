@@ -71,12 +71,12 @@ class Bridge_rKL_fKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
         log_dict = self.compute_partition_sum(entropy_minus_noise, jnp.zeros_like(entropy_minus_noise), log_prior, Energy, log_dict, off_policy_weights = off_policy_weights_normed_times_n_samples)
 
         # Combine the losses
-        clip_value = 0.001
+        #clip_value = 0.001
         ess = jax.lax.stop_gradient(log_dict["n_eff"])
         #jax.debug.print("🤯 ess {ess} 🤯", ess=ess)
 
-        mixture_loss = (ess*fKL_loss + (1-ess)*rKL_loss)
-        loss = jnp.where(ess < clip_value, rKL_loss, mixture_loss)  
+        mixture_loss = fKL_loss + rKL_loss
+        loss = mixture_loss 
         L1 = (fKL_L1 + rKL_unbiased)
         L2 = (fKL_L2 + rKL_centered)
 

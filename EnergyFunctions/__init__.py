@@ -17,6 +17,7 @@ from .LGCP import LGCPClass
 from .GermanCredit import GermanCreditClass
 from .StudentTMixture import StudentTMixtureClass
 from .GMMdistrax import GMMDistraxClass
+from .NICE import NiceTarget
 #from .FunnelDistrax import FunnelDistraxClass
 
 Energy_Registry = {"GaussianMixture": GaussianMixtureClass, "MexicanHat": MexicanHatClass, "Rastrigin": RastriginClass, "Pytheus": PytheusEnergyClass,
@@ -26,7 +27,7 @@ Energy_Registry = {"GaussianMixture": GaussianMixtureClass, "MexicanHat": Mexica
                 "Ionosphere" : InferenceGymClass, "Sonar": InferenceGymClass, "Funnel": FunnelClass, "LGCP": LGCPClass, "GermanCredit": GermanCreditClass,
                 "MW54": ManyWellClass,
                 "MW54_1": ManyWellClass1,
-                "StudentTMixture": StudentTMixtureClass, "GMMDistrax": GMMDistraxClass
+                "StudentTMixture": StudentTMixtureClass, "GMMDistrax": GMMDistraxClass, "NICE": NiceTarget,
                 #"FunnelDistrax": FunnelDistraxClass
                 }
 

@@ -176,7 +176,7 @@ class EnergyModelClass:
         elif(self.config["name"] == "LennardJones"):
             data = self.load_data()
             return {"interatomic_distances": self.plot_interatomic_distances(Xs, data, panel=panel), "energy_histogram": self.plot_energy_histogram(Xs, data, panel=panel)}
-        elif(True):
+        elif(self.config["name"] == "GMMDistrax" or self.config["name"] == "StudentTMixture"):
             return {"tsne": self.plot_tsne_last_samples(Xs, panel=panel)}
         else:
             pass
@@ -268,6 +268,10 @@ class EnergyModelClass:
             return {"sample_histogram": self.plot_2_D_histogram(Xs, panel = panel)}
         elif(self.dim_x == 1):
             return {"sample_histogram": self.plot_1_D_histogram(Xs, panel = panel)}
+        elif(self.config["name"] == "NICE"):
+            key = jax.random.PRNGKey(0)
+            data = self.sample(key,  (Xs.shape[0],))
+            return {"sample_histogram": self.plot_sample_histogram(Xs, data, panel = panel), "sample_images": self.plot_sample_images(Xs, data, panel = panel)}
         else:
             pass
     
@@ -439,6 +443,59 @@ class EnergyModelClass:
 
         wfig = wandb.Image(fig)
         #wandb.log({f"{panel}/last_samples": wfig})
+        plt.close()
+        return wfig
+    
+    def plot_sample_histogram(self, model_samples, target_samples, panel = "fig"):
+        fig = plt.figure(figsize=(10, 6))
+        model_pixel_values = model_samples.flatten()
+        target_pixel_values = target_samples.flatten()
+        plt.hist(model_pixel_values, bins=50, color='skyblue', edgecolor='black', alpha=0.7, label='Model')
+        plt.hist(target_pixel_values, bins=50, color='orange', edgecolor='black', alpha=0.7, label='Target')
+        plt.title('Histogram of Grayscale Pixel Values')
+        plt.xlabel('Pixel Value')
+        plt.ylabel('Frequency')
+        plt.legend()
+        plt.grid(alpha=0.3)
+
+
+        # Log the figure using wandb
+        wfig = wandb.Image(fig)
+        #wandb.log({f"{panel}/1d_histogram": wfig})
+        plt.close()
+        return wfig
+    
+    def plot_sample_images(self, model_samples, target_samples, panel = "fig"):
+        # Create a subplot grid for model samples
+        fig = plt.figure(figsize=(20, 10))
+
+        # Display model samples
+        for i in range(10):
+            if i < len(model_samples):
+                plt.subplot(2, 10, i + 1)
+                plt.imshow(model_samples[i].reshape(14, 14), cmap='gray')  # Assuming 28x28 MNIST-like images
+                plt.axis('off')
+                if i == 0:
+                    plt.title("Model Samples")
+
+        # Display target samples
+        for i in range(10):
+            if i < len(target_samples):
+                plt.subplot(2, 10, i + 11)
+                plt.imshow(target_samples[i].reshape(14, 14), cmap='gray')
+                plt.axis('off')
+                if i == 0:
+                    plt.title("Target Samples")
+
+        plt.title('Histogram of Grayscale Pixel Values')
+        plt.xlabel('Pixel Value')
+        plt.ylabel('Frequency')
+        plt.grid(alpha=0.3)
+
+
+        # Log the figure using wandb
+        wfig = wandb.Image(fig)
+        #wandb.log({f"{panel}/1d_histogram": wfig})
         plt.close()
         return wfig
 

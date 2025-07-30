@@ -14,11 +14,16 @@ import os
 from utils.rotate_vector import rotate_vector
 from matplotlib import pyplot as plt
 from Metrics.optimal_transport import SD  
+from copy import deepcopy
+from . import gradient_logger as gl
 
 class TrainerClass:
     def __init__(self, base_config, mode = "train"):
         self.config = base_config
         self.mode = mode
+
+        self.track_gradients = self.config.get("track_gradients", False)
+        self.sample_seed = self.config.get("sample_seed", 0)
 
         AnnealConfig = base_config["Anneal_Config"]
         Energy_Config = base_config["EnergyConfig"]
@@ -58,7 +63,8 @@ class TrainerClass:
                     start_time = time.time()
 
                     distance = self.sd_calculator.compute_SD(model_samples)
-                    self.MMD_samples = 4000
+                    print("Computed Sinkhorn distance...")
+                    self.MMD_samples = np.min([4000, len(model_samples)])
                     MMD = self.sd_calculator.mmd_loss_jax(model_samples, n_samples = self.MMD_samples)
 
                     end_time = time.time()
@@ -67,10 +73,11 @@ class TrainerClass:
                     distances["Sinkhorn"].append(distance)
                     distances["MMD"].append(jnp.sqrt(MMD))
 
-                for key in distances.keys():
-                    avg_distance = np.mean(distances[key])
-                    std_distance = np.std(distances[key])/np.sqrt(reps)
-                    print(f"Average distance for {n_sample} samples Metric {key}: {avg_distance}, Std: {std_distance}")
+                for dist_key in distances.keys():
+                    avg_distance = np.mean(distances[dist_key])
+                    std_distance = np.std(distances[dist_key])/np.sqrt(reps)
+                    print(f"Average distance for {n_sample} samples Metric {dist_key}: {avg_distance}, Std: {std_distance}")
+        #raise ValueError("Check if the Energy class has a tractable distribution")
 
 
 
@@ -232,8 +239,13 @@ class TrainerClass:
         wandb.log({f"figs_{sample_mode}/{key}": overall_dict[key] for key in overall_dict},step=epoch+1)
 
     def train(self):
+        if(self.track_gradients):
+            self.init_params = deepcopy(self.params)  # Use a copy of the initial parameters
+            self.prev_params = deepcopy(self.params)
+            self.prev_param_update_step = None
+            overall_traj_step = 0.
         params = self.params
-        key = jax.random.PRNGKey(self.Network_Config["model_seed"])
+        key = jax.random.PRNGKey(self.sample_seed)
         self.Best_Energy_value_ever = np.infty
         self.Best_Free_Energy_value_ever = np.infty
         self.Best_Sinkhorn_value_ever = np.infty
@@ -251,20 +263,23 @@ class TrainerClass:
             self.save_metric_dict["EMC"] = []
 
         pbar = trange(self.num_epochs)
+        overall_step = 0
         for epoch in pbar:
             T_curr = self.AnnealClass.update_temp()
             start_time = time.time()
             if((epoch % int(self.num_epochs/self.Optimizer_Config["epochs_per_eval"]) == 0 or epoch == 0) and not self.config["disable_jit"]):
-                self.evaluate_model(params, key, epoch, T_curr)
+                self.evaluate_model(params, key, overall_step, T_curr)
 
 
 
             loss_list = []
             for i in range(self.Optimizer_Config["steps_per_epoch"]):
+                overall_step += 1
                 start_grad_time = time.time()
-                params, self.opt_state, loss, out_dict = self.SDE_LossClass.update_step(params, self.opt_state, key, T_curr)
+                params, self.opt_state, loss, out_dict, gradients_dict = self.SDE_LossClass.update_step(params, self.opt_state, key, T_curr)
                 end_grad_time = time.time() 
                 key = out_dict["key"]
+
                 #print(out_dict)
                 if not hasattr(self, 'aggregated_out_dict'):
                     self.aggregated_out_dict = {k: [] for k in out_dict.keys() if k != "key" and k != "X_0"}
@@ -282,12 +297,59 @@ class TrainerClass:
                 self.aggregated_out_dict["time/time_grad"].append(end_grad_time - start_grad_time)
                 self.aggregated_out_dict["time/time_log"].append(end_log_time - end_grad_time)
 
+                if self.track_gradients:
+                    param_change = jax.tree_util.tree_map(lambda x,y:  x - y, self.init_params, params)  # Track the change in parameters
+                    # Compute the Euclidean norm of parameter changes
+                    flat_params = jax.tree_util.tree_leaves(param_change)
+                    param_dist = jnp.sqrt(sum(jnp.sum(x**2) for x in flat_params))
+
+                    param_traj_length = jax.tree_util.tree_map(lambda x,y:  x - y, self.prev_params, params)  # Track the change in parameters
+                    # Compute the Euclidean norm of parameter changes
+                    flat_params = jax.tree_util.tree_leaves(param_traj_length)
+                    param_traj_step = jnp.sqrt(sum(jnp.sum(x**2) for x in flat_params))
+                    overall_traj_step = overall_traj_step + param_traj_step
+
+                    if(self.prev_param_update_step is not None):
+                        dot_product = jax.tree_util.tree_map(lambda x,y:  x * y, self.prev_param_update_step, param_traj_length) 
+                        flat_dot_product = jax.tree_util.tree_leaves(dot_product)
+
+                        flat_params = jax.tree_util.tree_leaves(param_traj_length)
+                        len_prev = jnp.sqrt(sum(jnp.sum(x**2) for x in flat_params))
+
+                        flat_params = jax.tree_util.tree_leaves(self.prev_param_update_step)
+                        len_curr = jnp.sqrt(sum(jnp.sum(x**2) for x in flat_params))
+
+                        param_traj_step_angle = sum(jnp.sum(x) for x in flat_dot_product)/ (len_prev * len_curr)
+                    else:
+                        param_traj_step_angle = 0.0
+
+                    param_grads = gradients_dict["grads"]
+                    flat_params = jax.tree_util.tree_leaves(param_grads)
+                    grad_norm = jnp.sqrt(sum(jnp.sum(x**2) for x in flat_params))
+
+                    self.prev_param_update_step = deepcopy(param_traj_length)  # Store the current parameter change for the next step
+                    self.prev_params = deepcopy(params)  # Store previous parameters for gradient tracking
+                    wandb.log({"param_dist": param_dist, "overall_traj_len": overall_traj_step, "cos_angle_grad_updates": param_traj_step_angle, "grad_norm": grad_norm}, step = overall_step)
+
+            # if(len(gradients_dict) != 0):
+            #     stacked_tree = jax.tree_util.tree_map(lambda *xs: jnp.stack(xs), *mean_gradient_list)
+            #     # Compute variance along the stacked axis (axis=0)
+            #     var_grad = jax.tree_util.tree_map(lambda x: jnp.std(x, axis=0), stacked_tree)
+            #     leaves, _ = jax.tree_util.tree_flatten(var_grad)
+    
+            #     # Concatenate all leaves and compute the overall mean of variances
+            #     all_variances = jnp.concatenate([jnp.ravel(x) for x in leaves])
+            #     overall_mean_variance = jnp.mean(all_variances)
+
+            #     wandb.log({"gradient_variance": overall_mean_variance}, step=epoch+1)
+
+
             epoch_time = time.time() - start_time
             mean_loss = np.mean(loss_list)
             lr = self.SDE_LossClass.schedule(epoch*(self.Optimizer_Config["steps_per_epoch"]*self.SDE_LossClass.lr_factor)) ### TODO correct this for MC case
-            wandb.log({"loss": mean_loss, "schedules/temp": T_curr, "schedules/lr": lr, "time/epoch": epoch_time, "epoch": epoch}, step=epoch+1)
-            wandb.log({dict_key: np.mean(self.aggregated_out_dict[dict_key]) for dict_key in self.aggregated_out_dict}, step=epoch+1)
-            wandb.log({"X_statistics/mean": np.mean(out_dict["X_0"]), "X_statistics/sdt": np.mean(np.std(out_dict["X_0"], axis = 0))}, step=epoch+1)
+            wandb.log({"loss": mean_loss, "schedules/temp": T_curr, "schedules/lr": lr, "time/epoch": epoch_time, "epoch": epoch}, step=overall_step)
+            wandb.log({dict_key: np.mean(self.aggregated_out_dict[dict_key]) for dict_key in self.aggregated_out_dict}, step=overall_step)
+            wandb.log({"X_statistics/mean": np.mean(out_dict["X_0"]), "X_statistics/sdt": np.mean(np.std(out_dict["X_0"], axis = 0))}, step=overall_step)
 
             pbar.set_description(f"mean_loss {mean_loss:.4f}, best energy: {self.Best_Energy_value_ever:.4f}")
 
@@ -319,13 +381,13 @@ class TrainerClass:
             n_samples = self.config["n_eval_samples"]
             SDE_tracer, out_dict, key = self.SDE_LossClass.simulate_reverse_sde_scan( params, self.SDE_LossClass.Interpol_params, self.SDE_LossClass.SDE_params, T_curr, key, sample_mode = "eval", n_integration_steps = self.n_integration_steps, n_states = n_samples)
             
-            self.plot_figures(SDE_tracer, self.num_epochs+1, sample_mode= "ckpt_best_sinkhorn")
+            self.plot_figures(SDE_tracer, overall_step+1, sample_mode= "ckpt_best_sinkhorn")
         except:
             pass
 
         # After training loop, calculate and log running averages
         running_avg_table = self._calculate_running_averages(self.metric_history, self.best_running_avgs)
-        wandb.log({"final_metrics": running_avg_table},step=self.num_epochs+2)
+        wandb.log({"final_metrics": running_avg_table},step=overall_step+2)
         wandb.finish()
         return params
     
@@ -453,9 +515,10 @@ class TrainerClass:
                 if hasattr(self.EnergyClass, 'compute_emc'):
                     emc = self.EnergyClass.compute_emc(out_dict["X_0"])
                     emc_metric_name = f"eval_{sample_mode}/EMC"
+                    metric_history_name = f"eval_{sample_mode}_run_avg/EMC"
                     if emc_metric_name not in self.metric_history:
-                        self.metric_history[emc_metric_name] = []
-                    self.metric_history[emc_metric_name].append(float(emc))
+                        self.metric_history[metric_history_name] = []
+                    self.metric_history[metric_history_name].append(float(emc))
                     eval_metrics[emc_metric_name] = emc
 
                     if sample_mode == "eval": 
@@ -471,7 +534,7 @@ class TrainerClass:
                     # Calculate running average of last 5 values
                     last_n = values[-5:] if len(values) >= 5 else values
                     running_avg = sum(last_n) / len(last_n)
-                    eval_metrics[f"{metric_name}_running_avg"] = running_avg
+                    eval_metrics[metric_name] = running_avg
                     
                     # Get the base metric name without the eval_mode prefix
                     base_metric_name = metric_name.split('/')[-1] if '/' in metric_name else metric_name
