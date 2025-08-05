@@ -1,14 +1,16 @@
-| GMM 100 D | Sinkhorn | ELBO | log Z | EMC | MMD |
+| GMM 100-D | Sinkhorn | ELBO | log Z | EMC | MMD |
 |----------|----------|----------|----------|----------|----------|
-| \textbf{CMCD: rKL-R $\Large \star$} | $7152.88\text{\tiny{$\pm 177.312$}}$    | $-795.09\text{\tiny{$\pm 6.491$}}$    | $-528.09\text{\tiny{$\pm 2.995$}}$     | $0.995\text{\tiny{$\pm 0.000$}}$     | $0.116\text{\tiny{$\pm 0.001$}}$     |
-| \textbf{CMCD: LV $\Large \star$}    | $22237.03\text{\tiny{$\pm 10627.664$}}$    | $-1957894528.00\text{\tiny{$\pm 1354142383.491$}}$    | $-774.91\text{\tiny{$\pm 466.647$}}$   | $0.866\text{\tiny{$\pm 0.084$}}$    | $0.268\text{\tiny{$\pm 0.101$}}$    |
-| \textbf{CMCD: LV}  | Data     | Data     | Data     | Data     | Data     |
-| \textbf{CMCD: rKL-LD $\Large \star$}   | $6079.38\text{\tiny{$\pm 205.248$}}$     | $-45.10\text{\tiny{$\pm 0.091$}}$    | $-18.09\text{\tiny{$\pm 0.341$}}$    |  $0.996\text{\tiny{$\pm 0.000$}}$   | $0.084\text{\tiny{$\pm 0.001$}}$    |
-| \textbf{CMCD: rKL-LD}    | $6043.26\text{\tiny{$\pm 166.427$}}$     | $-45.84\text{\tiny{$\pm 0.08$}}$    | $-18.88\text{\tiny{$\pm 0.394$}}$   | $0.996\text{\tiny{$\pm 0.000$}}$     | $0.085\text{\tiny{$\pm 0.001$}}$    |
+| CMCD: rKL-R $\Large \star$ | $7152.88\pm 177.312$    | $-795.09\pm 6.491$    | $-528.09\pm 2.995$     | $0.995\pm 0.000$     | $0.116\pm 0.001$     |
+| CMCD: LV $\Large \star$   | $22237.03\pm 10627.664$    | $-1957894528.00\pm 1354142383.491$    | $-774.91\pm 466.647$   | $0.866\pm 0.084$    | $0.268\pm 0.101$    |
+| CMCD: LV  | $12420.83\pm 6668.17$   | $-2141430400.00\pm 2031539132.986$    | $-1037.09\pm 931.118$    | $0.951\pm 0.043$    | $0.138\pm 0.015$    |
+| CMCD: rKL-LD $\Large \star$   | $6079.38\pm 205.248$     | $-45.10 \pm 0.091$    | $-18.09\pm 0.341$    |  $\mathbf{0.996 \pm 0.000}$   | $0.084\pm 0.001$    |
+| CMCD: rKL-LD    | $\mathbf{6043.26\pm 166.427}$     | $\mathbf{-45.84\pm 0.08}$    | $\mathbf{-18.88\pm 0.394}$   | $\mathbf{0.996\pm 0.000}$     | $\mathbf{0.085\pm 0.001}$    |
+
+| GMM 100-D | Sinkhorn | ELBO | log Z | EMC | MMD |
 |----------|----------|----------|----------|----------|----------|
-| \textbf{DBS: rKL-R $\Large \star$}    | Data     | Data     | Data     | Data     | Data     |
-| \textbf{DBS: LV $\Large \star$}  | 5024.58\text{\tiny{$\pm 171.079$}}$     | $-230.83\text{\tiny{$\pm 0.151$}}$    |$-105.53\text{\tiny{$\pm 0.972$}}$    | $0.998\text{\tiny{$\pm 0.000$}}$    | $0.178\text{\tiny{$\pm 0.000$}}$    |
-| \textbf{DBS: LV}   | Data     | Data     | Data     | Data     | Data     | ### only 5 seeds
-| \textbf{DBS: rKL-LD $\Large \star$}   | $5163.31\text{\tiny{$\pm 206.48$}}$     | $-225.99\text{\tiny{$\pm 0.132$}}$     | $-101.80\text{\tiny{$\pm 0.953$}}$    | $0.997\text{\tiny{$\pm 0.000$}}$     | $0.178\text{\tiny{$\pm 0.000$}}$    |
-| \textbf{DBS: rKL-LD }   | Data     | Data     | Data     | Data     | Data     |
+| DBS: rKL-R $\Large \star$    | $5637.36 \pm 155.953$     | $-270.61 \pm 0.275$    | $-138.60\pm 0.85$    | $\mathbf{0.997\pm 0.001}$ | $0.179\pm 0.000$   |
+| DBS: LV $\Large \star$  | $\mathbf{5024.58 \pm 171.079}$     | $-230.83\pm 0.151$    |$-105.53\pm 0.972$    | $\mathbf{0.998\pm 0.001}$    | $0.178\pm 0.000$    |
+| DBS: LV   | $\mathbf{4938.60\pm 103.434}$   | $-252.56\pm 0.299$    | $-116.76\pm 1.061$   | $\mathbf{0.998\pm 0.001}$    |  $0.184\pm 0.001$    |
+| DBS: rKL-LD $\Large \star$   | $\mathbf{5163.31\pm 206.48}$     | $-225.99 \pm 0.132$     | $-101.80\pm 0.953$    | $\mathbf{0.997\pm 0.001}$     | $0.178 \pm 0.000$    |
+| DBS: rKL-LD   | $\mathbf{5132.65\pm 124.068}$   | $\mathbf{-198.53\pm 0.127}$    | $\mathbf{-87.59\pm 0.818}$    | $\mathbf{0.997\pm 0.001}$     | $\mathbf{0.171\pm 0.000}$     |
 

@@ -275,7 +275,8 @@ def GMM_100D_CMCD(key):
         wandb_ids = ["icy-sun-40", "deep-flower-37", "logical-gorge-33", "brisk-dream-29", "snowy-universe-25", "driven-plant-20", "kind-waterfall-13",
                      "youthful-surf-9", "bright-firefly-5", "deep-sunset-1"]
     elif(key == "LogVarLoss"):
-        wandb_ids = ["wise-snowball-43", "denim-energy-41", "devoted-microwave-42"]
+        wandb_ids = ["wise-snowball-43", "denim-energy-41", "devoted-microwave-42", "whole-sun-44", "spring-sun-45", "different-morning-46",
+                     "silvery-fog-47", "youthful-night-48", "easy-firefly-49", "happy-wood-50"]
     elif(key == "LogVarLoss_frozen"):
         wandb_ids = ["major-wave-38", "robust-dew-34", "usual-night-30", "devoted-resonance-27", "fanciful-voice-21", 
                      "polar-frost-17", "soft-night-14", "fast-sky-10", "swept-spaceship-6", "wise-terrain-2"]
@@ -284,14 +285,17 @@ def GMM_100D_CMCD(key):
 
 def GMM_100D_DBS(key):
     if(key == "rKL_frozen"):
-        wandb_ids = ["winter-sponge-18", "effortless-bird-15", "flowing-shape-8", "exalted-star-3"]
+        wandb_ids = ["winter-sponge-18", "effortless-bird-15", "flowing-shape-8", "exalted-star-3",  "dauntless-star-47", "noble-energy-44", "devout-haze-41", 
+                     "proud-eon-38", "rural-sponge-35"]
     elif(key == "rKL_logderiv"):
-        wandb_ids = ["hopeful-silence-26", "dashing-glade-20", "glorious-totem-17", "glamorous-lion-12", "fallen-microwave-7"]
+        wandb_ids = ["colorful-waterfall-48", "breezy-shadow-45", "glad-elevator-42", "likely-spaceship-39", "royal-planet-36"
+                     ,"hopeful-silence-26", "dashing-glade-20", "glorious-totem-17", "glamorous-lion-12", "fallen-microwave-7"]
     elif(key == "rKL_logderiv_frozen"):
         wandb_ids = ["crisp-leaf-31", "woven-sky-29", "fresh-valley-27", "quiet-haze-23", "happy-galaxy-21", "unique-dragon-13", "major-breeze-9",
                       "stoic-pyramid-4", "ethereal-dew-1"]
     elif(key == "LogVarLoss"):
-        wandb_ids = ["polished-water-25", "wild-wave-19", "upbeat-firefly-16", "floral-sky-11", "jolly-night-6"]
+        wandb_ids = ["polished-water-25", "wild-wave-19", "upbeat-firefly-16", "floral-sky-11", "jolly-night-6", "bright-universe-46", 
+                     "misty-salad-43", "restful-donkey-40", "fallen-feather-37", "bright-energy-34"]
     elif(key == "LogVarLoss_frozen"):
         wandb_ids = ["fiery-brook-33", "absurd-feather-32", "genial-cosmos-30", "mild-deluge-28", "gentle-puddle-24", 
                      "crisp-resonance-22", "dandy-capybara-14", "olive-energy-10", "desert-river-5", "icy-eon-2"]
