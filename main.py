@@ -59,6 +59,8 @@ parser.add_argument("--sigma_init", type=float, default=1., help="init value of 
 parser.add_argument("--repulsion_strength", type=float, default=0., help="repulsion_strength >= 0")
 parser.add_argument("--use_repulsion_energy", type=str2bool, nargs='?',
                         const=True, default=False, help="use repulsion or not use repulsion within interpolation between prior and target")
+parser.add_argument("--learn_interpol_NN", type=str2bool, nargs='?',
+                        const=True, default=False, help="use learned interpolation network or not")
 
 ### TODO explain the effect
 parser.add_argument('--use_off_policy', action='store_true', default=False, help='use off policy sampling')
@@ -76,6 +78,8 @@ parser.add_argument("--debug_nans", action='store_true', default=False, help="de
 parser.add_argument("--N_anneal", type=int, default=1000)
 parser.add_argument("--N_warmup", type=int, default=0)
 parser.add_argument("--steps_per_epoch", type=int, default=10)
+
+parser.add_argument("--prior_param", type=str, choices = ["constant", "neural"], default="constant", help="defines the parametrization of the prior distribution")
 
 parser.add_argument("--beta_schedule", type=str, choices = ["constant", "cosine", "learned", "neural", "linear"], default="constant", help="defines the noise schedule for Bridge_SDE")
 parser.add_argument("--beta_schedule_neural_mode", type=str, default = "time_dependent", choices=["time_dependent", "time_and_X_dependent"],
@@ -116,7 +120,7 @@ parser.add_argument("--n_eval_samples", type=int, default=2000, help="Number of 
 parser.add_argument("--Pytheus_challenge", type=int, default=1, choices=[0,1,2,3,4,5], help="Pyhteus Chellange Index")
 parser.add_argument("--Scaling_factor", type=float, default=40., help="Scaling factor for Energy Functions")
 parser.add_argument("--Variances", type=float, default=1., help="Variances of Gaussian Mixtures before scalling when means ~Unif([-1,1])")
-parser.add_argument("--base_net", type=str, default="Vanilla", choices = ["PISgradnet", "Vanilla"], help="Variances of Gaussian Mixtures before scalling when means ~Unif([-1,1])")
+parser.add_argument("--base_net", type=str, default="Vanilla", choices = ["PISgradnet", "Vanilla", "PISgradResNet"], help="Variances of Gaussian Mixtures before scalling when means ~Unif([-1,1])")
 parser.add_argument("--network_init", type=str, default="zeros", choices = ["zeros", "xavier", "slightly_positive"], help="defines the initialization of the last layer in vanilla network")
 parser.add_argument("--weight_init", type=float, default=1e-8, help="network initialization of last layer for PISgradnet, or when network_init == slightly_positive")
 
@@ -269,8 +273,10 @@ if(__name__ == "__main__"):
                 "mixture_probs": args.mixture_probs,
                 "learn_interpolation_params": args.learn_interpolation_params,
                 "beta_schedule": args.beta_schedule,
+                "prior_param": args.prior_param,
                 "natural_gradient": args.natural_gradient,
                 "natural_gradient_mode": args.natural_gradient_mode,
+                "learn_interpol_NN": args.learn_interpol_NN
             }
 
             SDE_Loss_Config = {
@@ -284,7 +290,7 @@ if(__name__ == "__main__"):
                 "weight_temperature": args.weight_temperature,
                 "optimizer": args.optimizer,
                 "optimizer_beta_1": args.optimizer_beta_1,
-                "logging_gradients": args.logging_gradients,
+                "logging_gradients": args.logging_gradients
 
             }
         n_eval_samples = args.n_eval_samples

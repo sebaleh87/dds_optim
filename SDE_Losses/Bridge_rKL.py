@@ -17,6 +17,9 @@ class Bridge_rKL_Loss_Class(Base_SDE_Loss_Class):
         forward_diff_log_probs = SDE_tracer["forward_diff_log_probs"]
         reverse_log_probs = SDE_tracer["reverse_log_probs"]
 
+        prior_mean = SDE_tracer["prior_mean"]
+        prior_sigma = SDE_tracer["prior_sigma"]
+
         entropy_minus_noise = jnp.sum(reverse_log_probs - forward_diff_log_probs, axis = 0)
 
         x_prior = SDE_tracer["x_prior"]
@@ -39,7 +42,7 @@ class Bridge_rKL_Loss_Class(Base_SDE_Loss_Class):
         log_dict = {"loss": loss, "mean_energy": mean_Energy, 
                       "best_Energy": jnp.min(Energy), "noise_loss": noise_loss, "entropy_loss": entropy_loss, "key": key, "X_0": x_last, 
                       "sigma": jnp.exp(SDE_params["log_sigma"]),"beta_min": jnp.exp(SDE_params["log_beta_min"]),
-                        "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": SDE_params["mean"], "sigma_prior": jnp.exp(SDE_params["log_sigma_prior"])
+                        "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": prior_mean, "sigma_prior": prior_sigma
                         }
 
         log_dict = self.compute_partition_sum(entropy_minus_noise, jnp.zeros_like(entropy_minus_noise), log_prior, Energy, log_dict)

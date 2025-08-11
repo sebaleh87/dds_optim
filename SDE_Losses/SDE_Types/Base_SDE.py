@@ -7,8 +7,8 @@ import flax.linen as nn
 from .Time_Importance_Sampler.numerical_inverse import NumericalIntSampler
 import wandb
 from matplotlib import pyplot as plt
-class Base_SDE_Class:
 
+class Base_SDE_Class:
     def __init__(self, config, Network_Config, Energy_Class) -> None:
         self.config = config
         self.stop_gradient = False
@@ -52,6 +52,8 @@ class Base_SDE_Class:
         self.sigma_scale_factor = config["sigma_scale_factor"]
         self.learn_interpolation_params = config["learn_interpolation_params"]
         self.bridge_type = self.config.get("bridge_type", "CMCD")
+        print(self.config["learn_interpol_NN"])
+        self.learn_interpol_NN = self.config.get("learn_interpol_NN", False)
         # self.noise_scale_factor = config["noise_scale_factor"]
 
     def weightening(self, t):
@@ -70,6 +72,32 @@ class Base_SDE_Class:
     def get_Interpol_params(self):
         Interpol_params = {"beta_interpol_params": jnp.ones((self.n_integration_steps)),
                             "repulsion_interpol_params": jnp.ones((self.n_integration_steps))}
+        
+
+        if(self.learn_interpol_NN):
+            nh = self.Network_Config["n_hidden"]
+            beta_model = nn.Sequential([
+                                        nn.Dense(nh),
+                                        nn.gelu,
+                                        nn.Dense(nh),
+                                        nn.gelu,
+                                        nn.Dense(self.dim_x, kernel_init=nn.initializers.constant(0.),
+                                                                                        bias_init=nn.initializers.constant(0.))
+                                    ])
+            
+            # Create parameter initialization key
+            key = random.PRNGKey(0)
+            dummy_x = jnp.ones((1, self.dim_x))  
+            dummy_t = jnp.ones((1, 1)) 
+            # Initialize the model parameters
+            beta_params = beta_model.init(key, jnp.concatenate([dummy_x, dummy_t], axis=-1))
+            
+            # Add the model and its parameters to the SDE_params config
+            beta_network = beta_model
+            beta_params = beta_params
+            self.interpol_net = beta_network
+            Interpol_params["interpol_net_params"] = beta_params
+
         return Interpol_params
 
     def get_SDE_params(self):
@@ -139,6 +167,11 @@ class Base_SDE_Class:
 
         overall_log_probs = jnp.expand_dims(log_prob_target + log_prob_prior, axis = -1)
         #grad = jnp.clip(grad, -10**2, 10**2)
+        if(self.learn_interpol_NN):
+            grad_interpol_NN = self.compute_learned_interpolation_grad( x, counter, SDE_params)
+            combined_grads_at_T1 = combined_grads_at_T1 + grad_interpol_NN
+            combined_grads_at_T = combined_grads_at_T + grad_interpol_NN
+
         out_dict = {"log_prob": overall_log_probs, "combined_grads_at_T1": combined_grads_at_T1, "combined_grads_at_T": combined_grads_at_T}
         return out_dict
 
@@ -180,31 +213,18 @@ class Base_SDE_Class:
         log_prior = self.get_log_prior(log_prior_params,x)  ### only stop gradient for log prior but not for beta_interpol or x
         log_prob = (beta_interpol)*log_prior  
         return log_prob, key
-    
-    def get_diversity_log_prob_grad(self, x_batch, counter, SDE_params):
-        x_batch = jax.lax.stop_gradient(x_batch)
-        (div_Energy, t_decay_factor), (batched_x_grad) = jax.value_and_grad(self.diversity_log_prob, has_aux=True)(x_batch, counter, SDE_params)
-        return div_Energy, batched_x_grad, t_decay_factor
-    
-    # def diversity_log_prob(self, x_batch, counter ,SDE_params, eps = 10**-8):
-    #     div_beta_interpol = self.compute_energy_interpolation_time(SDE_params, counter[0], SDE_param_key = "repulsion_interpol_params")
-    #     distances = jnp.sqrt(jnp.sum((x_batch[:, None, :] - x_batch[None, :, :])**2, axis = -1) + eps)
-    #     mask = jnp.eye(distances.shape[0])
-    #     max_value = jax.lax.stop_gradient(jnp.max(distances))
-    #     masked_distances = jnp.where(mask == 1, max_value+1., distances)
-    #     div_Energy = - jnp.sum(jnp.min(masked_distances, axis = -1)**0.5)**2
 
-    #     return - self.repulsion_strength*div_Energy*(div_beta_interpol)*(1-div_beta_interpol), (div_beta_interpol)*(1-div_beta_interpol)
 
-    def diversity_log_prob(self, x_batch, counter ,SDE_params, eps = 10**-8, scale = 10.):
+    def compute_learned_interpolation_grad(self, x_batch, counter , SDE_params):
         div_beta_interpol = self.compute_energy_interpolation_time(SDE_params, counter[0], SDE_param_key = "repulsion_interpol_params")
-        distances = jnp.sqrt(jnp.sum((x_batch[:, None, :] - x_batch[None, :, :])**2, axis = -1) + eps)
-        mask = jnp.eye(distances.shape[0])
-        max_value = jax.lax.stop_gradient(jnp.max(distances))
-        masked_distances = jnp.where(mask == 1, max_value+1., distances)
-        div_Energy = jnp.mean(jnp.exp(-masked_distances/scale)) 
+        div_beta_interpol = jax.lax.stop_gradient(div_beta_interpol)
+        interpol_net_params = SDE_params["interpol_net_params"]
 
-        return - self.repulsion_strength*div_Energy, (div_beta_interpol)*(1-div_beta_interpol)
+        interpol_grad = self.interpol_net.apply(interpol_net_params, jnp.concatenate([x_batch, 0*counter], axis = -1))
+
+        learned_interpol_grad = (div_beta_interpol)*(1-div_beta_interpol)*interpol_grad
+
+        return learned_interpol_grad
     
     def compute_energy_interpolation_time(self, SDE_params, counter, SDE_param_key = "beta_interpol_params"):
         step_index = self.n_integration_steps-counter

@@ -9,17 +9,43 @@ import wandb
 from matplotlib import pyplot as plt
 from .Base_SDE import Base_SDE_Class, inverse_softplus
 
+class ResidualBlock(nn.Module):
+    num_hid: int
+
+    @nn.compact
+    def __call__(self, x):
+        residual = x
+
+        # Pre-LN before the main layers
+        y = nn.LayerNorm()(x)
+
+        # First Dense + GELU
+        y = nn.Dense(self.num_hid)(y)
+        y = nn.gelu(y)
+
+        # Second Dense
+        y = nn.Dense(self.num_hid)(y)
+
+        # Match dimensions if necessary for skip
+        if residual.shape[-1] != self.num_hid:
+            residual = nn.Dense(self.num_hid)(residual)
+
+        # Skip connection
+        return residual + y
+
 ### Bridge as in SEQUENTIAL CONTROLLED LANGEVIN DIFFUSIONS
 class Bridge_SDE_Class(Base_SDE_Class):
     def __init__(self, SDE_Type_Config, Network_Config, Energy_Class):
         super().__init__(SDE_Type_Config, Network_Config, Energy_Class)
         self.vmap_get_log_prior = jax.vmap(self.get_log_prior, in_axes=(None, 0))
+        self.Network_Config = Network_Config
         self.laplace_width = self.config["laplace_width"]
         self.mixture_prob = self.config["mixture_probs"]
         self.natural_gradient_mode = SDE_Type_Config.get("natural_gradient_mode", None)
         ### TODO remove learnability of diffusion parameters
 
     def get_SDE_params(self):
+
         if(self.invariance):
             ### if beta is learnable this also ahs to be dim(1)
             SDE_params = {"log_beta_delta": jnp.log((self.config["beta_max"] - self.config["beta_min"])), 
@@ -30,17 +56,53 @@ class Bridge_SDE_Class(Base_SDE_Class):
         else:
             # rand_weights = jax.random.normal(random.PRNGKey(0), shape=(self.n_integration_steps,))
             # rand_weights_repulse = jax.random.normal(random.PRNGKey(0), shape=(self.n_integration_steps,))
-            SDE_params = {"log_beta_delta": jnp.log((self.config["beta_max"] - self.config["beta_min"] + 10**-3))* jnp.ones((self.dim_x,)), 
-                        "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
-                        "log_sigma": jnp.log(1.)* jnp.ones((self.dim_x,)), "mean": self.mean_init*jnp.ones((self.dim_x,)),
-                        "log_sigma_prior": jnp.log(self.sigma_init)* jnp.ones((self.dim_x,))}
+            SDE_params = {}
             if(self.config["beta_schedule"] == "learned"):
                 SDE_params["log_beta_over_time"] = jnp.log(self.config["beta_max"])*jnp.ones((self.n_integration_steps, self.dim_x))
                 # del SDE_params["log_beta_delta"]
                 # del SDE_params["log_beta_min"]
+
             elif(self.config["beta_schedule"] == "neural"):
-                #self.inverse_beta_init = inverse_softplus((self.config["beta_max"] - self.config["beta_min"] + 10**-3))
                 self.inverse_beta_init = jnp.log((self.config["beta_max"]))
+
+            if(self.config["prior_param"] == "neural"):
+                SDE_param_keys = { "mean": self.mean_init, "log_sigma_prior": jnp.log(self.sigma_init)}
+
+                self.inverse_beta_init = jnp.log((self.config["beta_max"]))
+
+                self.beta_network_dict = {}
+                nh = self.Network_Config["n_hidden"]
+                num_layers = self.Network_Config["n_layers"]
+                SDE_params = {"log_beta_delta": jnp.log((self.config["beta_max"] - self.config["beta_min"] + 10**-3))* jnp.ones((self.dim_x,)), 
+                        "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
+                        "log_sigma": jnp.log(1.)* jnp.ones((self.dim_x,))}
+
+                for idx, SDE_key in enumerate(SDE_param_keys):
+                    # Initialize parameters for neural network control of beta
+                    bias_init = SDE_param_keys[SDE_key]
+                    beta_model = nn.Sequential([nn.Sequential(
+                                            [ResidualBlock(nh) for _ in range(num_layers - 1)] + [
+                                                                                nn.Dense(self.dim_x, kernel_init=nn.initializers.constant(0.),
+                                                                                        bias_init=nn.initializers.constant(bias_init))])
+                                        ])
+                    
+                    # Create parameter initialization key
+                    key = random.PRNGKey(idx)
+                    dummy_x = jnp.ones((1, self.dim_x))  
+                    
+                    # Initialize the model parameters
+                    beta_params = beta_model.init(key, dummy_x)
+                    
+                    # Add the model and its parameters to the SDE_params config
+                    beta_network = beta_model
+                    beta_params = beta_params
+                    self.beta_network_dict[SDE_key] = beta_network
+                    SDE_params[SDE_key] = beta_params
+            else:
+                SDE_params = {"log_beta_delta": jnp.log((self.config["beta_max"] - self.config["beta_min"] + 10**-3))* jnp.ones((self.dim_x,)), 
+                        "log_beta_min": jnp.log(self.config["beta_min"])* jnp.ones((self.dim_x,)),
+                        "log_sigma": jnp.log(1.)* jnp.ones((self.dim_x,)), "mean": self.mean_init*jnp.ones((self.dim_x,)),
+                        "log_sigma_prior": jnp.log(self.sigma_init)* jnp.ones((self.dim_x,))}
 
         return SDE_params
 
@@ -56,6 +118,27 @@ class Bridge_SDE_Class(Base_SDE_Class):
         #grad = jnp.clip(grad, -10**2, 10**2)
         ### combined_grads_at_T1 is gradient without temperature scaling to reduce the distribution shift during training
         
+        out_dict = {"log_prob": overall_log_probs, "combined_grads_at_T1": combined_grads_at_T1, "combined_grads_at_T": combined_grads_at_T}
+        return out_dict
+    
+    def prior_target_grad_interpolation(self, x, counter, Energy_params, SDE_params, temp, key):
+        ### TODO for bridges in rKL w repara this should not be stopped
+        #interpol = lambda x: self.Energy_Class.calc_energy(x, Energy_params, key)
+        (log_prob_target, key), (grad_target)  = jax.value_and_grad(self.target_func, has_aux=True)( x, counter[0], SDE_params, Energy_params, key)
+        (log_prob_prior, key), (grad_prior)  = jax.value_and_grad(self.prior_func, has_aux=True)( x, counter[0], SDE_params, Energy_params, key)
+
+        combined_grads_at_T1 = grad_prior + grad_target
+        combined_grads_at_T = grad_prior + grad_target/temp
+
+        overall_log_probs = jnp.expand_dims(log_prob_target + log_prob_prior, axis = -1)
+        #grad = jnp.clip(grad, -10**2, 10**2)
+        if(self.learn_interpol_NN):
+            #print("before",counter.shape, x.shape)
+            grad_interpol_NN = self.compute_learned_interpolation_grad( x, counter, SDE_params)
+            #jax.debug.print("🤯 grad_interpol_NN {grad_interpol_NN} 🤯", grad_interpol_NN=grad_interpol_NN.shape)
+            combined_grads_at_T1 = combined_grads_at_T1 + grad_interpol_NN
+            combined_grads_at_T = combined_grads_at_T + grad_interpol_NN
+
         out_dict = {"log_prob": overall_log_probs, "combined_grads_at_T1": combined_grads_at_T1, "combined_grads_at_T": combined_grads_at_T}
         return out_dict
 
@@ -79,7 +162,10 @@ class Bridge_SDE_Class(Base_SDE_Class):
         if(self.invariance):
             mean = jnp.zeros((self.dim_x,))
         else:
-            mean = SDE_params["mean"]
+            if(self.config["prior_param"] == "neural"):
+                mean = self.beta_network_dict["mean"].apply(SDE_params["mean"], jnp.ones((self.dim_x)))
+            else:
+                mean = SDE_params["mean"]
         overall_mean = mean 
         return overall_mean
 
@@ -102,7 +188,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
         else:
             prior_sigma = self.return_prior_covar(SDE_params, sigma_scale_factor = sigma_scale_factor)
             x_prior = random.normal(subkey, shape=(n_states, self.dim_x))*prior_sigma + prior_mean
-        return x_prior, prior_sigma, key    
+        return x_prior, prior_mean, prior_sigma, key    
     
     def sample_prior_mixture_with_log_probs(self, SDE_params, key, n_states, sigma_scale_factor = 1.):
         prior_mean = self.get_mean_prior(SDE_params)[None, :]
@@ -141,7 +227,10 @@ class Bridge_SDE_Class(Base_SDE_Class):
             overall_sigma = sigma*sigma_scale_factor
             return overall_sigma
         else:
-            sigma = jnp.exp(SDE_params["log_sigma_prior"])
+            if(self.config["prior_param"] == "neural"):
+                sigma = jnp.exp(self.beta_network_dict["log_sigma_prior"].apply(SDE_params["log_sigma_prior"], jnp.ones(( self.dim_x))))
+            else:
+                sigma = jnp.exp(SDE_params["log_sigma_prior"])
             return sigma*sigma_scale_factor
 
     def get_beta_min_and_max(self, SDE_params):
@@ -427,7 +516,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
         if(self.config["use_off_policy"] and (self.config["off_policy_mode"] == "laplace" or self.config["off_policy_mode"] == "gaussian")):
             x_prior, log_prob_prior_scaled, prior_sigma, key = self.sample_prior_mixture_with_log_probs(SDE_params, key, n_states, sigma_scale_factor = sigma_scale)
         else:
-            x_prior, prior_sigma, key = self.sample_prior(SDE_params, key, n_states)
+            x_prior, prior_mean, prior_sigma, key = self.sample_prior(SDE_params, key, n_states)
             log_prob_prior_scaled = self.vmap_get_log_prior(SDE_params, x_prior)
         
         if(self.stop_gradient):
@@ -521,6 +610,8 @@ class Bridge_SDE_Class(Base_SDE_Class):
             "dts": SDE_tracker_steps["dts"],
             "x_final": x_final,
             "x_prior": x_prior,
+            "prior_mean": prior_mean,
+            "prior_sigma": prior_sigma,
             "keys": SDE_tracker_steps["key"],
             "interpolated_grads": interpol_grads,
             "interpol_log_probs": interpol_log_probs,

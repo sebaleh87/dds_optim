@@ -14,6 +14,8 @@ class LogVariance_Loss_Class(Base_SDE_Loss_Class):
     def evaluate_loss(self, params, Energy_params, SDE_params, SDE_tracer, key, temp = 1.0):
         score = SDE_tracer["scores"]
         
+        prior_mean = SDE_tracer["prior_mean"]
+        prior_sigma = SDE_tracer["prior_sigma"]
         #TODO the following stop_gradients are presumably no longer relevant, since this is now done in Base_SDE 
         dW = jax.lax.stop_gradient(SDE_tracer["dW"])
         ts = SDE_tracer["ts"]
@@ -71,8 +73,8 @@ class LogVariance_Loss_Class(Base_SDE_Loss_Class):
 
         log_dict = {"mean_energy": mean_Energy, "Entropy": Entropy, "R_diff": R_diff, 
                       "key": key, "X_0": x_last, "mean_X_prior": jnp.mean(x_prior), "std_X_prior": jnp.mean(jnp.std(x_prior, axis = 0)), 
-                       "sigma": jnp.exp(SDE_params["log_sigma"]),
-                      "beta_min": jnp.exp(SDE_params["log_beta_min"]), "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": SDE_params["mean"]
+                       "sigma": prior_sigma,
+                      "beta_min": jnp.exp(SDE_params["log_beta_min"]), "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": prior_mean
                         }
         log_dict = self.compute_partition_sum(R_diff, S, log_prior, Energy, log_dict)
 

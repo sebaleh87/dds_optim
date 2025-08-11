@@ -19,6 +19,8 @@ class Bridge_rKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
     def evaluate_loss(self, params, Energy_params, SDE_params, SDE_tracer, key, temp = 1.0):
         ### TODO check why mean is not learned!
         ts = SDE_tracer["ts"]
+        prior_mean = SDE_tracer["prior_mean"]
+        prior_sigma = SDE_tracer["prior_sigma"]
         forward_diff_log_probs = SDE_tracer["forward_diff_log_probs"]
         reverse_log_probs = SDE_tracer["reverse_log_probs"]
         log_prob_prior_scaled = SDE_tracer["log_prob_prior_scaled"]
@@ -69,7 +71,7 @@ class Bridge_rKL_logderiv_Loss_Class(Base_SDE_Loss_Class):
         log_dict = {"loss": loss, "mean_energy": mean_Energy, "losses/unbiased_loss": unbiased_loss, "losses/centered_loss": centered_loss,
                       "best_Energy": jnp.min(Energy), "noise_loss": noise_loss, "entropy_loss": entropy_loss, "key": key, "X_0": x_last, 
                       "sigma": jnp.exp(SDE_params["log_sigma"]),"beta_min": jnp.exp(SDE_params["log_beta_min"]),
-                        "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": SDE_params["mean"], "sigma_prior": jnp.exp(SDE_params["log_sigma_prior"])
+                        "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": prior_mean, "sigma_prior": prior_sigma
                         }
         
         if("fisher_grads" in SDE_tracer):

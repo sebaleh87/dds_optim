@@ -3,7 +3,31 @@ from functools import partial
 import jax.numpy as jnp
 import jax
 
-class PisgradnetBaseClass(nn.Module):
+class ResidualBlock(nn.Module):
+    num_hid: int
+
+    @nn.compact
+    def __call__(self, x):
+        residual = x
+
+        # Pre-LN before the main layers
+        y = nn.LayerNorm()(x)
+
+        # First Dense + GELU
+        y = nn.Dense(self.num_hid)(y)
+        y = nn.gelu(y)
+
+        # Second Dense
+        y = nn.Dense(self.num_hid)(y)
+
+        # Match dimensions if necessary for skip
+        if residual.shape[-1] != self.num_hid:
+            residual = nn.Dense(self.num_hid)(residual)
+
+        # Skip connection
+        return residual + y
+
+class PisgradResNetBaseClass(nn.Module):
     network_config: dict
     SDE_Loss_Config: dict
 
@@ -26,7 +50,7 @@ class PisgradnetBaseClass(nn.Module):
 
         self.weight_init = self.network_config.get("weight_init", 1e-8)
         self.num_hid = self.network_config.get("n_hidden", 64)
-        self.num_layers = self.network_config.get("n_layers", 2)
+        self.num_layers = max([self.network_config.get("n_layers", 2), 2])
 
         #self.num_hid = self.network_config["n_hidden"]
         self.x_dim = self.network_config["x_dim"]
@@ -42,31 +66,32 @@ class PisgradnetBaseClass(nn.Module):
         time_step_phase = self.param(f'{diff_direction}_timestep_phase', nn.initializers.zeros_init(), (1, self.num_hid))
         time_step_coeff = jnp.linspace(start=0.1, stop=100, num=self.num_hid)[None]
 
-        NN_grad = nn.Sequential([nn.Dense(self.num_hid)] + [nn.Sequential(
-            [nn.gelu, nn.Dense(self.num_hid)]) for _ in range(self.num_layers)] + [
+        NN_grad = nn.Sequential([nn.Sequential(
+            [ResidualBlock(self.num_hid) for _ in range(self.num_layers-1)] + [
                                                  nn.Dense(self.dim, kernel_init=nn.initializers.constant(self.weight_init),
                                                           bias_init=nn.initializers.constant(self.bias_init))])
-        
+        ])
+
         NN_score_time_embedding_net = nn.Sequential([
-                                        nn.Dense(self.num_hid),
-                                        nn.gelu,
-                                        nn.Dense(self.num_hid),
+                                        ResidualBlock(self.num_hid)
                                     ])
-        
+
         NN_score = nn.Sequential([nn.Sequential(
-                                    [nn.Dense(self.num_hid), nn.gelu]) for _ in range(self.num_layers)] + [
-                                                nn.Dense(self.dim, kernel_init=nn.initializers.constant(self.weight_init),
-                                                         bias_init=nn.initializers.zeros_init())])
+            [ResidualBlock(self.num_hid) for _ in range(self.num_layers-1)] + [
+                                                 nn.Dense(self.dim, kernel_init=nn.initializers.constant(self.weight_init),
+                                                          bias_init=nn.initializers.constant(self.bias_init))])
+        ])
 
 
         diff_function_out_dict = {"time_step_phase": time_step_phase, "time_step_coeff": time_step_coeff,
                                   "NN_grad": NN_grad, "NN_score": NN_score, "NN_score_time_embedding_net": NN_score_time_embedding_net}
         
         if(self.beta_schedule == "neural"):
-            beta_schedule_network = nn.Sequential([nn.Dense(self.num_hid)] + [nn.Sequential(
-                                                [nn.gelu, nn.Dense(self.num_hid)]) for _ in range(self.num_layers)] + [
+            beta_schedule_network = nn.Sequential([nn.Sequential(
+                    [ResidualBlock(self.num_hid) for _ in range(self.num_layers-1)] + [
                                                  nn.Dense(self.dim, kernel_init=nn.initializers.constant(self.weight_init),
                                                           bias_init=nn.initializers.constant(self.bias_init))])
+                            ])
             diff_function_out_dict["beta_schedule_network"] = beta_schedule_network
 
 
