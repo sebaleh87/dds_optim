@@ -262,7 +262,7 @@ dependencies:
       #- tensorstore==0.1.71
       - termcolor==2.5.0
       - texttable==1.7.0
-      - tf-keras==2.18.0
+      #- tf-keras==2.18.0
       - threadpoolctl==3.5.0
       - tomli==2.2.1
       - toolz==1.0.0
