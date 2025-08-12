@@ -35,6 +35,10 @@ parser.add_argument("--T_start", type=float, default=[1.], nargs="+" ,  help="St
 parser.add_argument("--T_end", type=float, default=0., help="End Temperature")
 parser.add_argument("--anneal_lam", type=float, default=10., help="Strech anneal schedule; not possible for linear schedule")
 parser.add_argument("--n_integration_steps", type=int, default=100)
+parser.add_argument("--dt", type=float, default=1., help="integration step size")
+parser.add_argument("--dt_mode", type=str, default="fixed", choices=["fixed", "random"], help="integration step size is either fixed or will be sampled iteratively")
+parser.add_argument("--dt_C", type=float, default=1.01, help="C parameter for dt if td_mode is random")
+
 parser.add_argument("--SDE_weightening", type=str, default="normal", choices=["normal", "weighted"], help="SDE weightening")
 parser.add_argument("--AnnealSchedule", type=str, default="Linear", choices=["Linear", "Exp", "Frac"], help="type of anneal schedule")
 parser.add_argument("--project_name", type=str, default="")
@@ -152,12 +156,11 @@ if(__name__ == "__main__"):
     # importing after set visible devices seems to be important! othervice all gpus remain visible
     import jax
     from jax import config as jax_config
-    import torch
     from Trainer.train import TrainerClass
     import numpy as np
 
     devices = jax.local_devices()
-    print(devices)
+    print("print devices", devices)
     #disable JIT compilation
     # import jax.numpy as jnp
     # import jax.lax as lax
@@ -276,7 +279,9 @@ if(__name__ == "__main__"):
                 "prior_param": args.prior_param,
                 "natural_gradient": args.natural_gradient,
                 "natural_gradient_mode": args.natural_gradient_mode,
-                "learn_interpol_NN": args.learn_interpol_NN
+                "learn_interpol_NN": args.learn_interpol_NN,
+                "dt": args.dt,
+                "dt_mode": args.dt_mode,
             }
 
             SDE_Loss_Config = {
@@ -295,48 +300,9 @@ if(__name__ == "__main__"):
             }
         n_eval_samples = args.n_eval_samples
         ### TODO implement different scales
-        if(args.Energy_Config == "GaussianMixtureToy"):
-            torch.manual_seed(0)
-            #np.random.seed(42)
-            dim = 2
-            num_gaussians = 1
-            x_min = -1
-            x_max = 1
-            loc_scaling = 1
-            log_var_scaling = 0.1
 
-            mean = (torch.rand((num_gaussians, dim)) - 0.5)*2 * loc_scaling
-            log_var = torch.ones((num_gaussians, dim)) * log_var_scaling
-
-            #rand_func = lambda x: np.random.uniform(x_min, x_max, 2)
-            Energy_Config = {
-                "name": "GaussianMixture",
-                "dim_x": 2,
-                "means": mean,
-                "variances": np.exp(log_var),
-                "weights": [1/num_gaussians for i in range(num_gaussians)],
-
-            }
-        elif(args.Energy_Config == "GaussianMixture"):
-            torch.manual_seed(seed)
-            #np.random.seed(42)
-            dim = args.n_particles
-            num_gaussians = 40
-
-            loc_scaling = args.Scaling_factor
-            var_scaling = args.Variances
-            mean = (torch.rand((num_gaussians, dim)) - 0.5)*2*loc_scaling
-            variances = torch.ones((num_gaussians, dim)) * var_scaling
-            Energy_Config = {
-                "name": "GaussianMixture",
-                "dim_x": dim,
-                "means": mean,
-                "variances": variances,#torch.nn.functional.softplus(log_var),
-                "weights": [1/num_gaussians for i in range(num_gaussians)],
-                "num_modes": num_gaussians
-            }
-        elif(args.Energy_Config == "GMMDistrax"):
-            torch.manual_seed(seed)
+        if(args.Energy_Config == "GMMDistrax"):
+            #torch.manual_seed(seed)
             #np.random.seed(42)
             dim = args.n_particles
             num_gaussians = 40
@@ -349,7 +315,7 @@ if(__name__ == "__main__"):
                 "seed": seed
             }
         elif(args.Energy_Config == "GMMDistraxScaled"):
-            torch.manual_seed(seed)
+            #torch.manual_seed(seed)
             #np.random.seed(42)
             dim = args.n_particles
             num_gaussians = 40

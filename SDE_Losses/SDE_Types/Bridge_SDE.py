@@ -248,7 +248,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
 
     def beta(self, SDE_params, t):
         t_discrete = jnp.int32(t)
-        t = t/self.n_integration_steps
+        t = t/(self.n_integration_steps*self.dt)
         #jax.debug.print("🤯 t {t} 🤯", t=t)
         if(self.config["beta_schedule"] == "constant"):
             beta_min, beta_max = self.get_beta_min_and_max(SDE_params)
@@ -271,16 +271,6 @@ class Bridge_SDE_Class(Base_SDE_Class):
             inverse_beta = jax.lax.stop_gradient(self.inverse_beta_init)
 
             beta_x_t = jnp.exp(inverse_beta_x_t + inverse_beta)
-            # x_mean = jnp.mean(beta_x_t)
-            # x_std = jnp.std(beta_x_t)
-            # x_min = jnp.min(beta_x_t)
-            # x_max = jnp.max(beta_x_t)
-            # jax.debug.print("🤯 mean {x_mean} 🤯", x_mean=x_mean)
-            # jax.debug.print("🤯 std {x_std} 🤯", x_std=x_std)
-            # jax.debug.print("🤯 max {x_max} 🤯", x_max=x_max)
-            # jax.debug.print("🤯 min {x_min} 🤯", x_min=x_min)
-            # jax.debug.print("🤯 t {t} 🤯", t=t)
-            # jax.debug.print("🤯 t_discrete {t_discrete} 🤯", t_discrete=t_discrete)
             return beta_x_t
         else:
             raise ValueError("beta schedule not implemented")
@@ -399,7 +389,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
         return reverse_out_dict, key
     
     def compute_reverse_log_prob_for_grad( self, model, x, counter, params, Interpol_params, SDE_params, hidden_state, temp, key, dt,  t, sigma_scale):
-        apply_model_dict, key = self.apply_model(model, x, t/self.n_integration_steps, counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
+        apply_model_dict, key = self.apply_model(model, x, t/(self.n_integration_steps*self.dt), counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
         SDE_params_extended =  apply_model_dict["SDE_params_extended"]
         grad = apply_model_dict["grad"]
         score = apply_model_dict["score"]
@@ -430,8 +420,20 @@ class Bridge_SDE_Class(Base_SDE_Class):
         ### Interpol_params is later not used so here we include them to SDE parameters
         for interpol_key in Interpol_params.keys():
             SDE_params[interpol_key] = Interpol_params[interpol_key]
-        dt = 1.
-        t = n_integration_steps
+
+        if(self.dt_mode == "fixed"):
+            dts = self.dt*jnp.ones((n_states, n_integration_steps,))
+        elif(self.dt_mode == "random"):
+            key, subkey = jax.random.split(key)
+            C = self.dt_C
+            z_values = jax.random.uniform(subkey, shape=(n_states, n_integration_steps), minval=1, maxval=C)
+            dts = jax.nn.softmax(z_values, axis=-1)*n_integration_steps*self.dt
+            #jax.debug.print("🤯 dts {dts} 🤯", dts=dts)
+            #jax.debug.print("🤯 t {t} 🤯", t=jnp.sum(dts, axis = -1))
+            # TODO take care as self.dt != 1 is not optimal for frequency encodings
+
+        t_start = n_integration_steps*self.dt*jnp.ones((n_states, 1))
+
         counter = 0
 
         #this implements the scaling of the noise in the SDE simulation when off-policy is used
@@ -440,6 +442,9 @@ class Bridge_SDE_Class(Base_SDE_Class):
         def scan_fn(carry, step):
             x, t, key, carry_dict = carry
             counter = step
+            dt = dts[:, counter]
+            dt = jnp.expand_dims(dt, axis=1)
+
             hidden_state = carry_dict["hidden_state"]
 
             if(self.natural_gradient and sample_mode == "train"):
@@ -509,6 +514,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
 
             x = reverse_out_dict["x_next"]
             t = t - dt
+            #jax.debug.print("counter_curr_step: {counter}", counter=counter)
             return (x, t, key, carry_dict), SDE_tracker_step
 
 
@@ -542,14 +548,15 @@ class Bridge_SDE_Class(Base_SDE_Class):
             carry_dict["fisher_grads"] = {"fisher_param_grads": zero_params, "fisher_SDE_grads": zero_SDE_params}
         (x_final, t_final, key, carry_dict), SDE_tracker_steps = jax.lax.scan(
             scan_fn,
-            (x_prior, t, key, carry_dict),
+            (x_prior, t_start, key, carry_dict),
             jnp.arange(n_integration_steps)
         )
 
         ### TODO create more abstract emthod for this
         ### TODO make last forward pass here
+        counter = self.n_integration_steps
         hidden_state = carry_dict["hidden_state"]
-        apply_model_dict, key = self.apply_model(model, x_final, t_final/self.n_integration_steps, counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
+        apply_model_dict, key = self.apply_model(model, x_final, t_final/(self.n_integration_steps*self.dt), counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
         
         score = apply_model_dict["score"]
         carry_dict["hidden_state"] = apply_model_dict["hidden_state"]
@@ -568,6 +575,9 @@ class Bridge_SDE_Class(Base_SDE_Class):
         reverse_drifts = jnp.concatenate([SDE_tracker_steps["reverse_drifts"], reverse_drift_final[None, :]], axis = 0)
         interpol_log_probs = jnp.concatenate([SDE_tracker_steps["interpol_log_probs"], interpol_log_prob[None, :]], axis = 0)
 
+        dt_last = dts[:, -1]
+        dt_last = jnp.expand_dims(dt_last, axis=1)
+
         x_prev = xs[:-1]
         x_next = xs[1:]
         diffusion_prev = diffusions[0:-1]
@@ -582,7 +592,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
         else:
             forward_drifts_next = reverse_drifts[1:]            
             forward_drift = (diffusion_next**2*grads_next - forward_drifts_next)
-        x_pos_next = x_next + forward_drift*dt
+        x_pos_next = x_next + forward_drift*dt_last
 
         # jax.debug.print("🤯 xs {xs} 🤯", xs=xs)
         # jax.debug.print("🤯 diffusions {diffusions} 🤯", diffusions=diffusions)
@@ -591,8 +601,8 @@ class Bridge_SDE_Class(Base_SDE_Class):
         reverse_log_prob_func = jax.vmap(self.calc_diff_log_prob, in_axes=(0, 0, 0))
         forward_log_prob_func = jax.vmap(self.calc_diff_log_prob, in_axes=(0, 0, 0))
 
-        reverse_diff_log_probs = reverse_log_prob_func(x_next, x_prev + reverse_drifts_prev*dt, diffusion_prev*jnp.sqrt(dt))
-        forward_diff_log_probs = forward_log_prob_func(x_prev, x_pos_next, diffusion_next*jnp.sqrt(dt))
+        reverse_diff_log_probs = reverse_log_prob_func(x_next, x_prev + reverse_drifts_prev*dt_last, diffusion_prev*jnp.sqrt(dt_last))
+        forward_diff_log_probs = forward_log_prob_func(x_prev, x_pos_next, diffusion_next*jnp.sqrt(dt_last))
         log_prob_noise = SDE_tracker_steps["log_prob_noise"]
 
         SDE_tracker = {

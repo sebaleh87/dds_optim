@@ -52,8 +52,11 @@ class Base_SDE_Class:
         self.sigma_scale_factor = config["sigma_scale_factor"]
         self.learn_interpolation_params = config["learn_interpolation_params"]
         self.bridge_type = self.config.get("bridge_type", "CMCD")
-        print(self.config["learn_interpol_NN"])
+
         self.learn_interpol_NN = self.config.get("learn_interpol_NN", False)
+        self.dt = self.config.get("dt", 1.0)
+        self.dt_mode = self.config.get("dt_mode", "fixed")
+        self.dt_C = self.config.get("dt_C", 1.01)
         # self.noise_scale_factor = config["noise_scale_factor"]
 
     def weightening(self, t):
@@ -70,8 +73,8 @@ class Base_SDE_Class:
         raise NotImplementedError("get_diffusion method not implemented")
 
     def get_Interpol_params(self):
-        Interpol_params = {"beta_interpol_params": jnp.ones((self.n_integration_steps)),
-                            "repulsion_interpol_params": jnp.ones((self.n_integration_steps))}
+        Interpol_params = {"beta_interpol_params": jnp.ones((self.n_integration_steps + 1)),
+                            "repulsion_interpol_params": jnp.ones((self.n_integration_steps + 1))}
         
 
         if(self.learn_interpol_NN):
@@ -159,8 +162,10 @@ class Base_SDE_Class:
     def prior_target_grad_interpolation(self, x, counter, Energy_params, SDE_params, temp, key):
         x = jax.lax.stop_gradient(x) ### TODO for bridges in rKL w repara this should not be stopped
         #interpol = lambda x: self.Energy_Class.calc_energy(x, Energy_params, key)
+
         (log_prob_target, key), (grad_target)  = jax.value_and_grad(self.target_func, has_aux=True)( x, counter[0], SDE_params, Energy_params, key)
         (log_prob_prior, key), (grad_prior)  = jax.value_and_grad(self.prior_func, has_aux=True)( x, counter[0], SDE_params, Energy_params, key)
+
 
         combined_grads_at_T1 = grad_prior + grad_target
         combined_grads_at_T = grad_prior + grad_target/temp
@@ -226,12 +231,28 @@ class Base_SDE_Class:
 
         return learned_interpol_grad
     
-    def compute_energy_interpolation_time(self, SDE_params, counter, SDE_param_key = "beta_interpol_params"):
+    def get_beta_interpol(self, SDE_params, counter, SDE_param_key = "beta_interpol_params"):
         step_index = self.n_integration_steps-counter
         beta_params = SDE_params[SDE_param_key]
         beta_activ = nn.softplus(beta_params)
         where_true = 1*(jnp.arange(0, self.n_integration_steps) < step_index)
         beta_interpol = jnp.sum(where_true*beta_activ)/ jnp.sum(beta_activ)
+        return beta_interpol
+
+    def compute_energy_interpolation_time(self, SDE_params, counter, SDE_param_key = "beta_interpol_params"):
+        if(self.dt_mode == "fixed"):
+            beta_interpol = self.get_beta_interpol(SDE_params, counter, SDE_param_key = SDE_param_key)
+        elif(self.dt_mode == "random"):
+            counter_1 = jnp.array(counter, dtype=jnp.int32)
+            counter_2 = jnp.array(counter+1, dtype=jnp.int32)
+            #counter_1 = jnp.minimum(counter_1, self.n_integration_steps-1)  # ensure we don't exceed bounds
+            #counter_2 = jnp.minimum(counter_2, self.n_integration_steps-1)
+            beta_interpol_1 = self.get_beta_interpol(SDE_params, counter_1, SDE_param_key=SDE_param_key)
+            beta_interpol_2 = self.get_beta_interpol(SDE_params, counter_2, SDE_param_key=SDE_param_key)
+            beta_interpol = beta_interpol_1 + (beta_interpol_2-beta_interpol_1)*(counter - counter_1)
+
+            #jax.debug.print("counter difference: {counter_arr}", counter_arr=(counter - counter_1))
+
         return beta_interpol
 
     def get_beta_min_and_max(self, SDE_params):
@@ -349,8 +370,19 @@ class Base_SDE_Class:
 
     
     def apply_model(self, model, x, t, counter, params, Energy_params, SDE_params, hidden_state, temp, key):
-        t_arr = t*jnp.ones((x.shape[0], 1)) 
-        counter_arr = counter*jnp.ones((x.shape[0], 1)) 
+        t_arr = t  ### thsi time step is divided by n_integration_steps and self.dt
+        
+        if(self.dt_mode == "fixed"):
+            counter_arr = counter*jnp.ones((x.shape[0], 1)) 
+        elif(self.dt_mode == "random"):
+            counter_arr = jnp.clip(self.n_integration_steps - self.n_integration_steps*t_arr, min = 0, max = self.n_integration_steps-1)
+            #counter_arr = jnp.array(counter_arr, dtype=jnp.int32)
+        else:
+            raise ValueError(f"dt_mode {self.dt_mode} not implemented")
+        # jax.debug.print("t_arr: {t_arr}", t_arr=t_arr)
+        # jax.debug.print("counter: {counter}", counter=counter)
+        # jax.debug.print("counter_arr: {counter_arr}", counter_arr=counter_arr)
+
         new_hidden_state = hidden_state
         if(self.use_interpol_gradient):
             if(self.network_has_hidden_state):
