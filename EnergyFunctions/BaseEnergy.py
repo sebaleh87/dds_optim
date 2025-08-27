@@ -315,58 +315,59 @@ class EnergyModelClass:
         plt.colorbar(log_probs_plot, label='Log Probability')
 
         #plot the prior covariance
-        prior_ellipse = Ellipse(
-        xy=[0,0],
-        width= 2 * prior_std[0],
-        height= 2 * prior_std[1],
-        angle=0,
-        edgecolor='green',
-        facecolor='none',
-        linewidth=1.5,
-        linestyle='--',
-        label='Prior Covariance'
-        )
-        plt.gca().add_patch(prior_ellipse)
+        if noise_stds is not None and prior_std is not None:
+            prior_ellipse = Ellipse(
+                xy=[0,0],
+                width= 2 * prior_std[0],
+                height= 2 * prior_std[1],
+                angle=0,
+            edgecolor='green',
+            facecolor='none',
+            linewidth=1.5,
+            linestyle='--',
+            label='Prior Covariance'
+            )
+            plt.gca().add_patch(prior_ellipse)
 
-        for b in range(B):
-            trajectory = Xs[:, b, :]
-            plt.plot(trajectory[:, 0], trajectory[:, 1], label=f'Trajectory {b+1}')
-            
-            # Mark the initial point with a star
-            plt.scatter(trajectory[0, 0], trajectory[0, 1], color='gold', edgecolor='black', s=100, marker='*')
+            for b in range(B):
+                trajectory = Xs[:, b, :]
+                plt.plot(trajectory[:, 0], trajectory[:, 1], label=f'Trajectory {b+1}')
+                
+                # Mark the initial point with a star
+                plt.scatter(trajectory[0, 0], trajectory[0, 1], color='gold', edgecolor='black', s=100, marker='*')
 
-            if noise_stds is not None:
-                for t in range(T):
-                    mean = trajectory[t]
+                if noise_stds is not None:
+                    for t in range(T):
+                        mean = trajectory[t]
 
-                    if noise_stds.shape[1] != 1:
-                        #if each trajectory has different noise stds
-                        width, height = 2 * noise_stds[t, b, 0], 2 * noise_stds[t, b, 1]
-                    else:
-                        #if all trajectories have the same noise stds
-                        width, height = 2 * noise_stds[t, 0, 0], 2 * noise_stds[t, 0, 0]
-                    angle = 0
+                        if noise_stds.shape[1] != 1:
+                            #if each trajectory has different noise stds
+                            width, height = 2 * noise_stds[t, b, 0], 2 * noise_stds[t, b, 1]
+                        else:
+                            #if all trajectories have the same noise stds
+                            width, height = 2 * noise_stds[t, 0, 0], 2 * noise_stds[t, 0, 0]
+                        angle = 0
 
-                    ellipse = Ellipse(
-                    xy=mean,
-                    width=width,
-                    height=height,
-                    angle=angle,
-                    edgecolor='red',
-                    facecolor='none',
-                    linewidth=0.5,
-                    alpha=0.5
-                    )
-                    plt.gca().add_patch(ellipse)     
-
-                    # Add a label showing the width and height of the ellipse
-                    if t%30==0 or t==T-1:
-                        plt.text(
-                            mean[0] + 0.1, mean[1] + 0.1,  # Offset the text slightly from the ellipse center
-                            f'#{t}: w={width:.2f}, h={height:.2f}',
-                            color='red',
-                            fontsize=8
+                        ellipse = Ellipse(
+                        xy=mean,
+                        width=width,
+                        height=height,
+                        angle=angle,
+                        edgecolor='red',
+                        facecolor='none',
+                        linewidth=0.5,
+                        alpha=0.5
                         )
+                        plt.gca().add_patch(ellipse)     
+
+                        # Add a label showing the width and height of the ellipse
+                        if t%30==0 or t==T-1:
+                            plt.text(
+                                mean[0] + 0.1, mean[1] + 0.1,  # Offset the text slightly from the ellipse center
+                                f'#{t}: w={width:.2f}, h={height:.2f}',
+                                color='red',
+                                fontsize=8
+                            )
 
         
 

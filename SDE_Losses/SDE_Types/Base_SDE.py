@@ -232,10 +232,11 @@ class Base_SDE_Class:
         return learned_interpol_grad
     
     def get_beta_interpol(self, SDE_params, counter, SDE_param_key = "beta_interpol_params"):
-        step_index = self.n_integration_steps-counter
+        max_step_index = self.n_integration_steps + 1
+        step_index = max_step_index - counter
         beta_params = SDE_params[SDE_param_key]
         beta_activ = nn.softplus(beta_params)
-        where_true = 1*(jnp.arange(0, self.n_integration_steps) < step_index)
+        where_true = 1*(jnp.arange(0, max_step_index) < step_index)
         beta_interpol = jnp.sum(where_true*beta_activ)/ jnp.sum(beta_activ)
         return beta_interpol
 
@@ -375,7 +376,7 @@ class Base_SDE_Class:
         if(self.dt_mode == "fixed"):
             counter_arr = counter*jnp.ones((x.shape[0], 1)) 
         elif(self.dt_mode == "random"):
-            counter_arr = jnp.clip(self.n_integration_steps - self.n_integration_steps*t_arr, min = 0, max = self.n_integration_steps-1)
+            counter_arr = jnp.clip(self.n_integration_steps - self.n_integration_steps*t_arr, min = 0, max = self.n_integration_steps)
             #counter_arr = jnp.array(counter_arr, dtype=jnp.int32)
         else:
             raise ValueError(f"dt_mode {self.dt_mode} not implemented")

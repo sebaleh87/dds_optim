@@ -13,7 +13,7 @@ from .Base_SDE import Base_SDE_Class, inverse_softplus
 class VE_Discrete_Class(Base_SDE_Class):
     def __init__(self, SDE_Type_Config, Network_Config, Energy_Class):
         super().__init__(SDE_Type_Config, Network_Config, Energy_Class)
-        self.vmap_get_log_prior = jax.vmap(self.get_log_prior, in_axes=(None, 0, 0))
+        self.vmap_get_log_prior = jax.vmap(self.get_log_prior, in_axes=(None, 0))
         self.laplace_width = self.config["laplace_width"]
         self.mixture_prob = self.config["mixture_probs"]
         ### TODO remove learnability of diffusion parameters
@@ -44,27 +44,19 @@ class VE_Discrete_Class(Base_SDE_Class):
 
         return SDE_params
 
-    def get_log_prior(self, SDE_params, x, sigma_scale_factor = 1.):
+    def get_log_prior(self, SDE_params, x):
         mean = self.get_mean_prior(SDE_params)
         #print("VP_SDE", x.shape, mean.shape, sigma.shape)
         if(self.invariance):
-            prior_sigma = self.return_prior_covar(SDE_params, sigma_scale_factor=sigma_scale_factor)
+            prior_sigma = self.return_prior_covar(SDE_params)
             log_pdf_vec =  jax.scipy.stats.norm.logpdf(x, loc=mean, scale=prior_sigma) + 0.5*jnp.log(2 * jnp.pi * prior_sigma)/prior_sigma.shape[0]*self.Energy_Class.particle_dim
             return jnp.sum(log_pdf_vec, axis = -1)
         else:
-            prior_sigma = self.return_prior_covar(SDE_params, sigma_scale_factor=sigma_scale_factor)
+            prior_sigma = self.return_prior_covar(SDE_params)
             #return jax.random.multivariate_normal(random.PRNGKey(0), mean, jnp.diag(overall_sigma**2), x.shape[0])
             log_pdf_vec = jax.scipy.stats.norm.logpdf(x, loc=mean, scale=prior_sigma) 
             log_pdf = jnp.sum(log_pdf_vec, axis = -1)
             return log_pdf
-
-    def prior_target_grad_interpolation(self, x, counter, Energy_params, SDE_params, temp, key):
-        #x = jax.lax.stop_gradient(x) ### TODO for bridges in rKL w repara this should not be stopped
-        #interpol = lambda x: self.Energy_Class.calc_energy(x, Energy_params, key)
-        (log_prob, key), (grad)  = jax.value_and_grad(self.interpol_func, has_aux=True)( x, counter[0], SDE_params, Energy_params, temp, key)
-
-        #grad = jnp.clip(grad, -10**2, 10**2)
-        return jnp.expand_dims(log_prob, axis = -1), grad
 
     def get_entropy_prior(self, SDE_params):
         if(self.invariance):
@@ -89,6 +81,14 @@ class VE_Discrete_Class(Base_SDE_Class):
             mean = SDE_params["mean"]
         overall_mean = mean 
         return overall_mean
+    
+    def get_prior_sigma(self, SDE_params):
+        if(self.invariance):
+            sigma = jnp.exp(SDE_params["log_sigma_prior"])*jnp.ones((self.dim_x,))
+        else:
+            sigma = jnp.exp(SDE_params["log_sigma_prior"])
+
+        return sigma
 
     def get_SDE_sigma(self, SDE_params):
         if(self.invariance):
@@ -104,13 +104,14 @@ class VE_Discrete_Class(Base_SDE_Class):
         key, subkey = random.split(key)
         prior_mean = self.get_mean_prior(SDE_params)[None, :]
         if(self.invariance):
-            overall_sigma = self.return_prior_covar(SDE_params, sigma_scale_factor = sigma_scale_factor)
-            x_prior = random.normal(subkey, shape=(n_states, self.dim_x))*overall_sigma + prior_mean
+            prior_sigma = self.return_prior_covar(SDE_params, sigma_scale_factor = sigma_scale_factor)
+            x_prior = random.normal(subkey, shape=(n_states, self.dim_x))*prior_sigma + prior_mean
         else:
             prior_sigma = self.return_prior_covar(SDE_params, sigma_scale_factor = sigma_scale_factor)
             x_prior = random.normal(subkey, shape=(n_states, self.dim_x))*prior_sigma + prior_mean
-        return x_prior, key    
-    
+
+        return x_prior, prior_mean, prior_sigma, key
+
     def sample_prior_mixture_with_log_probs(self, SDE_params, key, n_states, sigma_scale_factor = 1.):
         prior_mean = self.get_mean_prior(SDE_params)[None, :]
         if(self.invariance):
@@ -129,13 +130,34 @@ class VE_Discrete_Class(Base_SDE_Class):
         return x_prior, log_prob_noise_mixed, key  
     
     def return_prior_covar(self, SDE_params, sigma_scale_factor = 1.):
-        if(self.invariance):
-            sigma = jnp.exp(SDE_params["log_sigma_prior"])*jnp.ones((self.dim_x,))
-            overall_sigma = sigma*sigma_scale_factor
-            return overall_sigma
+        if(self.learn_covar):
+            if(self.invariance):
+                sigma = self.get_prior_sigma(SDE_params)
+                sigma = sigma*sigma_scale_factor
+                alpha = self.beta_int(SDE_params, 1*self.n_integration_steps)
+                overall_sigma = jnp.sqrt(2*sigma**2*alpha + sigma_t**2)
+                return overall_sigma
+            else:
+                sigma = self.get_prior_sigma(SDE_params)
+                sigma = sigma*sigma_scale_factor
+                alpha = self.beta_int(SDE_params, 1*self.n_integration_steps)
+                factor = alpha[:, None] + alpha[None, :]
+                overall_covar = factor*jnp.diag(sigma**2) + covar
+                return overall_covar
         else:
-            sigma = jnp.exp(SDE_params["log_sigma_prior"])
-            return sigma*sigma_scale_factor
+            if(self.invariance):
+                sigma = self.get_prior_sigma(SDE_params)
+                sigma = sigma*sigma_scale_factor
+                alpha = self.beta_int(SDE_params, 1*self.n_integration_steps)
+                overall_sigma = jnp.sqrt(2*sigma**2*alpha )
+                return overall_sigma
+            else:
+                sigma = self.get_prior_sigma(SDE_params)
+                sigma = sigma*sigma_scale_factor
+                alpha = self.beta_int(SDE_params, 1*self.n_integration_steps)
+                factor = 2*alpha
+                overall_covar = jnp.sqrt(factor)*sigma 
+                return overall_covar
 
     def get_beta_min_and_max(self, SDE_params):
         if(self.invariance):
@@ -148,19 +170,21 @@ class VE_Discrete_Class(Base_SDE_Class):
             beta_min = jnp.exp(SDE_params["log_beta_min"])
             beta_max = beta_min + beta_delta
             return beta_min, beta_max
+    
+    def beta_int(self, SDE_params, t):
+        t_normed = t/self.n_integration_steps
+        beta_min, beta_max = self.get_beta_min_and_max(SDE_params)
+        return 0.5*(beta_min*((beta_max/beta_min)**t_normed))**2 ### TODO chekc this factor 0.5
 
     def beta(self, SDE_params, t):
+        t_normed = t/self.n_integration_steps
         beta_min, beta_max = self.get_beta_min_and_max(SDE_params)
-        return (beta_min*(beta_max/beta_min)**(t/self.n_integration_steps))**2*(jnp.log(beta_max) - jnp.log(beta_min))
-
+        return (beta_min*(beta_max/beta_min)**t_normed)**2*(jnp.log(beta_max) - jnp.log(beta_min)) ### TODO chekc this factor 0.5
 
     def get_diffusion(self, SDE_params, x, t):
         sigma, _ = self.get_SDE_sigma(SDE_params)
-        if(self.config["beta_schedule"] == "neural"):
-            return jax.lax.stop_gradient(sigma[None, ...])*self.beta(SDE_params, t)
-        else:
-            diffusion = sigma*self.beta(SDE_params, t)
-            return diffusion[None, :] 
+        diffusion = sigma*jnp.sqrt(2*self.beta(SDE_params, t))
+        return diffusion
 
     def calc_diff_log_prob(self, mean, loc, scale):
         if(self.invariance):
@@ -248,7 +272,7 @@ class VE_Discrete_Class(Base_SDE_Class):
         else:
             diffusion_for_drift = diffusion
 
-        reverse_drift_t_g_s = self.compute_reverse_drift(diffusion_for_drift, score, grad) #TODO check is this power of two correct? I think yes because U = diffusion*score
+        reverse_drift_t_g_s = self.compute_reverse_drift(diffusion_for_drift, score, grad) 
         x_drift_update = reverse_drift_t_g_s
 
         dx, log_prob_noise, log_prob_on_policy, off_policy_log_weights, key = self.sample_noise(SDE_params, x, t, dt, key, sigma_scale_factor = sigma_scale_factor)
@@ -261,10 +285,12 @@ class VE_Discrete_Class(Base_SDE_Class):
         else:
             x_next = x + x_drift_update * dt  + dx
 
+        # jax.debug.print("🤯 x_next {x_next} 🤯", x_next=x_next)
+        # jax.debug.print("🤯 score {score} 🤯", score=score)
 
         ### TODO check at which x drift ref should be evaluated?
         reverse_out_dict = {"x_next": x_next, "t_next": t - dt, "diffusion": diffusion, "log_prob_on_policy": log_prob_on_policy, "off_policy_log_weights": off_policy_log_weights,
-                            "reverse_drift": reverse_drift_t_g_s, "dx": dx, "log_prob_noise": log_prob_noise} #"reverse_log_prob": log_prob_t_g_s
+                            "reverse_drift": reverse_drift_t_g_s, "dx": dx, "log_prob_noise": log_prob_noise, "noise_stds": diffusion*jnp.sqrt(dt)} #"reverse_log_prob": log_prob_t_g_s
         return reverse_out_dict, key
 
 
@@ -272,18 +298,41 @@ class VE_Discrete_Class(Base_SDE_Class):
         ### since we use discrete time models dt is 1 and t = n_integration_steps (this is different from when we use SDEs formulation)
         for interpol_key in Interpol_params.keys():
             SDE_params[interpol_key] = Interpol_params[interpol_key]
-        dt = 1.
-        t = n_integration_steps
+
+
+        if(self.dt_mode == "fixed"):
+            dts = self.dt*jnp.ones((n_states, n_integration_steps,))
+        elif(self.dt_mode == "random"):
+            key, subkey = jax.random.split(key)
+            C = self.dt_C
+            z_values = jax.random.uniform(subkey, shape=(n_states, n_integration_steps), minval=1., maxval=C)
+            dts = jax.nn.softmax(z_values, axis=-1)*n_integration_steps*self.dt
+            #dts = self.dt*jnp.ones((n_states, n_integration_steps,))
+            #jax.debug.print("🤯 t {t} 🤯", t=jnp.sum(dts, axis = -1))
+            # TODO take care as self.dt != 1 is not optimal for frequency encodings
+
+        t_start = n_integration_steps*self.dt*jnp.ones((n_states, 1))
         counter = 0
+
         sigma_scale, scale_log_prob, temp, key = self.get_sigma_noise(n_states, key, sample_mode, temp)
 
         def scan_fn(carry, step):
             x, t, key, carry_dict = carry
             counter = step
+            dt = dts[:, counter]
+            dt = jnp.expand_dims(dt, axis=1)
+
+            counter = step
             hidden_state = carry_dict["hidden_state"]
 
-            score, new_hidden_state, grad, SDE_params_extended, interpol_log_prob, key = self.apply_model(model, x, t/self.n_integration_steps, counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
-            carry_dict["hidden_state"] = new_hidden_state
+            apply_model_dict, key = self.apply_model(model, x, t/self.n_integration_steps, counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
+
+
+            score = apply_model_dict["score"]
+            carry_dict["hidden_state"] = apply_model_dict["hidden_state"]
+            grad = apply_model_dict["grad"]
+            SDE_params_extended =  apply_model_dict["SDE_params_extended"]
+            interpol_log_prob = apply_model_dict["interpol_log_prob"]
 
             reverse_out_dict, key = self.reverse_sde(SDE_params_extended, score, grad, x, t, dt, key, sigma_scale_factor= sigma_scale)
 
@@ -293,6 +342,7 @@ class VE_Discrete_Class(Base_SDE_Class):
             "xs": x,
             "ts": jnp.array(t, dtype = jnp.float32),
             "diffusions": reverse_out_dict["diffusion"],
+            "noise_stds": reverse_out_dict["noise_stds"],
             "reverse_drifts": reverse_out_dict["reverse_drift"],
             "dts": jnp.array(dt, dtype = jnp.float32),
             "key": key,
@@ -304,14 +354,14 @@ class VE_Discrete_Class(Base_SDE_Class):
             }
 
             x = reverse_out_dict["x_next"]
-            t = reverse_out_dict["t_next"]
+            t = t - dt
             return (x, t, key, carry_dict), SDE_tracker_step
 
         if(self.config["use_off_policy"] and (self.config["off_policy_mode"] == "laplace" or self.config["off_policy_mode"] == "gaussian")):
             x_prior, log_prob_prior_scaled, key = self.sample_prior_mixture_with_log_probs(SDE_params, key, n_states, sigma_scale_factor = sigma_scale)
         else:
-            x_prior, key = self.sample_prior(SDE_params, key, n_states, sigma_scale_factor = sigma_scale)
-            log_prob_prior_scaled = self.vmap_get_log_prior(SDE_params, x_prior, sigma_scale)
+            x_prior, prior_mean, prior_sigma, key = self.sample_prior(SDE_params, key, n_states)
+            log_prob_prior_scaled = self.vmap_get_log_prior(SDE_params, x_prior)
     
         if(self.stop_gradient):
             x_prior = jax.lax.stop_gradient(x_prior)
@@ -323,14 +373,24 @@ class VE_Discrete_Class(Base_SDE_Class):
         carry_dict = {"hidden_state": [(init_carry, init_carry)  for i in range(self.Network_Config["n_layers"])]}
         (x_final, t_final, key, carry_dict), SDE_tracker_steps = jax.lax.scan(
             scan_fn,
-            (x_prior, t, key, carry_dict),
+            (x_prior, t_start, key, carry_dict),
             jnp.arange(n_integration_steps)
         )
 
-
+        dt_last = dts[:, -1]
+        dt_last = jnp.expand_dims(dt_last, axis=1)
         ### TODO make last forward pass here
         hidden_state = carry_dict["hidden_state"]
-        score, new_hidden_state, grad, SDE_params_extended, interpol_log_prob, key = self.apply_model(model, x_final, t_final/self.n_integration_steps, counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
+        counter = self.n_integration_steps
+        apply_model_dict, key = self.apply_model(model, x_final, t_final/self.n_integration_steps, counter, params, Interpol_params, SDE_params, hidden_state, temp, key)
+        
+        score = apply_model_dict["score"]
+        carry_dict["hidden_state"] = apply_model_dict["hidden_state"]
+        grad = apply_model_dict["grad"]
+        SDE_params_extended =  apply_model_dict["SDE_params_extended"]
+        interpol_log_prob = apply_model_dict["interpol_log_prob"]
+
+        
         diffusion_final = self.get_diffusion(SDE_params_extended, x_final, t_final)
         reverse_drift_final = self.compute_reverse_drift(diffusion_final, score, grad)
         #carry_dict["hidden_state"] = new_hidden_state
@@ -354,8 +414,8 @@ class VE_Discrete_Class(Base_SDE_Class):
 
 
         ## TODO compute forward log probs here
-        reverse_diff_log_probs = jax.vmap(self.calc_diff_log_prob, in_axes=(0, 0, 0))(x_next, x_prev + reverse_drifts_prev*dt, diffusion_prev*jnp.sqrt(dt))
-        forward_diff_log_probs = jax.vmap(self.calc_diff_log_prob, in_axes=(0, 0, 0))(x_prev, x_pos_next, diffusion_next*jnp.sqrt(dt))
+        reverse_diff_log_probs = jax.vmap(self.calc_diff_log_prob, in_axes=(0, 0, 0))(x_next, x_prev + reverse_drifts_prev*dt_last, diffusion_prev*jnp.sqrt(dt_last))
+        forward_diff_log_probs = jax.vmap(self.calc_diff_log_prob, in_axes=(0, 0, 0))(x_prev, x_pos_next, diffusion_next*jnp.sqrt(dt_last))
         log_prob_noise = SDE_tracker_steps["log_prob_noise"]
 
         SDE_tracker = {
@@ -366,11 +426,15 @@ class VE_Discrete_Class(Base_SDE_Class):
             "dx": SDE_tracker_steps["dx"],
             "xs": SDE_tracker_steps["xs"],
             "ts": SDE_tracker_steps["ts"],
+            "sigma_prior": prior_sigma,
+            "noise_stds": SDE_tracker_steps["noise_stds"],
             "forward_diff_log_probs": forward_diff_log_probs,
             "reverse_log_probs": reverse_diff_log_probs,
             "dts": SDE_tracker_steps["dts"],
             "x_final": x_final,
             "x_prior": x_prior,
+            "prior_mean": prior_mean,
+            "prior_sigma": prior_sigma,
             "keys": SDE_tracker_steps["key"],
             "interpolated_grads": interpol_grads,
             "interpol_log_probs": interpol_log_probs,

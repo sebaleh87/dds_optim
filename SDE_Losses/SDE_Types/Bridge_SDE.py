@@ -426,9 +426,10 @@ class Bridge_SDE_Class(Base_SDE_Class):
         elif(self.dt_mode == "random"):
             key, subkey = jax.random.split(key)
             C = self.dt_C
-            z_values = jax.random.uniform(subkey, shape=(n_states, n_integration_steps), minval=1, maxval=C)
+            z_values = jax.random.uniform(subkey, shape=(n_states, n_integration_steps), minval=1., maxval=C)
             dts = jax.nn.softmax(z_values, axis=-1)*n_integration_steps*self.dt
-            #jax.debug.print("🤯 dts {dts} 🤯", dts=dts)
+            #dts = self.dt*jnp.ones((n_states, n_integration_steps,))
+            jax.debug.print("🤯 dts {dts} 🤯", dts=dts)
             #jax.debug.print("🤯 t {t} 🤯", t=jnp.sum(dts, axis = -1))
             # TODO take care as self.dt != 1 is not optimal for frequency encodings
 
