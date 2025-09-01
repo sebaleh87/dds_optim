@@ -47,14 +47,12 @@ class Base_SDE_Loss_Class:
         self.MovAvrgCalculator = MovAvrgCalculator.MovAvrgCalculator(alpha)
         self.Energy_key = jax.random.PRNGKey(0)
 
-        if(SDE_config["update_params_mode"] == "all_in_one"):
-            self.update_params = self.update_params_all_in_one
-        elif(SDE_config["update_params_mode"] == "DKL"):
-            self.update_params = self.update_params_DKL
-        else:
-            raise ValueError("Unknown update mode")
-        ### TODO make initial forward pass
-        ## initialize moving averages
+        # if(SDE_config["update_params_mode"] == "all_in_one"):
+        #     self.update_params = self.update_params_all_in_one
+        # else:
+        #     raise ValueError("Unknown update mode")
+
+
         self.vmap_diff_factor = jax.vmap(self.SDE_type.get_diffusion, in_axes=(None, None, 0))
         self.vmap_drift_divergence = jax.vmap(self.SDE_type.get_div_drift, in_axes = (None, 0))
         self.vmap_get_log_prior = jax.vmap(self.SDE_type.get_log_prior, in_axes = (None, 0))
@@ -93,22 +91,9 @@ class Base_SDE_Loss_Class:
         #     print(key, jnp.mean(out_dict[key]))
         return params, opt_state, loss_value, out_dict, gradients_dict
 
-    @partial(jax.jit, static_argnums=(0,))
-    def update_params_DKL(self, params, Energy_params, SDE_params, opt_state, Energy_params_state, SDE_params_state, key, T_curr):
-        #(loss_value, out_dict), (grads, SDE_params_grad) = jax.value_and_grad(self.loss_fn, argnums=(0, 2), has_aux = True)(params, Energy_params, SDE_params, T_curr, key)
-        (loss_value, out_dict), (grads) = jax.value_and_grad(self.loss_fn, argnums=(0), has_aux = True)(params, Energy_params, SDE_params, T_curr, key)
-        updates, opt_state = self.optimizer.update(grads, opt_state)
-        params = optax.apply_updates(params, updates)
-        
-        (loss_value, out_dict), (SDE_params_grad) = jax.value_and_grad(self.compute_DKL_loss, argnums=(0), has_aux = True)( SDE_params, out_dict)
-        
-        SDE_params_updates, SDE_params_state = self.SDE_params_optimizer.update(SDE_params_grad, SDE_params_state)
-        SDE_params = optax.apply_updates(SDE_params, SDE_params_updates)
-        
-        return params, Energy_params, SDE_params, opt_state, Energy_params_state, SDE_params_state, loss_value, out_dict
     
     @partial(jax.jit, static_argnums=(0,))
-    def update_params_all_in_one(self, params, Interpol_params, SDE_params, opt_state, Interpol_params_state, SDE_params_state, key, T_curr):
+    def update_params(self, params, Interpol_params, SDE_params, opt_state, Interpol_params_state, SDE_params_state, key, T_curr):
         (loss_value, out_dict), (grads, Interpol_params_grad, SDE_params_grad) = jax.value_and_grad(self.loss_fn, argnums=(0, 1, 2), has_aux = True)(params, Interpol_params, SDE_params, T_curr, key)
         
         if("fisher_grads" in out_dict):
@@ -142,19 +127,32 @@ class Base_SDE_Loss_Class:
 
             ### remove from dict, because it does not need to be logged in train.py
             del out_dict["fisher_grads"]
-        
-        updates, opt_state = self.optimizer.update(grads, opt_state)
-        params = optax.apply_updates(params, updates)
-        
-        #check_nan_in_params(grads, "grads")
-        # check_nan_in_params(SDE_params_grad, "SDE grads")
-        # print(loss_value)
-        Interpol_params_updates, Interpol_params_state = self.Interpol_params_optimizer.update(Interpol_params_grad, Interpol_params_state, Interpol_params)
-        Interpol_params = optax.apply_updates(Interpol_params, Interpol_params_updates)
 
-        SDE_params_updates, SDE_params_state = self.SDE_params_optimizer.update(SDE_params_grad, SDE_params_state, SDE_params)
-        SDE_params = optax.apply_updates(SDE_params, SDE_params_updates)
+        state_dict = {"network": opt_state, "Interpol": Interpol_params_state, "SDE": SDE_params_state}
+        grads_dict = {"network": grads, "Interpol": Interpol_params_grad, "SDE": SDE_params_grad}
+        params_dict = {"network": params, "Interpol": Interpol_params, "SDE": SDE_params}
 
+        state_dict, params_dict = self.apply_updates(state_dict, grads_dict, params_dict)
+        SDE_params, gradients_dict = self.reset_updates(grads, Interpol_params_grad, SDE_params_grad, SDE_params)
+
+        return params, Interpol_params, SDE_params, opt_state, Interpol_params_state, SDE_params_state, loss_value, out_dict, gradients_dict
+
+    def apply_updates(self, state_dict, grads_dict, params_dict):
+        updates, opt_state = self.optimizer.update(grads_dict["network"], state_dict["network"])
+        params = optax.apply_updates(params_dict["network"], updates)
+
+        Interpol_params_updates, Interpol_params_state = self.Interpol_params_optimizer.update(grads_dict["Interpol"], state_dict["Interpol"])
+        Interpol_params = optax.apply_updates(params_dict["Interpol"], Interpol_params_updates)
+
+        SDE_params_updates, SDE_params_state = self.SDE_params_optimizer.update(grads_dict["SDE"], state_dict["SDE"])
+        SDE_params = optax.apply_updates(params_dict["SDE"], SDE_params_updates)
+
+        state_dict = {"network": opt_state, "Interpol": Interpol_params_state, "SDE": SDE_params_state}
+        params_dict = {"network": params, "Interpol": Interpol_params, "SDE": SDE_params}
+
+        return state_dict, params_dict
+
+    def reset_updates(self, grads, Interpol_params_grad, SDE_params_grad, SDE_params):
         if( self.Optimizer_Config["learn_SDE_params_mode"] == "all"):
             SDE_params["log_beta_min"] = self.init_SDE_params["log_beta_min"]
             SDE_params["log_beta_delta"] = self.init_SDE_params["log_beta_delta"]
@@ -172,8 +170,7 @@ class Base_SDE_Loss_Class:
         gradients_dict = {}
         if(self.logging_gradients):
             gradients_dict = {"grads": grads, "Interpol_params_grad": Interpol_params_grad, "SDE_params_grad": SDE_params_grad}
-
-        return params, Interpol_params, SDE_params, opt_state, Interpol_params_state, SDE_params_state, loss_value, out_dict, gradients_dict
+        return SDE_params, gradients_dict
     
     @partial(jax.jit, static_argnums=(0,))
     def update_net_params_only(self, params, Energy_params, SDE_params, opt_state, Energy_params_state, SDE_params_state, key, T_curr):
@@ -280,64 +277,6 @@ class Base_SDE_Loss_Class:
         out_dict["losses/SDE_loss"] = loss
         return loss, out_dict
 
-    @partial(jax.jit, static_argnums=(0,))
-    def compute_covar_loss(self, SDE_params, out_dict):
-        X_0 = out_dict["x_final"]
-        cov_X_0 = jnp.cov(X_0, rowvar = False)
-        diag_cov_X_0 = jnp.diag(cov_X_0)
-        out_dict["cov_X_0"] = cov_X_0
-        log_diag_cov = 0.5*jnp.log(diag_cov_X_0)
-        log_sigma = SDE_params["log_sigma"]
-        sigma_reg = jnp.mean((log_sigma - log_diag_cov)**2)
-        sigma_loss = sigma_reg
-        out_dict["losses/sigma_loss"] = sigma_loss
-
-        alpha = self.SDE_type.beta_int(SDE_params, 1.)
-        mean_X0 = jnp.mean(X_0, axis = 0)
-        epsilon = 10**-3
-        mean_SDE = SDE_params["mean"]
-        #print("mean_X0", mean_X0.shape, mean_SDE.shape)
-        mean_loss = jnp.mean(( mean_X0*jax.lax.stop_gradient(jnp.exp(- alpha)) - mean_SDE)**2)
-        out_dict["losses/mean_loss"] = mean_loss
-
-        covar = cov_X_0 - jnp.diag(diag_cov_X_0)
-        #print("covar", covar.shape, jnp.exp(- 2*alpha).shape, (jnp.abs(covar) * jnp.exp(- 2*alpha)).shape)
-        alpha_covar = jnp.exp(-alpha)[:,None]*jnp.exp(-alpha)[None, :]
-        covar_loss = jnp.mean( (jnp.abs(covar) * alpha_covar - epsilon)**2)
-        #covar_loss = jnp.mean(jnp.where(jnp.abs(covar) > epsilon, (jnp.log(jnp.abs(covar) * alpha_covar) - jnp.log(epsilon))**2, 0))
-        out_dict["losses/covar_loss"] = covar_loss
-
-        overall_loss = mean_loss + covar_loss + sigma_loss
-        out_dict["losses/overall_loss"] = overall_loss
-        return overall_loss, out_dict
-    
-    @partial(jax.jit, static_argnums=(0,))
-    def compute_DKL_loss(self, SDE_params, out_dict):
-        X_0 = out_dict["x_final"]
-        log_sigma = SDE_params["log_sigma"]
-        var = jnp.exp(2*log_sigma)
-        mean_SDE = SDE_params["mean"]
-        alpha = self.SDE_type.beta_int(SDE_params, 1.)
-        k = mean_SDE.shape[0]
-        
-        sigma_q = var
-        diag_sigma_q = jnp.diag(sigma_q)
-        cov_X_0 = jnp.cov(X_0, rowvar = False)
-        sigma_p = jnp.exp(-alpha)[:,None]*jnp.exp(-alpha)[None, :]*(cov_X_0 - diag_sigma_q) + diag_sigma_q
-        mean_p = jnp.exp(-alpha)*jnp.mean(X_0, axis = 0) + mean_SDE*(1- jnp.exp(-alpha))
-        # DKL(p||q) = 0.5 * (tr(sigma_q^-1 sigma_p) + (mu_q - mu_p)^T sigma_q^-1 (mu_q - mu_p) - k + log(det(sigma_q) / det(sigma_p)))
-        # where q is N(mean_SDE, sigma)
-
-        first_term = jnp.trace(jnp.diag(1/sigma_q) @ sigma_p)  -k
-        second_term = (mean_SDE - mean_p).transpose() @ jnp.diag(1/sigma_q) @ (mean_SDE - mean_p)
-        third_term = jnp.sum(jnp.log(sigma_q)) - jnp.log(jnp.linalg.det(sigma_p))
-
-        print("first_term", first_term, "second_term", second_term, "third_term", third_term)
-        overall_loss = 0.5*(first_term + second_term + third_term)
-
-
-        out_dict["losses/overall_loss"] = overall_loss
-        return overall_loss, out_dict
     
     def get_param_dict(self, params):
         return {"model_params": params, "Interpol_params": self.Interpol_params, "SDE_params": self.SDE_params}

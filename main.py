@@ -87,7 +87,6 @@ parser.add_argument("--beta_schedule_neural_mode", type=str, default = "time_dep
                      help="mode for input into beta_schedule network when --beta_schedule == neural, time_dependent: only time dependent, time_and_X_dependent: also X dependent")
 parser.add_argument("--time_encoder_mode", type=str, default="normal_embedding", choices=["all", "fourier_embedding", "normal_embedding", "normal_x_t_embedding"], 
                     help="Time encoder mode: onyl applied when beta_schedule == neural and base_net == Vanilla")
-parser.add_argument("--update_params_mode", type=str, choices = ["all_in_one", "DKL"], default="all_in_one", help="keep all_in_one as default. This is currently not used")
 parser.add_argument("--epochs_per_eval", type=int, default=50)
 
 parser.add_argument("--beta_min", type=float, default=0.05)
@@ -287,7 +286,6 @@ if(__name__ == "__main__"):
                 "batch_size": args.batch_size,
                 "n_integration_steps": args.n_integration_steps,
                 "minib_time_steps": args.minib_time_steps,
-                "update_params_mode": args.update_params_mode,
                 "quantile": args.quantile,
                 "weight_temperature": args.weight_temperature,
                 "optimizer": args.optimizer,
