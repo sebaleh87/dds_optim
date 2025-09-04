@@ -340,7 +340,9 @@ class VE_Discrete_Class(Base_SDE_Class):
             "interpolated_grad": grad,
             "dx": reverse_out_dict["dx"],
             "xs": x,
-            "ts": jnp.array(t, dtype = jnp.float32),
+            "ts": t,
+            "dts": dts, 
+            "counters": counter*jnp.ones_like(t),
             "diffusions": reverse_out_dict["diffusion"],
             "noise_stds": reverse_out_dict["noise_stds"],
             "reverse_drifts": reverse_out_dict["reverse_drift"],
@@ -352,6 +354,9 @@ class VE_Discrete_Class(Base_SDE_Class):
             "log_prob_on_policy": reverse_out_dict["log_prob_on_policy"],
             "off_policy_log_weights": reverse_out_dict["off_policy_log_weights"]
             }
+
+            if("value_function_value" in apply_model_dict.keys()):
+                SDE_tracker_step["value_function_value"] = apply_model_dict["value_function_value"]
 
             x = reverse_out_dict["x_next"]
             t = t - dt
@@ -377,8 +382,6 @@ class VE_Discrete_Class(Base_SDE_Class):
             jnp.arange(n_integration_steps)
         )
 
-        dt_last = dts[:, -1]
-        dt_last = jnp.expand_dims(dt_last, axis=1)
         ### TODO make last forward pass here
         hidden_state = carry_dict["hidden_state"]
         counter = self.n_integration_steps
@@ -412,10 +415,16 @@ class VE_Discrete_Class(Base_SDE_Class):
 
         x_pos_next = x_next
 
+    
+        dt_last = dts[:, -1] ### TODO pay attention this does not make sense!!!
+        dt_last = jnp.expand_dims(dt_last, axis=1)
+
+        dts_batched = jnp.swapaxes(jnp.expand_dims(dts, axis=-1), 0, 1)
+
 
         ## TODO compute forward log probs here
-        reverse_diff_log_probs = jax.vmap(self.calc_diff_log_prob, in_axes=(0, 0, 0))(x_next, x_prev + reverse_drifts_prev*dt_last, diffusion_prev*jnp.sqrt(dt_last))
-        forward_diff_log_probs = jax.vmap(self.calc_diff_log_prob, in_axes=(0, 0, 0))(x_prev, x_pos_next, diffusion_next*jnp.sqrt(dt_last))
+        reverse_diff_log_probs = jax.vmap(self.calc_diff_log_prob, in_axes=(0, 0, 0))(x_next, x_prev + reverse_drifts_prev*dts_batched, diffusion_prev*jnp.sqrt(dts_batched))
+        forward_diff_log_probs = jax.vmap(self.calc_diff_log_prob, in_axes=(0, 0, 0))(x_prev, x_pos_next, diffusion_next*jnp.sqrt(dts_batched))
         log_prob_noise = SDE_tracker_steps["log_prob_noise"]
 
         SDE_tracker = {
@@ -424,13 +433,16 @@ class VE_Discrete_Class(Base_SDE_Class):
             "scale_log_prob": scale_log_prob,
             "noise_scale": sigma_scale,
             "dx": SDE_tracker_steps["dx"],
+            "x_prev": x_prev,
+            "x_next": x_next,
             "xs": SDE_tracker_steps["xs"],
             "ts": SDE_tracker_steps["ts"],
+            "counters": SDE_tracker_steps["counters"],
             "sigma_prior": prior_sigma,
             "noise_stds": SDE_tracker_steps["noise_stds"],
             "forward_diff_log_probs": forward_diff_log_probs,
             "reverse_log_probs": reverse_diff_log_probs,
-            "dts": SDE_tracker_steps["dts"],
+            "dts": dts_batched,
             "x_final": x_final,
             "x_prior": x_prior,
             "prior_mean": prior_mean,
@@ -440,8 +452,12 @@ class VE_Discrete_Class(Base_SDE_Class):
             "interpol_log_probs": interpol_log_probs,
             "log_prob_on_policy": SDE_tracker_steps["log_prob_on_policy"],
             "off_policy_log_weights": SDE_tracker_steps["off_policy_log_weights"]
-
         }
+
+        if("value_function_value" in apply_model_dict.keys()):
+            value_function_values = SDE_tracker_steps["value_function_value"]
+            SDE_tracker["value_function_values"] = value_function_values
+
 
         return SDE_tracker, key
 

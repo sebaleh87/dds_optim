@@ -429,7 +429,6 @@ class Bridge_SDE_Class(Base_SDE_Class):
             z_values = jax.random.uniform(subkey, shape=(n_states, n_integration_steps), minval=1., maxval=C)
             dts = jax.nn.softmax(z_values, axis=-1)*n_integration_steps*self.dt
             #dts = self.dt*jnp.ones((n_states, n_integration_steps,))
-            jax.debug.print("🤯 dts {dts} 🤯", dts=dts)
             #jax.debug.print("🤯 t {t} 🤯", t=jnp.sum(dts, axis = -1))
             # TODO take care as self.dt != 1 is not optimal for frequency encodings
 
@@ -576,8 +575,8 @@ class Bridge_SDE_Class(Base_SDE_Class):
         reverse_drifts = jnp.concatenate([SDE_tracker_steps["reverse_drifts"], reverse_drift_final[None, :]], axis = 0)
         interpol_log_probs = jnp.concatenate([SDE_tracker_steps["interpol_log_probs"], interpol_log_prob[None, :]], axis = 0)
 
-        dt_last = dts[:, -1]
-        dt_last = jnp.expand_dims(dt_last, axis=1)
+
+        dts_batched = jnp.swapaxes(jnp.expand_dims(dts, axis=-1), 0, 1)
 
         x_prev = xs[:-1]
         x_next = xs[1:]
@@ -593,7 +592,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
         else:
             forward_drifts_next = reverse_drifts[1:]            
             forward_drift = (diffusion_next**2*grads_next - forward_drifts_next)
-        x_pos_next = x_next + forward_drift*dt_last
+        x_pos_next = x_next + forward_drift*dts_batched
 
         # jax.debug.print("🤯 xs {xs} 🤯", xs=xs)
         # jax.debug.print("🤯 diffusions {diffusions} 🤯", diffusions=diffusions)
@@ -602,8 +601,9 @@ class Bridge_SDE_Class(Base_SDE_Class):
         reverse_log_prob_func = jax.vmap(self.calc_diff_log_prob, in_axes=(0, 0, 0))
         forward_log_prob_func = jax.vmap(self.calc_diff_log_prob, in_axes=(0, 0, 0))
 
-        reverse_diff_log_probs = reverse_log_prob_func(x_next, x_prev + reverse_drifts_prev*dt_last, diffusion_prev*jnp.sqrt(dt_last))
-        forward_diff_log_probs = forward_log_prob_func(x_prev, x_pos_next, diffusion_next*jnp.sqrt(dt_last))
+
+        reverse_diff_log_probs = reverse_log_prob_func(x_next, x_prev + reverse_drifts_prev*dts_batched, diffusion_prev*jnp.sqrt(dts_batched))
+        forward_diff_log_probs = forward_log_prob_func(x_prev, x_pos_next, diffusion_next*jnp.sqrt(dts_batched))
         log_prob_noise = SDE_tracker_steps["log_prob_noise"]
 
         SDE_tracker = {
@@ -621,6 +621,8 @@ class Bridge_SDE_Class(Base_SDE_Class):
             "dts": SDE_tracker_steps["dts"],
             "x_final": x_final,
             "x_prior": x_prior,
+            "x_prev": x_prev,
+            "x_next": x_next,
             "prior_mean": prior_mean,
             "prior_sigma": prior_sigma,
             "keys": SDE_tracker_steps["key"],

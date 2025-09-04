@@ -120,9 +120,7 @@ class TrainerClass:
 
         num_params = sum(x.size for x in jax.tree_util.tree_leaves(self.params))
         wandb.log({"Network/num_params": num_params})
-        print("Parameter count:", num_params)  #Parameter count: 66902 beta neural #Parameter count: 47076 beta const # --n_hidden 75 Parameter count: 67180 beta const
-            # Parameter count: 46274 beta neurel --n_hidden 52
-        #raise ValueError("Check if the network is initialized correctly")
+        print("Parameter count:", num_params)  
 
     def _test_invariance(self):
         key = jax.random.PRNGKey(0)

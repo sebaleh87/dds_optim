@@ -430,6 +430,9 @@ class Base_SDE_Class:
         if("forward_score" in out_dict.keys()):
             apply_model_dict["forward_score"] = out_dict["forward_score"]
 
+        if("value_function_value" in out_dict.keys()):
+            apply_model_dict["value_function_value"] = out_dict["value_function_value"]
+
         return apply_model_dict, key
     
     def get_sigma_noise(self,  n_states, key, sample_mode, temp):

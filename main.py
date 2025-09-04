@@ -17,7 +17,7 @@ parser.add_argument("--GPU", type=int, default=6, help="GPU id to use")
 parser.add_argument("--model_mode", type=str, default="normal", choices = ["normal", "latent"], help="normal training or latent diffusion")
 parser.add_argument("--latent_dim", type=int, default=None)
 
-parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=["Reverse_KL_Loss","LogVariance_Loss",  "Bridge_fKL_logderiv",
+parser.add_argument("--SDE_Loss", type=str, default="LogVariance_Loss", choices=["Reverse_KL_Loss","LogVariance_Loss",  "Bridge_fKL_logderiv", "PPO_Loss",
                                                                                   "Reverse_KL_Loss_logderiv","Bridge_rKL", "Bridge_LogVarLoss", "Bridge_rKL_logderiv"], help="select loss function")
 parser.add_argument("--SDE_Type", type=str, default="VP_SDE", choices=["VP_SDE", "subVP_SDE", "VE_SDE", "Bridge_SDE", "VE_Discrete"], help="select SDE type, subVP_SDE is currently deprecated")
 parser.add_argument("--Bridge_Type", type=str, default="CMCD", choices=["CMCD", "DBS"], help="select Bridge type")
@@ -41,6 +41,7 @@ parser.add_argument("--AnnealSchedule", type=str, default="Linear", choices=["Li
 parser.add_argument("--project_name", type=str, default="")
 
 parser.add_argument("--minib_time_steps", type=int, default=20)
+parser.add_argument("--minib_states", type=int, default=2000)
 parser.add_argument("--batch_size", type=int, default=200)
 parser.add_argument("--optimizer", type=str, choices = ["ADAM", "SGD"], default = "ADAM")
 parser.add_argument("--optimizer_beta_1", type=float, default=0.9 )
@@ -240,6 +241,7 @@ if(__name__ == "__main__"):
                 "batch_size": args.batch_size,
                 "n_integration_steps": args.n_integration_steps,
                 "minib_time_steps": args.minib_time_steps,
+                "minib_states": args.minib_states,
         }
         else:
             #modified sampling distributions are only applicable for certain losses
@@ -278,6 +280,7 @@ if(__name__ == "__main__"):
                 "learn_interpol_NN": args.learn_interpol_NN,
                 "dt": args.dt,
                 "dt_mode": args.dt_mode,
+                "dt_C": args.dt_C
             }
 
             SDE_Loss_Config = {
@@ -286,6 +289,7 @@ if(__name__ == "__main__"):
                 "batch_size": args.batch_size,
                 "n_integration_steps": args.n_integration_steps,
                 "minib_time_steps": args.minib_time_steps,
+                "minib_states": args.minib_states,
                 "quantile": args.quantile,
                 "weight_temperature": args.weight_temperature,
                 "optimizer": args.optimizer,

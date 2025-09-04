@@ -12,7 +12,7 @@ class Base_SDE_Loss_Class:
         self.Optimizer_Config = Optimizer_Config
         self.SDE_type = get_SDE_Type_Class(SDE_Type_Config, Network_Config, Energy_Class)
         
-        self.lr_factor = lr_factor
+        self.lr_factor = lr_factor ### overall steps in lr schedule is increase when inner loop steps are used
         self.batch_size = SDE_config["batch_size"]
         self.n_integration_steps = SDE_config["n_integration_steps"]
         self.lr_schedule = Optimizer_Config["lr_schedule"]
@@ -133,7 +133,17 @@ class Base_SDE_Loss_Class:
         params_dict = {"network": params, "Interpol": Interpol_params, "SDE": SDE_params}
 
         state_dict, params_dict = self.apply_updates(state_dict, grads_dict, params_dict)
+
+        params = params_dict["network"]
+        Interpol_params = params_dict["Interpol"]
+        SDE_params = params_dict["SDE"]
+
+        opt_state = state_dict["network"]
+        Interpol_params_state = state_dict["Interpol"]
+        SDE_params_state = state_dict["SDE"]
+
         SDE_params, gradients_dict = self.reset_updates(grads, Interpol_params_grad, SDE_params_grad, SDE_params)
+
 
         return params, Interpol_params, SDE_params, opt_state, Interpol_params_state, SDE_params_state, loss_value, out_dict, gradients_dict
 
@@ -152,7 +162,7 @@ class Base_SDE_Loss_Class:
 
         return state_dict, params_dict
 
-    def reset_updates(self, grads, Interpol_params_grad, SDE_params_grad, SDE_params):
+    def reset_updates(self, grads, Interpol_params_grad, SDE_params_grad, SDE_params, update_none = False):
         if( self.Optimizer_Config["learn_SDE_params_mode"] == "all"):
             SDE_params["log_beta_min"] = self.init_SDE_params["log_beta_min"]
             SDE_params["log_beta_delta"] = self.init_SDE_params["log_beta_delta"]
@@ -165,7 +175,11 @@ class Base_SDE_Loss_Class:
         elif( self.Optimizer_Config["learn_SDE_params_mode"] == "all_and_beta"):
             if(self.SDE_type.config["name"] == "Bridge_SDE"):
                 SDE_params["log_sigma"] = self.init_SDE_params["log_beta_delta"] ### log sigma does not exist in config as it is controled via beta
-            pass
+        
+        if(update_none):
+            for SDE_param_key in SDE_params.keys():
+                    SDE_params[SDE_param_key] = self.init_SDE_params[SDE_param_key]
+
         
         gradients_dict = {}
         if(self.logging_gradients):

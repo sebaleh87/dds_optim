@@ -28,6 +28,10 @@ class PisgradnetBaseClass(nn.Module):
         self.num_hid = self.network_config.get("n_hidden", 64)
         self.num_layers = self.network_config.get("n_layers", 2)
 
+        self.compute_value_func = self.network_config.get("compute_value_func", False)
+        if(self.SDE_Loss_Config["name"] == "PPO_Loss"):
+            self.compute_value_func = True
+
         #self.num_hid = self.network_config["n_hidden"]
         self.x_dim = self.network_config["x_dim"]
         self.dim = self.x_dim
@@ -69,6 +73,13 @@ class PisgradnetBaseClass(nn.Module):
                                                           bias_init=nn.initializers.constant(self.bias_init))])
             diff_function_out_dict["beta_schedule_network"] = beta_schedule_network
 
+        if(self.compute_value_func):
+            value_function = nn.Sequential([nn.Sequential(
+                                    [nn.Dense(self.num_hid), nn.gelu]) for _ in range(self.num_layers)] + [
+                                                nn.Dense(1, kernel_init=nn.initializers.constant(self.weight_init),
+                                                         bias_init=nn.initializers.zeros_init())])
+            diff_function_out_dict["value_function"] = value_function
+
 
         return diff_function_out_dict
     
@@ -97,10 +108,15 @@ class PisgradnetBaseClass(nn.Module):
         extended_input = jnp.concatenate((input_array, time_embedding), axis=-1)
         NN_score = diff_function_out_dict["NN_score"]
         out_state = NN_score(extended_input)
-        beta_net_input = self.create_t2_net_input(input_array, time_array_emb)        
+        beta_net_input = self.create_t2_net_input(input_array, time_array_emb)    
 
         embedding_dict = {"out_state": out_state, "stopped_grad": stopped_grad, "time_array_emb": time_array_emb,
                           "NN_grad_input": time_array_emb, "beta_net_input": beta_net_input, "grad": grad}
+
+        if(self.compute_value_func):
+            value_function = diff_function_out_dict["value_function"]
+            value_function_value = value_function(extended_input)
+            embedding_dict["value_function_value"] = value_function_value
 
         return embedding_dict
     
@@ -149,6 +165,8 @@ class PisgradnetBaseClass(nn.Module):
         embedding_dict = self.compute_score_inputs(in_dict, self.diff_function_dict)
         overall_score, out_dict = self.parameterize_score( out_dict, self.diff_function_dict, embedding_dict)
         out_dict["score"] = overall_score
+
+        out_dict["value_function_value"] = embedding_dict["value_function_value"] if self.compute_value_func else None
 
         if(self.bridge_type == "DBS"):
             embedding_dict = self.compute_score_inputs(in_dict, self.diff_function_dict_forward)
