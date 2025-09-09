@@ -7,10 +7,10 @@ from .MovAverage import MovAvrgCalculator
 
 class Base_SDE_Loss_Class:
     def __init__(self, SDE_config, Optimizer_Config, Energy_Class, Network_Config, model, lr_factor = 1.):
-        SDE_Type_Config = SDE_config["SDE_Type_Config"]
+        self.SDE_Type_Config = SDE_config["SDE_Type_Config"]
         self.Network_Config = Network_Config
         self.Optimizer_Config = Optimizer_Config
-        self.SDE_type = get_SDE_Type_Class(SDE_Type_Config, Network_Config, Energy_Class)
+        self.SDE_type = get_SDE_Type_Class(self.SDE_Type_Config, Network_Config, Energy_Class)
         
         self.lr_factor = lr_factor ### overall steps in lr schedule is increase when inner loop steps are used
         self.batch_size = SDE_config["batch_size"]
@@ -58,7 +58,7 @@ class Base_SDE_Loss_Class:
         self.vmap_get_log_prior = jax.vmap(self.SDE_type.get_log_prior, in_axes = (None, 0))
         # with self.optim_mode = "optim" one would optimize temp*rKL like in the Diffuco or SDDS, i.e. then the energy term would be temp independent and the entropy term would be temp dependent
         self.optim_mode = "equilibrium"
-        self.natural_gradient_mode = SDE_Type_Config.get("natural_gradient_mode", None)
+        self.natural_gradient_mode = self.SDE_Type_Config.get("natural_gradient_mode", None)
         self.logging_gradients = SDE_config.get("logging_gradients", False)
 
 

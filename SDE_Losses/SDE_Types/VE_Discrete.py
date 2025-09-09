@@ -447,6 +447,7 @@ class VE_Discrete_Class(Base_SDE_Class):
             "x_prior": x_prior,
             "prior_mean": prior_mean,
             "prior_sigma": prior_sigma,
+            "diffusions": diffusions,
             "keys": SDE_tracker_steps["key"],
             "interpolated_grads": interpol_grads,
             "interpol_log_probs": interpol_log_probs,
@@ -460,6 +461,12 @@ class VE_Discrete_Class(Base_SDE_Class):
 
 
         return SDE_tracker, key
+    
+    def compute_forward_log_probs(self, x_next, x_prev, diffusion_next, dts_batched, reverse_out_dict, apply_model_dict ):
+
+        forward_log_prob_func = jax.vmap(self.calc_diff_log_prob, in_axes=(0, 0, 0))
+        forward_diff_log_probs = forward_log_prob_func(x_prev, x_next, diffusion_next*jnp.sqrt(dts_batched))
+        return forward_diff_log_probs
 
 
 

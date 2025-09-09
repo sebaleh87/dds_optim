@@ -606,4 +606,18 @@ class TrainerClass:
             wandb.log({"fig/beta_over_time": wandb.Image(fig)},step=epoch+1)
             plt.close(fig)
 
+        if("diffusions" in SDE_tracer.keys()):
+            fig, ax = plt.subplots()
+            diffusions = np.array(SDE_tracer["diffusions"])
+            mean_diffusions = np.mean(diffusions, axis = 1)
+
+            steps = np.arange(0,len(mean_diffusions) )
+            ax.plot(steps, mean_diffusions, label='mean diffusion')
+            ax.set_xlabel('Steps')
+            ax.set_ylabel('Diffusion magnitude')
+            ax.set_title('Diffusion magnitude over Steps')
+            ax.legend()
+            wandb.log({"fig/Diffusion_magnitude": wandb.Image(fig)},step=epoch+1)
+            plt.close(fig)
+
 

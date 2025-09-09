@@ -21,6 +21,7 @@ class PPO_Loss_Class(Base_SDE_Loss_Class):
         self.splits_over_time = max([int(SDE_config["n_integration_steps"]/self.minib_time_steps),1])
         self.splits_over_states = max([int(SDE_config["batch_size"]/self.minib_states),1])
         self.inner_loop_steps = self.splits_over_time*self.splits_over_states
+        Optimizer_Config["SDE_lr"] = Optimizer_Config["SDE_lr"]/ self.inner_loop_steps
         self.lr_factor = self.inner_loop_steps
         super().__init__(SDE_config, Optimizer_Config, EnergyClass, Network_Config, model, lr_factor = self.lr_factor)
         self.SDE_type.stop_gradient = True
@@ -34,7 +35,8 @@ class PPO_Loss_Class(Base_SDE_Loss_Class):
         self.vmap_vmap_drift_divergence = jax.vmap(jax.vmap(self.SDE_type.get_div_drift, in_axes = (None, 0)), in_axes=(None, 0))
         self.gamma = 1.
         self.lam = 0.99
-        self.td_lambda = True
+        self.td_lambda = False
+        #self.trace_mode = "normal" 
     
     @partial(jax.jit, static_argnums=(0, 1, 2, 3, 4))
     def get_sample_indices(self, T_size: int, B_size: int, new_t: int,new_b: int, key: jax.random.PRNGKey):
@@ -150,19 +152,25 @@ class PPO_Loss_Class(Base_SDE_Loss_Class):
         minib_SDE_tracer["Free_Energy_at_T=1_per_batch"] = SDE_tracer["Free_Energy_at_T=1_per_batch"]
         return minib_SDE_tracer, key
 
-    ### TODO add scanner
     @partial(jax.jit, static_argnums=(0,))
     def _calc_traces(self, values, rewards):
         max_steps = rewards.shape[0]
         values = jnp.concatenate([values, jnp.zeros_like(values[0][None], dtype=values.dtype)], axis=0)
-        advantage = jnp.zeros_like(values)
+        
+        # For TD(lambda) returns
+        returns = jnp.zeros_like(values)
         for t in range(max_steps):
             idx = max_steps - t - 1
             delta = rewards[idx] + self.gamma * values[idx + 1] - values[idx]
-            advantage = advantage.at[idx].set(delta + self.gamma * self.lam * advantage[idx + 1])
-
-        value_target = (advantage + values)[0:max_steps]
-        return value_target, advantage[0:max_steps]
+            returns = returns.at[idx].set(delta + self.gamma * self.lam * returns[idx + 1])
+        
+        # TD(lambda) returns are the targets for value function
+        td_lambda_returns = returns[0:max_steps] + values[0:max_steps]
+        
+        # True advantages (if needed) would be:
+        advantages = returns[0:max_steps]
+        
+        return td_lambda_returns, advantages
 
     @partial(jax.jit, static_argnums=(0,))
     def compute_advantages(self, SDE_params, Interpol_params, SDE_tracer, key):
@@ -181,22 +189,23 @@ class PPO_Loss_Class(Base_SDE_Loss_Class):
         rewards = rewards.at[-1].set(rewards[-1] + Energy)
         SDE_tracer["rewards"] = rewards
 
+        SDE_tracer["Free_Energy_at_T=1"] = jnp.mean( log_prior + jnp.sum(reverse_log_probs - forward_diff_log_probs, axis = 0) + Energy)
+        SDE_tracer["Free_Energy_at_T=1_per_batch"] = log_prior + jnp.sum(reverse_log_probs - forward_diff_log_probs, axis = 0) + Energy
+
 
         value_function_value = SDE_tracer["value_function_values"]
         if(self.td_lambda):
             value_target, advantages = self._calc_traces(value_function_value, rewards[..., None])
             SDE_tracer["value_target"] = value_target
+            advantages = (advantages - jnp.mean(advantages)) #/ (jnp.std(advantages) + 1e-10)
         else:
-            value_target = jax.lax.cumsum(rewards, axis=0, reverse=True)
-            SDE_tracer["value_target"] = value_target[..., None]
+            value_target = jax.lax.cumsum(rewards, axis=0, reverse=True)[..., None]
+            SDE_tracer["value_target"] = value_target
+            advantages = value_target - jnp.mean(value_target, axis = 1, keepdims=True)#- value_function_value
 
-            advantages = value_target - value_function_value
 
-        advantages = (advantages - jnp.mean(advantages)) / (jnp.std(advantages) + 1e-10)
         SDE_tracer["advantages"] = advantages
 
-        SDE_tracer["Free_Energy_at_T=1"] = jnp.mean( log_prior + jnp.sum(reverse_log_probs - forward_diff_log_probs, axis = 0) + Energy)
-        SDE_tracer["Free_Energy_at_T=1_per_batch"] = log_prior + jnp.sum(reverse_log_probs - forward_diff_log_probs, axis = 0) + Energy
         return SDE_tracer, key
 
     @partial(jax.jit, static_argnums=(0,), static_argnames=("n_integration_steps", "n_states", "sample_mode"))
@@ -270,7 +279,7 @@ class PPO_Loss_Class(Base_SDE_Loss_Class):
 
         overall_out_dict["Free_Energy_at_T=1"] = SDE_tracer["Free_Energy_at_T=1"]
 
-        log_dict = {"mean_energy": np.mean(Energy), "best_Energy": jnp.min(Energy), "X_0": x_last, 
+        log_dict = {"mean_energy": np.mean(Energy), "best_Energy": jnp.min(Energy), "X_0": x_last, "diffusions": SDE_tracer["diffusions"],
                       "sigma": jnp.exp(SDE_params["log_sigma"]),"beta_min": jnp.exp(SDE_params["log_beta_min"]),
                         "beta_delta": jnp.exp(SDE_params["log_beta_delta"]), "mean": SDE_tracer["prior_mean"], "sigma_prior": SDE_tracer["sigma_prior"]
                         }
@@ -283,7 +292,7 @@ class PPO_Loss_Class(Base_SDE_Loss_Class):
         return params, Interpol_params, SDE_params, opt_state, Interpol_params_state, SDE_params_state, loss_value, overall_out_dict, {}
 
     @partial(jax.jit, static_argnums=(0,))
-    def evaluate_loss_for_train(self, params, Interpol_params, SDE_params, minib_SDE_tracer, key, temp = 1.0, alpha = 0.5):
+    def evaluate_loss_for_train(self, params, Interpol_params, SDE_params, minib_SDE_tracer, key, temp = 1.0, alpha = 0.5, clip_value = 0.1, PPO_mode = False):
 
         for interpol_key in Interpol_params.keys():
             SDE_params[interpol_key] = Interpol_params[interpol_key]
@@ -291,6 +300,8 @@ class PPO_Loss_Class(Base_SDE_Loss_Class):
         old_reverse_log_probs = minib_SDE_tracer["reverse_log_probs"]
 
         advantages = minib_SDE_tracer["advantages"]
+        advantage_norm = 1.#jnp.std(advantages) + 0.1
+        centered_advantages = (advantages - jnp.mean(advantages))
         value_target = minib_SDE_tracer["value_target"]
         x_prev = minib_SDE_tracer["x_prev"]
         x_next = minib_SDE_tracer["x_next"]
@@ -314,26 +325,43 @@ class PPO_Loss_Class(Base_SDE_Loss_Class):
         reverse_drift = reverse_out_dict["reverse_drift"]
 
         diffusion_prev = self.SDE_type.get_diffusion(SDE_params_extended, x_prev, time_steps)
-        diffusion_next = self.SDE_type.get_diffusion(SDE_params_extended, x_next, time_steps + dts)
-
-        print("diffusion", diffusion_prev.shape)
-        print("score",score.shape)
         #jax.debug.print("time_steps {time_steps} dts {dts}", time_steps=time_steps, dts=dts)
         
         ## TODO compute forward log probs here
         reverse_diff_log_probs = jax.vmap(self.SDE_type.calc_diff_log_prob, in_axes=(0, 0, 0))(x_next, x_prev + reverse_drift*dts, diffusion_prev*jnp.sqrt(dts))
 
-        ### TODO make this more general so taht also bridges can be used?
-        forward_diff_log_probs = jax.vmap(self.SDE_type.calc_diff_log_prob, in_axes=(0, 0, 0))(x_prev, x_next, diffusion_next*jnp.sqrt(dts))
+        
+        time_steps_next = time_steps - dts ### awrrrr!!!!! time runs from T to 0!!
+        if(self.SDE_Type_Config["name"] == "Bridge_SDE"):
+            counters_next = counters + 1
+            apply_model_dict_next, key = self.SDE_type.apply_model(self.model, x_next, time_steps_next/self.n_integration_steps, counters_next, params, Interpol_params, SDE_params, hidden_state, temp, key)
 
-        PPO_update, _,  ratio = self.PPO_clipping(old_reverse_log_probs, reverse_diff_log_probs, advantages[..., 0])
+            score_next = apply_model_dict_next["score"]
+            grad_next = apply_model_dict_next["grad"]
+            SDE_params_extended_next =  apply_model_dict_next["SDE_params_extended"]
+
+            reverse_out_dict_next, key = self.SDE_type.reverse_sde(SDE_params_extended_next, score_next, grad_next, x_next, time_steps_next, dts, key)
+            diffusion_next = self.SDE_type.get_diffusion(SDE_params_extended_next, x_next, time_steps_next)
+
+            forward_diff_log_probs = self.SDE_type.compute_forward_log_probs(x_next, x_prev, diffusion_next, dts, apply_model_dict_next, reverse_out_dict_next)
+
+        else:
+            diffusion_next = self.SDE_type.get_diffusion(SDE_params_extended, x_next, time_steps_next)
+            forward_diff_log_probs = self.SDE_type.compute_forward_log_probs(x_next, x_prev, diffusion_next, dts)
+
+        PPO_update, _,  ratio_diff, clipped_state = self.PPO_clipping(old_reverse_log_probs, reverse_diff_log_probs, centered_advantages[..., 0], epsilon=clip_value, PPO_mode=PPO_mode)
         Loss_actor = jnp.mean(PPO_update)*self.n_integration_steps 
 
-
-        rKL_loss_2 = - self.n_integration_steps * jnp.mean(ratio * forward_diff_log_probs)
+        KL_loss_per_state = ratio_diff * forward_diff_log_probs
+        if(PPO_mode):
+            clipped_KL_loss_2 = jnp.where(clipped_state == 1, jax.lax.stop_gradient(KL_loss_per_state), KL_loss_per_state)
+            rKL_loss_2 = - self.n_integration_steps * jnp.mean(clipped_KL_loss_2)
+        else:
+            rKL_loss_2 = - self.n_integration_steps * jnp.mean(KL_loss_per_state)
 
 
         value_function_value = apply_model_dict["value_function_value"]
+        print("value function", value_function_value.shape, value_target.shape)
         Loss_critic = jnp.mean((value_function_value - value_target)**2)
 
         log_prior_old = minib_SDE_tracer["log_prior"]
@@ -342,15 +370,22 @@ class PPO_Loss_Class(Base_SDE_Loss_Class):
 
         radon_nycodin_deriv = minib_SDE_tracer["Free_Energy_at_T=1_per_batch"]
         bias = jnp.mean(radon_nycodin_deriv)
-        _, prob_ratios_adv, ratio = self.PPO_clipping(log_prior_old, log_prior, radon_nycodin_deriv - bias)
+        prior_PPO_loss, prob_ratios_adv, ratio, _ = self.PPO_clipping(log_prior_old, log_prior, radon_nycodin_deriv - bias, epsilon=clip_value, PPO_mode=PPO_mode)
 
 
         ### TODO maybe only do this once for the first update
-        prior_loss = jnp.mean(prob_ratios_adv * log_prior)
+        prior_loss = jnp.mean(prior_PPO_loss)
 
-        KL_reg_loss = - jnp.mean(log_prior) + jnp.mean( - reverse_diff_log_probs)*self.n_integration_steps 
+        if(PPO_mode):
+            KL_pen = 2.
+            KL_reg_loss = jax.lax.stop_gradient(- jnp.mean(log_prior) + jnp.mean( - reverse_diff_log_probs))
+        else:
+            KL_pen = 2.
+            KL_reg_loss = - jnp.mean(log_prior) + jnp.mean( - reverse_diff_log_probs)
 
-        overall_loss = (alpha*(Loss_actor + rKL_loss_2) + (1-alpha)*Loss_critic+ 0. * KL_reg_loss) + alpha*prior_loss
+        policy_loss = alpha*(Loss_actor + rKL_loss_2 + KL_pen*KL_reg_loss + prior_loss)/advantage_norm 
+        value_loss = (1-alpha)*Loss_critic
+        overall_loss = policy_loss + value_loss
 
         log_dict = {"loss": overall_loss, "losses/Loss_critic": Loss_critic, "losses/Loss_actor": Loss_actor, "losses/prior_loss": prior_loss, "losses/KL_loss": KL_reg_loss,
                       "sigma": jnp.exp(SDE_params["log_sigma"]), "beta_min": jnp.exp(SDE_params["log_beta_min"]),
@@ -359,14 +394,20 @@ class PPO_Loss_Class(Base_SDE_Loss_Class):
 
         return overall_loss, log_dict
 
-    def PPO_clipping(self, log_prob_before, log_prob_after, advantage, epsilon = 0.1):
+    def PPO_clipping(self, log_prob_before, log_prob_after, advantage, epsilon = 0.1, PPO_mode = False, KL_pen = 2.):
         ### TODO check if this is correct
         ratio = jnp.exp(log_prob_after - log_prob_before)
-        if(True):
+        stopped_ratio = jax.lax.stop_gradient(ratio)
+        if(PPO_mode):
             clipped_ratio = jnp.clip(ratio, 1 - epsilon, 1 + epsilon)
-            return jnp.maximum(ratio * advantage, clipped_ratio * advantage), jax.lax.stop_gradient(ratio * advantage), jax.lax.stop_gradient(ratio)
+            PPO_loss_per_state = jnp.maximum(ratio * advantage, clipped_ratio * advantage)
+            clipped_state = jnp.where(PPO_loss_per_state == clipped_ratio * advantage, 1, 0)
+
+            return PPO_loss_per_state, jax.lax.stop_gradient(ratio * advantage), stopped_ratio, clipped_state    
         else:
-            return jax.lax.stop_gradient(ratio * advantage), jax.lax.stop_gradient(ratio)
+            loss_per_state = stopped_ratio * advantage*log_prob_after
+            overall_loss_per_state = loss_per_state 
+            return overall_loss_per_state, jax.lax.stop_gradient(ratio * advantage), stopped_ratio, None
 
     @partial(jax.jit, static_argnums=(0,))
     def evaluate_loss(self, params, Energy_params, SDE_params, SDE_tracer, key, temp = 1.0):

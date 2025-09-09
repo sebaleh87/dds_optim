@@ -111,16 +111,12 @@ class PisgradnetBaseClass(nn.Module):
         beta_net_input = self.create_t2_net_input(input_array, time_array_emb)    
 
         embedding_dict = {"out_state": out_state, "stopped_grad": stopped_grad, "time_array_emb": time_array_emb,
-                          "NN_grad_input": time_array_emb, "beta_net_input": beta_net_input, "grad": grad}
+                          "NN_grad_input": time_array_emb, "beta_net_input": beta_net_input, "grad": grad, "extended_input": extended_input}
 
-        if(self.compute_value_func):
-            value_function = diff_function_out_dict["value_function"]
-            value_function_value = value_function(extended_input)
-            embedding_dict["value_function_value"] = value_function_value
 
         return embedding_dict
     
-    def parameterize_score(self, out_dict, diff_function_out_dict, embedding_dict):
+    def parameterize_score(self, out_dict, diff_function_out_dict, embedding_dict, mode = ""):
         out_state = embedding_dict["out_state"]
         NN_grad_input = embedding_dict["NN_grad_input"]     
         beta_net_input = embedding_dict["beta_net_input"] 
@@ -145,7 +141,14 @@ class PisgradnetBaseClass(nn.Module):
         if(self.beta_schedule == "neural"):
             beta_schedule_network = diff_function_out_dict["beta_schedule_network"]
             log_beta_x_t = beta_schedule_network(beta_net_input)
-            out_dict["log_beta_x_t"] = log_beta_x_t
+            out_dict[mode + "log_beta_x_t"] = log_beta_x_t
+
+        if(self.compute_value_func):
+            extended_input = embedding_dict["extended_input"]
+            value_extended_input = extended_input
+            value_function = diff_function_out_dict["value_function"]
+            value_function_value = value_function(value_extended_input)
+            out_dict[mode + "value_function_value"] = value_function_value
 
         return score, out_dict
     
@@ -166,11 +169,11 @@ class PisgradnetBaseClass(nn.Module):
         overall_score, out_dict = self.parameterize_score( out_dict, self.diff_function_dict, embedding_dict)
         out_dict["score"] = overall_score
 
-        out_dict["value_function_value"] = embedding_dict["value_function_value"] if self.compute_value_func else None
+        out_dict["value_function_value"] = out_dict["value_function_value"] if self.compute_value_func else None
 
         if(self.bridge_type == "DBS"):
             embedding_dict = self.compute_score_inputs(in_dict, self.diff_function_dict_forward)
-            forward_score, out_dict = self.parameterize_score( out_dict, self.diff_function_dict_forward, embedding_dict)
+            forward_score, out_dict = self.parameterize_score( out_dict, self.diff_function_dict_forward, embedding_dict, mode = "forward_")
             out_dict["forward_score"] = forward_score
 
         return out_dict

@@ -263,6 +263,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
             offset = 1.008
             _, beta_max = self.get_beta_min_and_max(SDE_params)
             beta_curr =  (beta_max-beta_min)*jnp.cos(jnp.pi/2*(offset-t)/offset ) + beta_min
+            #print("beta_min", beta_min.shape, beta_max.shape, t.shape, beta_curr.shape)
             return beta_curr
         elif(self.config["beta_schedule"] == "learned"):
             return jnp.exp(SDE_params["log_beta_over_time"][t_discrete])
@@ -282,7 +283,10 @@ class Bridge_SDE_Class(Base_SDE_Class):
             return jax.lax.stop_gradient(sigma[None, ...])*self.beta(SDE_params, t)
         else:
             diffusion = sigma*self.beta(SDE_params, t)
-            return diffusion[None, :] 
+            if(len(diffusion.shape) == 1):
+                return diffusion[None, :]
+            else:
+                return diffusion
 
     def calc_diff_log_prob(self, mean, loc, scale):
         if(self.invariance):
@@ -495,6 +499,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
             "dx": reverse_out_dict["dx"],
             "xs": x,
             "ts": jnp.array(t, dtype = jnp.float32),
+            "counters": counter*jnp.ones_like(t),
             "diffusions": reverse_out_dict["diffusion"],
             "noise_stds": reverse_out_dict["noise_std"],
             "reverse_drifts": reverse_out_dict["reverse_drift"],
@@ -512,8 +517,15 @@ class Bridge_SDE_Class(Base_SDE_Class):
                 forward_score = apply_model_dict["forward_score"]
                 SDE_tracker_step["forward_drifts"] = diffusion**2*forward_score
 
+            if("value_function_value" in apply_model_dict.keys()):
+                SDE_tracker_step["value_function_value"] = apply_model_dict["value_function_value"]
+
             x = reverse_out_dict["x_next"]
             t = t - dt
+
+            # for carry_key in SDE_tracker_step.keys():
+            #     if(type(SDE_tracker_step[carry_key]) != list):
+            #         print(carry_key,SDE_tracker_step[carry_key].shape)
             #jax.debug.print("counter_curr_step: {counter}", counter=counter)
             return (x, t, key, carry_dict), SDE_tracker_step
 
@@ -604,8 +616,10 @@ class Bridge_SDE_Class(Base_SDE_Class):
 
         reverse_diff_log_probs = reverse_log_prob_func(x_next, x_prev + reverse_drifts_prev*dts_batched, diffusion_prev*jnp.sqrt(dts_batched))
         forward_diff_log_probs = forward_log_prob_func(x_prev, x_pos_next, diffusion_next*jnp.sqrt(dts_batched))
-        log_prob_noise = SDE_tracker_steps["log_prob_noise"]
 
+
+        log_prob_noise = SDE_tracker_steps["log_prob_noise"]
+        
         SDE_tracker = {
             "log_prob_prior_scaled": log_prob_prior_scaled,
             "log_prob_noise": log_prob_noise,
@@ -616,6 +630,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
             "sigma_prior": prior_sigma,
             "xs": SDE_tracker_steps["xs"],
             "ts": SDE_tracker_steps["ts"],
+            "counters": SDE_tracker_steps["counters"],
             "forward_diff_log_probs": forward_diff_log_probs,
             "reverse_log_probs": reverse_diff_log_probs,
             "dts": SDE_tracker_steps["dts"],
@@ -625,6 +640,7 @@ class Bridge_SDE_Class(Base_SDE_Class):
             "x_next": x_next,
             "prior_mean": prior_mean,
             "prior_sigma": prior_sigma,
+            "diffusions": diffusions,
             "keys": SDE_tracker_steps["key"],
             "interpolated_grads": interpol_grads,
             "interpol_log_probs": interpol_log_probs,
@@ -637,7 +653,29 @@ class Bridge_SDE_Class(Base_SDE_Class):
             fisher_grads = carry_dict["fisher_grads"]
             SDE_tracker["fisher_grads"] = fisher_grads
 
+        if("value_function_value" in apply_model_dict.keys()):
+            value_function_values = SDE_tracker_steps["value_function_value"]
+            SDE_tracker["value_function_values"] = value_function_values
+            #jax.debug.print("🤯 diffusions {diffusions} 🤯", diffusions=diffusions[:,0])
+
         return SDE_tracker, key
 
 
+    def compute_forward_log_probs(self, x_next, x_prev, diffusion_next, dts_batched, apply_model_dict_next, reverse_out_dict_next ):
+        if("forward_score" in reverse_out_dict_next.keys()):
+            forward_drift_neg = diffusion_next**2*apply_model_dict_next["forward_score"]
+            forward_drift = -forward_drift_neg
+        else:
+            forward_drifts_next = reverse_out_dict_next["reverse_drift"]   
+            grads_next = apply_model_dict_next["grad"]      
+            forward_drift = (diffusion_next**2*grads_next - forward_drifts_next)
 
+        x_pos_next = x_next + forward_drift*dts_batched
+        #jax.debug.print("x_pos_next {x_pos_next}", x_pos_next=x_pos_next)
+        #jax.debug.print("shapes {x_pos_next} {x_next} {forward_drift} {dts_batched}", x_pos_next=x_pos_next.shape, x_next=x_next.shape, forward_drift=forward_drift.shape, dts_batched=dts_batched.shape)
+        #jax.debug.print("shapes {x_pos_next} {x_next} {forward_drift} {dts_batched}", x_pos_next=x_pos_next[0], x_next=x_next[0], forward_drift=forward_drift[0], dts_batched=dts_batched[0])
+
+
+        forward_log_prob_func = jax.vmap(self.calc_diff_log_prob, in_axes=(0, 0, 0))
+        forward_diff_log_probs = forward_log_prob_func(x_prev, x_pos_next, diffusion_next*jnp.sqrt(dts_batched))
+        return forward_diff_log_probs
